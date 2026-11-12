@@ -1,0 +1,78 @@
+/* CAMPAIGN ATLAS — native level selection and records; no external assets. */
+.panel:has(.campaignScreen){width:min(860px,100%);max-height:96dvh;padding:clamp(14px,2.5vw,27px)}
+.campaignScreen{position:relative;isolation:isolate;color:#e1efff}
+.campaignTitle{font-size:clamp(24px,4vw,40px);margin:5px 0 6px;letter-spacing:-.02em;line-height:1.1}
+.campaignTop{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.campaignCounter{background:linear-gradient(135deg,#0e3444,#0b1c35);border:1px solid #60c3d762;border-radius:12px;padding:10px 14px;min-width:135px}
+.campaignCounter strong{font-size:23px;color:#a6ffcd;display:block;font-variant-numeric:tabular-nums}
+.campaignCounter small{color:#a4c1d4;font-weight:700;letter-spacing:.04em}
+.campaignLegend{display:flex;gap:10px;flex-wrap:wrap;font-size:11px;font-weight:750;color:#b1c9db;margin:12px 0}
+.campaignLegend span{display:inline-flex;align-items:center;gap:5px}
+.campaignDot{height:9px;width:9px;border-radius:50%;display:inline-block;background:#67839a}
+.campaignDot.done{background:#50f6a6;box-shadow:0 0 8px #4affaa77}
+.campaignDot.now{background:#73cfff;box-shadow:0 0 8px #7ecaff77}
+.campaignDot.locked{background:#526275}
+.campaignChapter{border:1px solid #356c83;border-radius:16px;background:linear-gradient(180deg,#132b43c9,#07162be0);padding:12px;margin-top:10px}
+.campaignChapterHead{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:12px}
+.campaignChapterHead b{font-size:14px;letter-spacing:.08em}
+.campaignChapterHead small{display:block;color:#86a7bf;font-size:10px;margin-top:3px}
+.campaignPagination{display:flex;align-items:center;gap:7px}
+.campaignPagination button{background:#18344d;border:1px solid #5c97ae78;border-radius:9px;padding:7px 11px;font-size:12px;font-weight:850;color:#e5f6ff}
+.campaignPagination button:disabled{opacity:.35;cursor:default}
+.campaignRoute{position:relative;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));column-gap:clamp(5px,1.3vw,12px);row-gap:12px;padding:8px 4px 6px}
+.campaignRoute:before{content:'';position:absolute;inset:4px 8%;pointer-events:none;opacity:.48;background:repeating-linear-gradient(90deg,#5bc5d633 0px,#5bc5d633 10px,transparent 10px,transparent 19px);height:2px;top:50%;filter:blur(.3px)}
+.campaignNode{position:relative;min-width:0;height:82px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;border-radius:13px;transition:transform .12s,box-shadow .12s;border:1px solid #4e7285;background:#0b1a2b;color:#b8c8d6;font-size:12px;font-weight:900;padding:7px 2px;touch-action:manipulation}
+.campaignNode .nodeN{font-size:21px;font-variant-numeric:tabular-nums;line-height:1}
+.campaignNode .nodeCaption{font-size:9px;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;letter-spacing:.02em}
+.campaignNode .nodeBadge{position:absolute;right:4px;top:3px;font-size:11px}
+.campaignNode.done{background:linear-gradient(160deg,#175342,#0d2b33);color:#c8ffe2;border-color:#60eeb7;box-shadow:inset 0 0 15px #1dce8223,0 0 11px #38bd6a1a}
+.campaignNode.done .nodeN{color:#a7ffd1}
+.campaignNode.current{background:linear-gradient(160deg,#174868,#0e243d);color:#f0ffff;border:2px solid #79dcff;box-shadow:0 0 20px #50baff55,inset 0 0 18px #44caff21;animation:campaignPulse 2.6s ease-in-out infinite}
+.campaignNode.locked{opacity:.47;background:linear-gradient(145deg,#141b28,#0a1220);border-color:#45515d;color:#8899a8;cursor:not-allowed;filter:saturate(.4)}
+.campaignNode.boss:not(.locked){border-width:2px}
+.campaignNode.boss .nodeN{font-weight:1000}
+.campaignNode:not(:disabled):active{transform:scale(.96)}
+.campaignNode:focus-visible{outline:2px solid white;outline-offset:3px}
+.campaignNode.current .nodeCaption{color:#9eefff}
+.campaignNode.done .nodeCaption{color:#a6ead0}
+@keyframes campaignPulse{50%{box-shadow:0 0 27px #45bfff99,inset 0 0 20px #44caff2e}}
+.campaignDetails{margin-top:12px;border:1px solid #55839a70;border-radius:12px;padding:12px;background:#07172aa8;font-size:12px;line-height:1.6;color:#a7c6db}
+.campaignDetails strong{color:#e8fff9}
+.campaignActions{display:flex;gap:9px;flex-wrap:wrap;margin-top:14px}
+.campaignActions button{flex:1 1 auto}
+.campaignNote{font-size:11px;color:#9db8c9;line-height:1.55;margin:9px 0}
+.campaignHero{display:flex;gap:10px;align-items:center;border:1px solid #4dcbac65;background:linear-gradient(105deg,#123e36aa,#0c263dba);border-radius:13px;padding:13px;margin:10px 0}
+.campaignHero b{font-size:18px;color:#c0ffda}
+.campaignHero small{display:block;color:#99c9ba;font-size:11px;margin-top:4px}
+.campaignProgressOuter{height:7px;background:#203c4b;border-radius:20px;overflow:hidden;margin-top:10px}
+.campaignProgressInner{height:100%;background:linear-gradient(90deg,#34c97e,#9effd1);border-radius:20px}
+@media(max-width:560px){.campaignRoute{grid-template-columns:repeat(4,minmax(0,1fr));row-gap:8px}.campaignNode{height:69px;border-radius:10px}.campaignNode .nodeN{font-size:18px}.campaignChapterHead{align-items:flex-start}.campaignTitle{font-size:27px}.campaignChapter{padding:9px}.campaignDetails{padding:9px}.campaignPagination button{padding:8px 10px}}
+@media(max-width:380px){.campaignRoute{grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}.campaignNode{height:65px}.campaignNode .nodeCaption{font-size:8px}}
+@media(prefers-reduced-motion:reduce){.campaignNode.current{animation:none}}
+
+
+/* Campaign map usability: accessible touch scrolling, snake path and connectors. */
+#overlay .panel:has(.campaignScreen){touch-action:pan-y;overscroll-behavior-y:contain;scrollbar-width:thin;scrollbar-color:#368098 #0b1c2f}
+.campaignRoute:before{display:none}
+.campaignNode{z-index:2}
+.campaignNode.boss.locked{border-color:#80654b;opacity:.55}
+.campaignNode.boss.current{border-color:#eac18b;box-shadow:0 0 18px #eaa96b44}
+.campaignNode.boss.done{border-color:#9ff0b8}
+.campaignWires{position:absolute;inset:0;z-index:1;overflow:visible;width:100%;height:100%;pointer-events:none}
+.campaignWire{fill:none;stroke-width:3.5;stroke-linecap:round}
+.campaignWire.done{stroke:#63edb0;filter:drop-shadow(0 0 5px #52f6b07f)}
+.campaignWire.current{stroke:#79d8ff;filter:drop-shadow(0 0 4px #60deff80)}
+.campaignWire.locked{stroke:#476376;stroke-dasharray:5 8;opacity:.6}
+.campaignDetails button{touch-action:manipulation}
+@media(max-width:560px){.campaignNode{min-width:0}.campaignWires{stroke-width:3}}
+
+#missionHUD{position:absolute;left:max(13px,env(safe-area-inset-left));top:clamp(110px,19vh,172px);width:min(240px,44vw);padding:8px 11px;background:linear-gradient(110deg,rgba(6,17,29,.85),rgba(10,31,43,.70));border:1px solid #54bbc45c;border-left:3px solid #63ecdd;border-radius:10px;color:#c7f7ed;box-shadow:0 8px 20px #00102188;line-height:1.38;text-shadow:0 1px 3px #001;pointer-events:none}
+#missionHUD b{display:block;color:#a6ffef;font-size:11px;letter-spacing:.13em;font-weight:900}
+#missionHUD span{display:block;font-size:11px;color:#d2e9e5;margin-top:2px}
+#missionHUD small{color:#9ebdba;font-size:10px}
+@media(max-width:700px){#missionHUD{top:clamp(170px,26vh,260px);width:min(195px,52vw);padding:6px 8px}#missionHUD b{font-size:10px}#missionHUD span,#missionHUD small{font-size:9px}}
+.campaignNode .missionMark{display:block;font-size:13px;color:#79cad7}
+.missionWinBanner{border:1px solid #49d7b783;background:#0b2d2b;padding:12px;border-radius:12px;color:#b1ffdf;margin:10px 0}
+
+#deviceHint{position:absolute;left:50%;bottom:clamp(125px,20vh,190px);transform:translateX(-50%);text-align:center;max-width:80vw;padding:7px 12px;border-radius:9px;background:rgba(5,19,31,.76);border:1px solid rgba(105,242,220,.48);color:#e1fffb;font-size:11px;font-weight:800;letter-spacing:.045em;white-space:normal;display:none;text-shadow:0 1px 3px #000;pointer-events:none}
+

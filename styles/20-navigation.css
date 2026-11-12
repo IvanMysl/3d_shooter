@@ -1,0 +1,7 @@
+/* MEGAWORLD interface: navigational guidance and visible radar mode. */
+#minimap{pointer-events:auto;cursor:pointer;touch-action:manipulation}
+#navSignal{position:absolute;top:max(14px,env(safe-area-inset-top));left:50%;transform:translateX(-50%);font-size:10px;letter-spacing:.1em;text-align:center;border:1px solid #6edcf145;border-radius:10px;background:#071a2bbd;padding:7px 12px;color:#a4edff;font-weight:850;white-space:nowrap;text-shadow:0 1px 3px #0009;max-width:48vw;overflow:hidden;text-overflow:ellipsis}
+#radarLabel{position:absolute;right:max(13px,env(safe-area-inset-right));top:calc(max(12px,env(safe-area-inset-top)) + 128px);font:750 9px system-ui;letter-spacing:.1em;color:#a4edff;text-align:center;width:124px;text-shadow:0 2px 6px #000}
+@media(max-width:700px){#navSignal{top:58px;max-width:65vw;padding:4px 8px;font-size:9px}#radarLabel{width:75px;top:calc(max(10px,env(safe-area-inset-top)) + 79px);right:8px}}
+@media(max-height:440px) and (orientation:landscape){#navSignal{top:8px;font-size:9px;max-width:35vw}#radarLabel{display:none}}
+

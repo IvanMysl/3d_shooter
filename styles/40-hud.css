@@ -1,0 +1,19 @@
+/* Rebalanced HUD leaves more of the world visible in landscape mode. */
+@media (orientation:landscape) and (max-height:570px){.hudtop{transform:scale(.84);transform-origin:top left}#bars{transform:scale(.83);transform-origin:bottom left}#weaponHud{transform:scale(.83);transform-origin:bottom right}}
+/* Progress state and actual plating feedback. */
+#saveToast{position:fixed;left:50%;bottom:max(8px,env(safe-area-inset-bottom));transform:translateX(-50%);z-index:12;background:#0a1727dc;border:1px solid #84acba66;color:#c4e8e3;border-radius:9px;padding:5px 10px;font-size:10px;letter-spacing:.05em;pointer-events:none;opacity:0;transition:opacity .3s}
+#saveToast.visible{opacity:1}
+#bars .arm{background:linear-gradient(90deg,#637e9e,#c6d7e2)}
+#bars.armorHit{box-shadow:0 0 0 2px #a3d6fc99,0 0 23px #75d9ff55}
+#bars.armorHit .arm{filter:brightness(1.6)}
+.backupActions{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0 4px}
+.backupActions button{padding:10px 13px}
+/* VERTICAL FRONTIER: accessible mobile jump control and height readout */
+#jumpTouch{grid-column:3;grid-row:1/3;align-self:center;justify-self:center;width:69px;height:69px;outline:2px solid #9df6e877;border-color:#b0f6ff;background:radial-gradient(circle at 36% 22%,#2a7891dd,#10263cfa);box-shadow:0 0 24px #57e5ff3d,inset 0 0 12px #a6f5ff3c;position:relative;margin-left:4px}
+#jumpTouch b{font-size:26px;line-height:1}
+#touchActions{grid-template-columns:repeat(3,57px);grid-template-rows:repeat(2,57px)}
+#altimeter{position:absolute;left:50%;top:calc(50% + 23px);transform:translateX(-50%);font:800 10px system-ui;color:#9af5fc;text-shadow:0 1px 8px #001;opacity:.8;pointer-events:none;white-space:nowrap}
+@media (max-width:600px){#touchActions{grid-template-columns:repeat(3,51px);grid-template-rows:repeat(2,51px)}#jumpTouch{width:60px;height:60px;margin-left:1px}#jumpTouch b{font-size:23px}}
+@media (max-height:480px) and (orientation:landscape){#touchActions{grid-template-columns:repeat(3,47px);grid-template-rows:repeat(2,47px)}#jumpTouch{width:56px;height:56px}}
+
+

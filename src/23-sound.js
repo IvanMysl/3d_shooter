@@ -1,0 +1,3 @@
+
+let ac=null;function audioStart(){if(!save.settings.audio)return;try{ac=ac||new (window.AudioContext||window.webkitAudioContext)();ac.resume?.()}catch(e){}}
+function sound(freq=220,duration=.07,type='triangle',vol=.07){if(!ac||!save.settings.audio)return;try{let osc=ac.createOscillator(),gain=ac.createGain();osc.type=type;osc.frequency.setValueAtTime(freq,ac.currentTime);osc.frequency.exponentialRampToValueAtTime(Math.max(freq*.6,30),ac.currentTime+duration);gain.gain.setValueAtTime(vol,ac.currentTime);gain.gain.exponentialRampToValueAtTime(.001,ac.currentTime+duration);osc.connect(gain);gain.connect(ac.destination);osc.start();osc.stop(ac.currentTime+duration+.01)}catch(e){}}

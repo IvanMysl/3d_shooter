@@ -1,0 +1,388 @@
+{
+  "title": "NEON RIFT 3D modular source",
+  "baseline": "NEON_RIFT_3D_FPS_CONTROL.html",
+  "baselineHtmlSha256": "ef4305cf7e06e83a3e498a4f97290fd263db7d4d1a6fe075895bc36d440ede05",
+  "baselineJsSha256": "976c970bce3eec47bd4b0f483002334b41767c3e2aa12b169f421e471b1fb79e",
+  "baselineCssSha256": "55ff921730cf1878a7a0bea15975da5b78c1b48385503ea17de1d2a282c2be28",
+  "baselineDirectorCssSha256": "9dfb7c02b6f2613435bfbd9317966a7cda368d9180baea6bac75721544b95609",
+  "wrapperPrefix": "_wrapper-prefix.txt",
+  "wrapperSuffix": "_wrapper-suffix.txt",
+  "moduleOrder": [
+    {
+      "file": "00-core-save.js",
+      "description": "Состояние, настройки, сохранения, импорт и экспорт",
+      "statements": [
+        1,
+        29
+      ],
+      "originalLines": [
+        308,
+        374
+      ],
+      "bytes": 5771
+    },
+    {
+      "file": "01-webgl-shaders.js",
+      "description": "WebGL: холст, материалы, шейдеры, постобработка",
+      "statements": [
+        30,
+        59
+      ],
+      "originalLines": [
+        374,
+        650
+      ],
+      "bytes": 22535
+    },
+    {
+      "file": "02-geometry.js",
+      "description": "Геометрические примитивы, матрицы, WebGL draw",
+      "statements": [
+        60,
+        78
+      ],
+      "originalLines": [
+        650,
+        686
+      ],
+      "bytes": 5085
+    },
+    {
+      "file": "03-height-and-collision.js",
+      "description": "Этажность, прыжки, лестницы, столкновения",
+      "statements": [
+        79,
+        95
+      ],
+      "originalLines": [
+        686,
+        792
+      ],
+      "bytes": 5198
+    },
+    {
+      "file": "04-map-generation.js",
+      "description": "Алгоритм построения карт",
+      "statements": [
+        96,
+        97
+      ],
+      "originalLines": [
+        792,
+        1099
+      ],
+      "bytes": 14768
+    },
+    {
+      "file": "05-world-mesh.js",
+      "description": "Процедурное создание трёхмерных миров",
+      "statements": [
+        98,
+        98
+      ],
+      "originalLines": [
+        1099,
+        1650
+      ],
+      "bytes": 29807
+    },
+    {
+      "file": "06-world-environment.js",
+      "description": "Декорации, навигационные маяки, передовые враги",
+      "statements": [
+        99,
+        101
+      ],
+      "originalLines": [
+        1650,
+        1701
+      ],
+      "bytes": 2321
+    },
+    {
+      "file": "07-robot-foundry-core.js",
+      "description": "Основы Robot Foundry и детали корпуса",
+      "statements": [
+        102,
+        106
+      ],
+      "originalLines": [
+        1701,
+        1992
+      ],
+      "bytes": 13179
+    },
+    {
+      "file": "08-robot-foundry-rigs.js",
+      "description": "Анимация, повреждения, броня и конечности роботов",
+      "statements": [
+        107,
+        114
+      ],
+      "originalLines": [
+        1992,
+        2630
+      ],
+      "bytes": 28479
+    },
+    {
+      "file": "09-robot-foundry-artifacts.js",
+      "description": "Плазма, датчики, части брони, обломки и модели врагов",
+      "statements": [
+        115,
+        128
+      ],
+      "originalLines": [
+        2630,
+        2949
+      ],
+      "bytes": 16181
+    },
+    {
+      "file": "10-first-person-render.js",
+      "description": "Оружие от первого лица, основной рендер",
+      "statements": [
+        129,
+        130
+      ],
+      "originalLines": [
+        2949,
+        3165
+      ],
+      "bytes": 13811
+    },
+    {
+      "file": "11-fallback-render.js",
+      "description": "Резервный Canvas-рендер без WebGL",
+      "statements": [
+        131,
+        135
+      ],
+      "originalLines": [
+        3165,
+        3615
+      ],
+      "bytes": 29885
+    },
+    {
+      "file": "12-arsenal-and-game.js",
+      "description": "Данные оружия/врагов/улучшений, игрок, запуск игры",
+      "statements": [
+        136,
+        144
+      ],
+      "originalLines": [
+        3615,
+        3666
+      ],
+      "bytes": 10689
+    },
+    {
+      "file": "13-enemy-navigation-spawn.js",
+      "description": "Навигация, появление врагов, урон и смерть",
+      "statements": [
+        145,
+        155
+      ],
+      "originalLines": [
+        3666,
+        3784
+      ],
+      "bytes": 9789
+    },
+    {
+      "file": "14-combat-raycast.js",
+      "description": "Следы попаданий, геометрические лучи и поиск целей",
+      "statements": [
+        156,
+        161
+      ],
+      "originalLines": [
+        3784,
+        3866
+      ],
+      "bytes": 3412
+    },
+    {
+      "file": "15-mission-system.js",
+      "description": "Типы миссий, цели, маршрут и завершение",
+      "statements": [
+        162,
+        176
+      ],
+      "originalLines": [
+        3866,
+        4012
+      ],
+      "bytes": 8091
+    },
+    {
+      "file": "16-mission-devices.js",
+      "description": "Устройства, энергетические узлы и взаимодействия",
+      "statements": [
+        177,
+        184
+      ],
+      "originalLines": [
+        4012,
+        4161
+      ],
+      "bytes": 7529
+    },
+    {
+      "file": "17-weapon-combat.js",
+      "description": "Оружейные эффекты, выстрелы, баллистика и попадания",
+      "statements": [
+        185,
+        197
+      ],
+      "originalLines": [
+        4161,
+        4298
+      ],
+      "bytes": 7182
+    },
+    {
+      "file": "18-ai-and-abilities.js",
+      "description": "Способности, атаки врагов, ИИ и снаряды",
+      "statements": [
+        198,
+        203
+      ],
+      "originalLines": [
+        4298,
+        4409
+      ],
+      "bytes": 11443
+    },
+    {
+      "file": "19-gameplay-update.js",
+      "description": "Арсенал, управление, тик игры, портал, HUD",
+      "statements": [
+        204,
+        216
+      ],
+      "originalLines": [
+        4409,
+        4497
+      ],
+      "bytes": 9616
+    },
+    {
+      "file": "20-minimap-and-checkpoint.js",
+      "description": "Миникарта, сохранение и восстановление игровой сессии",
+      "statements": [
+        217,
+        224
+      ],
+      "originalLines": [
+        4497,
+        4585
+      ],
+      "bytes": 7849
+    },
+    {
+      "file": "21-campaign-map.js",
+      "description": "Структура кампании, уровни и экран выбора",
+      "statements": [
+        225,
+        231
+      ],
+      "originalLines": [
+        4585,
+        4679
+      ],
+      "bytes": 9321
+    },
+    {
+      "file": "22-menus-and-upgrades.js",
+      "description": "Настройки FPS, меню, ангар, улучшения, пауза",
+      "statements": [
+        232,
+        242
+      ],
+      "originalLines": [
+        4679,
+        4696
+      ],
+      "bytes": 13218
+    },
+    {
+      "file": "23-sound.js",
+      "description": "Web Audio, синтезированные звуковые эффекты",
+      "statements": [
+        243,
+        245
+      ],
+      "originalLines": [
+        4696,
+        4698
+      ],
+      "bytes": 686
+    },
+    {
+      "file": "24-cinematic-hooks.js",
+      "description": "Director’s Cut: визуальные эффекты и обёртки базовых функций",
+      "statements": [
+        246,
+        271
+      ],
+      "originalLines": [
+        4698,
+        4856
+      ],
+      "bytes": 7110
+    },
+    {
+      "file": "25-cinematic-menu-perf.js",
+      "description": "Анимация меню и масштабирование по производительности",
+      "statements": [
+        272,
+        288
+      ],
+      "originalLines": [
+        4856,
+        4916
+      ],
+      "bytes": 5165
+    },
+    {
+      "file": "26-input-handlers.js",
+      "description": "Клавиатура, мышь, сенсорный экран, fullscreen",
+      "statements": [
+        289,
+        311
+      ],
+      "originalLines": [
+        4916,
+        4990
+      ],
+      "bytes": 6794
+    },
+    {
+      "file": "27-main-loop-diagnostics.js",
+      "description": "Ограничение FPS, игровой цикл, диагностика и тестовые API",
+      "statements": [
+        312,
+        325
+      ],
+      "originalLines": [
+        4990,
+        5073
+      ],
+      "bytes": 12232
+    }
+  ],
+  "styleOrder": [
+    "00-core.css",
+    "10-eclipse.css",
+    "20-navigation.css",
+    "30-weapons.css",
+    "40-hud.css",
+    "50-campaign.css",
+    "60-fps.css",
+    "70-directors-cut.css"
+  ],
+  "runtimeEntry": "index.html",
+  "runtimeBundle": "dist/game.js"
+}

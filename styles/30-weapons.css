@@ -1,0 +1,46 @@
+/* RENDER: industrial alloy weapon silhouette, surface trim and scope sight. */
+#gun{perspective:480px;filter:drop-shadow(0 10px 22px #000d) drop-shadow(0 0 9px #45c8eb45)}
+#gunbarrel{height:106%;clip-path:polygon(40% 0,60% 0,71% 9%,83% 42%,93% 70%,88% 100%,12% 100%,7% 70%,17% 42%,29% 9%);background:linear-gradient(90deg,#070b14 0%,#1b2b3b 10%,#384a55 21%,#131b26 34%,#425867 46%,#161f2a 55%,#405968 67%,#14212f 83%,#050a15 100%);border-top:3px solid #a9c5c6}
+#gunbarrel:after{left:40%;width:20%;top:5%;height:78%;background:linear-gradient(#dbe9e9,#8496a0 14%,#283443 18%,#223844 35%,#86aeb8 40%,#122635 46%,#14242c 78%,#070e18);box-shadow:0 0 20px #33bada66}
+#gunSight{position:absolute;left:50%;top:-12px;transform:translateX(-50%);width:27px;height:31px;border:4px solid #182634;border-radius:6px 6px 3px 3px;box-shadow:0 0 1px 1px #72919b,0 0 8px #6dfcff3e;background:linear-gradient(180deg,#102f3d66,#0b1925aa)}
+#gunSight:after{content:'';position:absolute;left:7px;top:8px;width:5px;height:5px;border-radius:50%;background:#89f8eb;box-shadow:0 0 8px #80feff}
+#gunGrip{position:absolute;left:34%;bottom:0;width:32%;height:46px;background:repeating-linear-gradient(0deg,#0c1822 0 6px,#293844 7px 10px);clip-path:polygon(8% 0,92% 0,100% 100%,0 100%);border:1px solid #526a79}
+#gunRails{position:absolute;left:32%;top:42%;width:36%;height:5px;background:repeating-linear-gradient(90deg,#8fa0ab 0 3px,#0b101a 3px 10px);box-shadow:0 2px 3px #000,0 0 9px #58a9ca70}
+#scanlines{opacity:.038}#vignette{background:radial-gradient(ellipse at 50% 45%,transparent 45%,rgba(0,1,8,.39) 100%)}
+
+/* TAP-TO-FIRE: abilities only; a larger unobstructed area for look and shooting. */
+#touchActions{grid-template-columns:repeat(2,57px);grid-template-rows:repeat(2,57px);}
+@media (max-width:600px){#touchActions{grid-template-columns:repeat(2,51px);grid-template-rows:repeat(2,51px);}}
+@media (max-height:480px) and (orientation:landscape){#touchActions{grid-template-columns:repeat(2,47px);grid-template-rows:repeat(2,47px);}}
+#muzzle{background:radial-gradient(ellipse at center,var(--flash-color,#f7fbff) 0%,#ffd27799 17%,#fd7c342e 42%,transparent 68%);mix-blend-mode:screen;filter:drop-shadow(0 0 18px var(--flash-color,#7ceeff));}
+#weaponHud strong{text-shadow:0 0 16px #58ceeb8c,0 2px 3px #000}
+@media(max-width:580px){#weaponHud strong{font-size:15px;}}
+
+/* Distinctive first-person weapon silhouettes, no image files. */
+#gun{filter:drop-shadow(0 0 13px var(--weapon-glow,#4de8ff)) drop-shadow(0 12px 19px #000a)}
+#gun[data-gun="1"] #gunbarrel{width:52%;clip-path:polygon(27% 0,73% 0,92% 17%,99% 85%,82% 100%,18% 100%,1% 85%,8% 17%)}
+#gun[data-gun="2"] #gunbarrel{width:31%;height:140%;background:linear-gradient(90deg,#07090f,#4a3c61,#2b2240,#6d529d,#13121c)}
+#gun[data-gun="3"] #gunbarrel{width:54%;background:linear-gradient(90deg,#080c14,#3e4952,#141d26,#485a69,#080c17)}
+#gun[data-gun="4"] #gunbarrel,#gun[data-gun="8"] #gunbarrel{width:48%;background:linear-gradient(90deg,#15120d,#69503b,#1d1c1e,#74614a,#141416)}
+#gun[data-gun="5"] #gunbarrel{width:32%;height:88%;background:linear-gradient(90deg,#031e1c,#287b72,#0b2829,#448c7e,#061a1c)}
+#gun[data-gun="6"] #gunbarrel{width:41%;height:125%;background:linear-gradient(90deg,#091c12,#2d5834,#0b2718,#468547,#0d1a14)}
+#gun[data-gun="7"] #gunbarrel{width:40%;background:linear-gradient(90deg,#061629,#30799a,#0f273f,#66bed0,#062436)}
+#gun[data-gun="9"] #gunbarrel{width:32%;background:linear-gradient(90deg,#091622,#719ca3,#1f384e,#84d6e5,#102a3d)}
+/* Mobile weapon arsenal: all ten weapons directly selectable, no accidental firing. */
+#weaponDrawer{position:absolute;right:max(12px,env(safe-area-inset-right));bottom:210px;width:min(355px,calc(100vw - 24px));max-height:min(57dvh,440px);display:none;overflow:auto;pointer-events:auto;border:1px solid #6ff5ff7a;border-radius:16px;background:linear-gradient(150deg,#091b30f5,#050a18f5);padding:10px;box-shadow:0 16px 45px #000d,0 0 24px #22eeff33;backdrop-filter:blur(17px);z-index:9}
+#weaponDrawer.open{display:block}.arsenalTop{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:0 0 8px;font-size:12px;font-weight:950;letter-spacing:.1em;color:#9cf6ff}
+#arsenalClose{background:#1c3957;border:1px solid #7edfff88;border-radius:8px;padding:4px 12px;font-weight:900}
+.arsenalGrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}.arsenalChoice{min-width:0;border-radius:9px;border:1px solid #467d9c87;background:#0c253a;padding:10px 7px;color:#c5efff;text-align:left;font-size:11px;font-weight:850;display:flex;align-items:center;gap:7px}
+.arsenalChoice b{font-size:21px}.arsenalChoice.current{border-color:#a2fff2;background:#174d58;color:#fff;box-shadow:inset 0 0 14px #1ffff42a}
+#eventLabel{position:absolute;left:50%;top:calc(50% + 39px);transform:translateX(-50%);font-size:11px;letter-spacing:.11em;font-weight:900;color:#f9e9a8;text-align:center;text-shadow:0 0 9px #ec7b1788;opacity:0;transition:opacity .12s;pointer-events:none}
+@media (max-height:480px) and (orientation:landscape){#weaponDrawer{right:162px;bottom:8px;width:min(370px,55vw);max-height:90dvh}.arsenalChoice{padding:6px 7px}}
+@media (max-width:370px){#weaponDrawer{width:calc(100vw - 20px);right:10px;bottom:174px;max-height:52dvh}}
+
+@media (orientation:portrait) and (max-width:530px){
+ #navSignal{top:110px;max-width:78vw;font-size:9px;padding:5px 10px}
+ #radarLabel{top:95px;right:8px;font-size:8px}
+ .hudtop .sector{font-size:13px;line-height:1.16}
+ .hudtop .stats{font-size:9px;gap:5px;flex-wrap:wrap;max-width:170px}
+ .hudtop .brandtiny{font-size:9px;letter-spacing:.14em}
+}
+body.webgl #gun{display:none!important}

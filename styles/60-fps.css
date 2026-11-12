@@ -1,0 +1,10 @@
+/* FPS CONTROL: independent real-frame meter, underneath the top-right buttons. */
+#fpsCorner{position:absolute;top:max(61px,calc(env(safe-area-inset-top) + 53px));right:max(12px,env(safe-area-inset-right));min-width:68px;padding:4px 7px;text-align:center;border:1px solid #5f879866;border-radius:7px;background:rgba(4,14,25,.78);color:#bdeafa;font:900 11px/1.2 ui-monospace,Consolas,monospace;letter-spacing:.02em;font-variant-numeric:tabular-nums;pointer-events:none;white-space:nowrap;text-shadow:0 1px 4px #000;backdrop-filter:blur(5px);box-shadow:0 3px 12px #0006;}
+#fpsCorner.fpsWarn{color:#ffd181;border-color:#c59a5066}
+#fpsCorner.fpsLow{color:#ff97a4;border-color:#d2677466}
+.fpsSettings{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:11px 13px;border:1px solid #478b9b66;border-radius:12px;background:#0a2032bb;margin:12px 0 6px}
+.fpsSettings label{font-size:12px;font-weight:900;letter-spacing:.07em;color:#b5e7ed}
+.fpsSettings select{appearance:auto;min-width:132px;background:#122b41;color:#f0ffff;border:1px solid #79cddd99;border-radius:9px;padding:8px 11px;font:800 13px system-ui;cursor:pointer;touch-action:manipulation}
+.fpsSettings option{background:#11253b;color:#fff}
+.fpsSettings small{flex-basis:100%;font-size:11px;line-height:1.4;color:#95b9c7}
+@media (max-width:420px){#fpsCorner{font-size:10px;padding:4px 6px;min-width:62px}.fpsSettings{gap:8px}}
