@@ -12,12 +12,12 @@ const permBlock=playerCode.slice(playerCode.indexOf('const PERM_COMPOUND='),play
 const abilityCode=src('18-ai-and-abilities.js');
 const pulseBlock=abilityCode.slice(abilityCode.indexOf('function useAbility('),abilityCode.indexOf('function enemyFire('));
 
-// An old 6-item permanent save gains exactly two new empty EMP slots.
+// An old 6-item permanent save gains the EMP and Stage28 repair/shield slots.
 const core=src('00-core-save.js');
 const saved={Math,Number,Array,clamp};vm.createContext(saved);
 vm.runInContext(core.slice(core.indexOf('const PERM_MAX_LEVEL='),core.indexOf('function getSaved(')),saved);
 let normalized=vm.runInContext('normalizePerms([4,5,6,7,8,9])',saved);
-check(normalized.length===8&&normalized[0]===4&&normalized[5]===9&&normalized[6]===0&&normalized[7]===0,
+check(normalized.length===12&&normalized[0]===4&&normalized[5]===9&&normalized.slice(6).every(v=>v===0),
  'old permanent save lost ranks or failed to append EMP branches');
 normalized=vm.runInContext('normalizePerms([0,0,0,0,0,0,40,100])',saved);
 check(normalized[6]===40&&normalized[7]===40,'EMP research ranks bypass maximum');
@@ -130,9 +130,9 @@ near(restore.game.p.armor,expectedBarrier/2,'new checkpoint partial barrier was 
 
 // UI/shop and both input routes must expose exactly the new intended actions.
 const shop=src('22-menus-and-upgrades.js'),input=src('26-input-handlers.js');
-check(shop.includes("{name:'РАДИУС ЭМИ-ИМПУЛЬСА'")&&shop.includes("{name:'УРОН ЭМИ-ИМПУЛЬСА'"),
+check(shop.includes("{name:'РАДИУС ЭМИ (Q)'")&&shop.includes("{name:'УРОН ЭМИ (Q)'"),
  'permanent EMP studies are not offered in the hangar');
-check(shop.includes('const now=i===2?')&&shop.includes('permanentStat(66,PERM_COMPOUND.pulseDamage,lv)'),
+check(shop.includes('function permCurrentStat(')&&shop.includes('permanentStat(66,PERM_COMPOUND.pulseDamage,lv)'),
  'shop does not show current stat values');
 check(input.includes("if(e.code==='KeyE')useAbility('dash')")&&
  input.includes("if(e.code==='KeyF')useAbility('heal')")&&

@@ -132,8 +132,8 @@ const abilitySrc=src('18-ai-and-abilities.js');
 vm.runInContext(abilitySrc.slice(abilitySrc.indexOf('function useAbility('),abilitySrc.indexOf('function enemyFire(')),abilityCtx);
 abilityCtx.useAbility('shield');
 const shield=abilityCtx.game.p;
-check(shield.abilityCooldowns.shield>9.5&&shield.shield/shield.abilityCooldowns.shield<.70,
- 'full shield perk set still grants excessive permanent invulnerability');
+check(Math.abs(shield.abilityCooldowns.shield-shield.shield-5)<1e-8&&shield.shield/shield.abilityCooldowns.shield<.70,
+ 'full shield perk set must have five seconds of downtime without endless invulnerability');
 const restoreCtx={Math,Number,clamp,PERM_MAX_LEVEL:40,
  DASH_DISTANCE_BASE:2.52,DASH_UPGRADE_STEP:.30,
  save:{perms:[5,7,6,4,3,2]},weapons:Array(10).fill(null),

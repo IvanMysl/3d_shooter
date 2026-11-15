@@ -35,17 +35,56 @@ function unpauseGame(){
 
 function menu(){closeArsenal();game=null;input.fire=false;if(document.pointerLockElement)document.exitPointerLock();const cp=save.checkpoint;panel(`<div class="eyebrow">▣ ROBOT FOUNDRY VI · РАЗРУШАЕМАЯ БРОНЯ</div><div class="logo">NEON <em>RIFT</em><small>ECLIPSE PROTOCOL</small></div>${devMode?'<div class="devFlag">🛠 DEV · ТЕСТОВЫЙ ПРОГРЕСС · ∞ КРЕДИТЫ</div>':''}<div class="scenehint">FOUNDRY VI · БРОНЕПЛАСТИНЫ · ОСКОЛКИ · 18 КАРТ · 7 МИССИЙ</div><div class="lede">Портал разлома разрушает миры. Пройди <b>100 уровней в пяти главах</b>, переживи волны машин, уничтожь владык разлома и усили свой боевой костюм. Каждый пятый сектор — особый босс.</div><div class="quickstats"><div><b>${save.campaign.completedThrough}</b><span>ПРОЙДЕНО УРОВНЕЙ</span></div><div><b>${developerCredits()}</b><span>КРЕДИТЫ</span></div><div><b>${save.kills}</b><span>ВСЕГО ПОБЕД</span></div></div><div class="row"><button id="campaignMap" class="primary">◈ КАРТА УРОВНЕЙ</button>${cp?`<button id="resume" class="secondary">↪ ПРОДОЛЖИТЬ · ${cp.sector}</button>`:''}<button id="newRun" class="secondary">▶ НОВЫЙ ЗАБЕГ · УРОВЕНЬ ${save.campaign.highestUnlocked}</button><button id="hangar" class="secondary">⚙ АНГАР / УСИЛЕНИЯ</button><button id="devToggle" class="secondary">${devMode?'⚙ ВЫЙТИ ИЗ DEV':'⌘ РЕЖИМ РАЗРАБОТЧИКА'}</button>${devMode?'<button id="devSettings" class="secondary">⚿ ПАРОЛЬ / СБРОС DEV</button>':''}</div>
 ${fpsSettingsHTML('menuFpsLimit')}
-<div class="backupActions"><button class="secondary" data-export-save>⬇ ЭКСПОРТ ПРОГРЕССА</button><button class="secondary" data-import-save>⬆ ИМПОРТ ПРОГРЕССА</button></div><div class="smalltext">${storageAvailable?'✓ Автосохранение: каждые 2,6 секунды, при паузе и закрытии страницы.':'⚠ Браузер запрещает запись. Экспортируй копию.'} Для переноса сохранения между файлами HTML и браузерами используй экспорт/импорт.</div><div class="line"></div><div class="smalltext"><b class="accent">ПК:</b> WASD — движение, пробел — прыжок, V/двойной пробел — полёт (если есть лётный костюм), удерживать Space/Shift — набор/снижение высоты; мышь — осмотр, ЛКМ — стрельба, 1–9/0 — оружие. <b>E — фазовый рывок без перезарядки</b>, ↑/↓ — его дальность; <b>F — восстановление по очереди: корпус → бронекостюм → энергобарьер (без ожидания, пока хватает энергии).</b> <b>Q — ЭМИ-импульс без перезарядки</b> (52 энергии); <b>C — временная защитная сфера</b> (полная защита от ударов, но не заряд энергобарьера). Радиус и урон Q улучшаются в ангаре сложными процентами. F5 — камера, G — полный экран, M — масштаб карты, Esc — пауза. При полёте [ / ] меняют горизонтальную, , / . — вертикальную скорость; также есть ползунки прямо на игровом экране.<br><b class="accent">Телефон:</b> левый джойстик — движение, касание поля — выстрел, свайп — обзор; значки ➤ (рывок), ✚ (восстановление), ◈ (защитная сфера), ✺ (импульс), ⤒ (прыжок). Для лётных костюмов появляются ✈ / ↑ / ↓ и два ползунка скорости. Дальность рывка можно менять в паузе. <b>«Арсенал»</b> открывает список оружия; мини-карта меняет масштаб по касанию.</div><div class="note">Десять видов оружия, разные классы роботов, разрушаемые энергоядра, элитные противники и следы на стенах. Третья степень графики наиболее требовательна. В меню и на паузе отрисовка 3D отключается для экономии GPU. Игра работает без Интернета, внешних библиотек, регистрации и оплаты. Автосохранение текущего боя и экспорт резервной копии в JSON. ${glReady?'Аппаратный WebGL-движок активен.':'Работает программный 3D-режим, если WebGL недоступен.'}</div>`);$('campaignMap').onclick=()=>showCampaignMap();$('newRun').onclick=()=>startGame(false,save.campaign.highestUnlocked);if(cp)$('resume').onclick=()=>startGame(true);$('hangar').onclick=hangar;$('devToggle').onclick=()=>devMode?developerLeave():showDeveloperPanel();if(devMode)$('devSettings').onclick=showDeveloperPanel;wireBackupButtons();wireFpsSettings()}
+<div class="backupActions"><button class="secondary" data-export-save>⬇ ЭКСПОРТ ПРОГРЕССА</button><button class="secondary" data-import-save>⬆ ИМПОРТ ПРОГРЕССА</button></div><div class="smalltext">${storageAvailable?'✓ Автосохранение: каждые 2,6 секунды, при паузе и закрытии страницы.':'⚠ Браузер запрещает запись. Экспортируй копию.'} Для переноса сохранения между файлами HTML и браузерами используй экспорт/импорт.</div><div class="line"></div><div class="smalltext"><b class="accent">ПК:</b> WASD — движение, пробел — прыжок, V/двойной пробел — полёт (если есть лётный костюм), удерживать Space/Shift — набор/снижение высоты; мышь — осмотр, ЛКМ — стрельба, 1–9/0 — оружие. <b>E — фазовый рывок без перезарядки</b>, ↑/↓ — его дальность; <b>F — восстановление по очереди: корпус → бронекостюм → энергобарьер (без ожидания, пока хватает энергии).</b> <b>Q — ЭМИ-импульс без перезарядки</b> (52 энергии); <b>C — временная защитная сфера</b> (50 энергии, перезарядка 5 секунд после окончания действия, но без заряда энергобарьера). Радиус и урон Q улучшаются в ангаре сложными процентами. F5 — камера, G — полный экран, M — масштаб карты, Esc — пауза (в ангаре — в меню). При полёте [ / ] меняют горизонтальную, , / . — вертикальную скорость; также есть ползунки прямо на игровом экране.<br><b class="accent">Телефон:</b> левый джойстик — движение, касание поля — выстрел, свайп — обзор; значки ➤ (рывок), ✚ (восстановление), ◈ (защитная сфера), ✺ (импульс), ⤒ (прыжок). Для лётных костюмов появляются ✈ / ↑ / ↓ и два ползунка скорости. Дальность рывка можно менять в паузе. <b>«Арсенал»</b> открывает список оружия; мини-карта меняет масштаб по касанию.</div><div class="note">Десять видов оружия, разные классы роботов, разрушаемые энергоядра, элитные противники и следы на стенах. Третья степень графики наиболее требовательна. В меню и на паузе отрисовка 3D отключается для экономии GPU. Игра работает без Интернета, внешних библиотек, регистрации и оплаты. Автосохранение текущего боя и экспорт резервной копии в JSON. ${glReady?'Аппаратный WebGL-движок активен.':'Работает программный 3D-режим, если WebGL недоступен.'}</div>`);$('campaignMap').onclick=()=>showCampaignMap();$('newRun').onclick=()=>startGame(false,save.campaign.highestUnlocked);if(cp)$('resume').onclick=()=>startGame(true);$('hangar').onclick=hangar;$('devToggle').onclick=()=>devMode?developerLeave():showDeveloperPanel();if(devMode)$('devSettings').onclick=showDeveloperPanel;wireBackupButtons();wireFpsSettings()}
 const hangarData=[
- {name:'УЛУЧШЕНИЕ КОРПУСА',desc:'Каждый уровень: ×1,08 к предыдущему максимуму корпуса (+8% сложными процентами).'},
- {name:'ОБЩАЯ МОДИФИКАЦИЯ',desc:'Каждый уровень: ×1,04 к предыдущему урону всех орудий (+4%). Дополнительно к улучшениям оружия.'},
- {name:'ЭНЕРГОБАРЬЕР',desc:'Каждый уровень: ×1,09 к предыдущей ёмкости энергобарьера (+9% сложными процентами).'},
- {name:'ЭНЕРГО-ЯДРО',desc:'Каждый уровень: ×1,04 к предыдущей скорости регенерации энергии (+4%).'},
- {name:'ЁМКОСТЬ ЭНЕРГО-ЯДРА',desc:'Каждый уровень: ×1,04 к предыдущей ёмкости (+4%).'},
- {name:'ФАЗОВЫЙ РАДИУС',desc:'Каждый уровень: +0,30 м к максимальному рывку (E); стрелки ↑/↓ регулируют дальность по 0,50 м.'},
- {name:'РАДИУС ЭМИ-ИМПУЛЬСА',desc:'Каждый уровень: ×1,012 к радиусу Q (+1,2% сложными процентами), до ~9,35 м при LVL 40.'},
- {name:'УРОН ЭМИ-ИМПУЛЬСА',desc:'Каждый уровень: ×1,04 к урону Q (+4% сложными процентами). Не влияет на обычное оружие.'}
+ {name:'ПРОЧНОСТЬ КОРПУСА',desc:'Максимальная прочность +8% за уровень.'},
+ {name:'УРОН ВСЕГО ОРУЖИЯ',desc:'Урон любого оружия +4% за уровень.'},
+ {name:'ЭНЕРГОБАРЬЕР',desc:'Максимальный запас барьера +9% за уровень.'},
+ {name:'РЕГЕНЕРАЦИЯ ЭНЕРГИИ',desc:'Восстановление энергии +4% за уровень.'},
+ {name:'ЗАПАС ЭНЕРГИИ',desc:'Максимальная энергия +4% за уровень.'},
+ {name:'ДАЛЬНОСТЬ РЫВКА (E)',desc:'Максимальная дальность +0,30 м за уровень. ↑/↓ — выбрать дистанцию.'},
+ {name:'РАДИУС ЭМИ (Q)',desc:'Радиус импульса +1,2% за уровень.'},
+ {name:'УРОН ЭМИ (Q)',desc:'Урон импульса +4% за уровень.'},
+ {name:'РЕМОНТ КОРПУСА (F)',desc:'Восстанавливает на 3% больше за уровень. До 50 энергии.'},
+ {name:'РЕМОНТ КОСТЮМА (F)',desc:'Восстанавливает на 2,5% больше за уровень. До 50 энергии.'},
+ {name:'РЕМОНТ БАРЬЕРА (F)',desc:'Восстанавливает на 2% больше за уровень. До 40 энергии.'},
+ {name:'ВРЕМЯ ЗАЩИТНОЙ СФЕРЫ (C)',desc:'Действует на 0,6% дольше за уровень. 50 энергии; перезарядка 5 с после конца.'}
 ];
+const permCategories=[
+ {id:'defense',icon:'⬡',name:'КОРПУС И БАРЬЕР',hint:'Максимальный запас защиты',upgrades:[0,2]},
+ {id:'energy',icon:'ϟ',name:'ЭНЕРГИЯ',hint:'Запас и скорость восстановления',upgrades:[3,4]},
+ {id:'combat',icon:'✹',name:'ОРУЖИЕ И ЭМИ',hint:'Урон оружия и импульса Q',upgrades:[1,6,7]},
+ {id:'repair',icon:'✚',name:'РЕМОНТ (F)',hint:'Сколько восстанавливает одно нажатие',upgrades:[8,9,10]},
+ {id:'abilities',icon:'➤',name:'СПОСОБНОСТИ (E / C)',hint:'Дальность рывка и время защиты',upgrades:[5,11]}
+];
+function permCurrentStat(i,suit){
+ const lv=save.perms[i],number=(v,n=1)=>v.toFixed(n).replace('.',',');
+ switch(i){
+  case 0:return number(permanentStat(100,PERM_COMPOUND.health,lv))+' ед. прочности';
+  case 1:return '+'+number((permanentStat(1,PERM_COMPOUND.damage,lv)-1)*100)+'% к урону оружия';
+  case 2:return number(permanentStat(30,PERM_COMPOUND.barrier,lv))+' ед. барьера';
+  case 3:return number(permanentStat(16,PERM_COMPOUND.regen,lv),2)+' энергии/с';
+  case 4:return number(permanentStat(100,PERM_COMPOUND.capacity,lv))+' энергии';
+  case 5:return number(DASH_DISTANCE_BASE+lv*DASH_UPGRADE_STEP,2)+' м';
+  case 6:return number(permanentStat(5.8,PERM_COMPOUND.pulseRadius,lv),2)+' м';
+  case 7:return number(permanentStat(66,PERM_COMPOUND.pulseDamage,lv))+' урона';
+  case 8:return number(permanentStat(49,PERM_COMPOUND.repairHull,lv))+' ед. корпуса за F';
+  case 9:{const fraction=permanentStat(.07,PERM_COMPOUND.repairSuit,lv);
+   return number(fraction*100,2)+'% прочности костюма'+(suit.maxDurability?' ('+number(suit.maxDurability*fraction)+' ед.)':'');}
+  case 10:{const fraction=permanentStat(.30,PERM_COMPOUND.repairBarrier,lv);
+   return number(fraction*100,2)+'% барьера ('+number(permanentStat(30,PERM_COMPOUND.barrier,save.perms[2])*fraction)+' ед.)';}
+  case 11:return number(permanentStat(3.5,PERM_COMPOUND.shieldDuration,lv),2)+' с защиты';
+ }
+ return '';
+}
+function permShopHTML(suit){
+ return permCategories.map(group=>`<details class="permCategory" data-section="perm-${group.id}">
+  <summary><span class="permCategoryIcon" aria-hidden="true">${group.icon}</span><span class="permCategoryText"><strong>${group.name}</strong><small>${group.hint}</small></span><span class="permCategoryCount">${group.upgrades.length} улучш.</span><span class="permChevron" aria-hidden="true">⌄</span></summary>
+  <div class="shopitems">${group.upgrades.map(i=>{
+   const x=hangarData[i],lv=save.perms[i],cost=permPrice(i);
+   return `<div class="shopitem permUpgrade"><div><div class="permUpgradeTitle"><strong>${x.name}</strong><span class="accent">LVL ${lv}/${PERM_MAX_LEVEL}</span></div><small>${x.desc}</small><span class="permNow">Сейчас: ${permCurrentStat(i,suit)}</span></div><button class="secondary" data-up="${i}" ${!developerCanAfford(cost)||lv>=PERM_MAX_LEVEL?'disabled':''}>${lv>=PERM_MAX_LEVEL?'МАКС':cost+' ◈'}</button></div>`;
+  }).join('')}</div></details>`).join('');
+}
 function permPrice(i){return (i===2?18:45)*(save.perms[i]+1);}
 function weaponShopHTML(){
  return weapons.map((base,i)=>{
@@ -75,22 +114,17 @@ function armorShopHTML(){
   return `<div class="shopitem"><button type="button" class="armorPreviewBtn" data-preview-armor="${i}" aria-label="Посмотреть костюм ${i+1}">◉</button><div class="armorDetails"><strong>${i+1}. ${item.name} <span class="accent">${owned?'LVL '+lv+'/20':'НЕ КУПЛЕН'}</span></strong><small>Прочность ${dura.toFixed(1).replace(/\.?0+$/,'').replace('.',',')} · снижение урона ${reduce}% · ${i>=9?'ПОЛЁТ СРАЗУ':'полёт с LVL 10'}<br>Каждый LVL: +${step} п.п. защиты (до предела) · +8% к предыдущей прочности</small>${flightRows}</div><div class="armorShopButtons">${buttons}</div></div>`;
  }).join('');
 }
-function hangar(section='',previousScroll=0){
+function hangar(section='',previousScroll=0,openPermSections=[]){
  const suit=equippedArmorStats();
  const next=clamp(save.campaign?.highestUnlocked||1,1,CAMPAIGN_MAX_LEVEL);
  const suggested=recommendedArmorId(next),suggestedSuit=BODY_ARMOR_CATALOG[suggested];
  panel(`<div class="eyebrow">МЕЖСЕКТОРНАЯ БАЗА</div><h1>АНГАР <span class="accent">/ МОДУЛИ</span></h1>
  <p class="lede">Постоянная прокачка. Улучшения каждого из 10 орудий независимы. Купленная физическая броня надевается отдельно от энергетического барьера.</p>
  <h3>◈ КРЕДИТЫ: ${developerCredits()}${devMode?' · ТЕСТОВЫЙ АНГАР':''}</h3>
- <div class="note"><b class="accent">ОРИЕНТИР ДЛЯ УРОВНЯ ${next}:</b> костюм №${suggested+1} «${suggestedSuit.name}» (${suggestedSuit.price} ◈). Это рекомендация по сложности, а не требование. Если застрял: сперва защита, затем урон одного любимого оружия. Поражение приносит кредиты за нанесённый урон/убитых роботов, поэтому попытки не пропадают впустую.</div>
- <div class="smalltext">F — ремонт по приоритету: <b>корпус → костюм → энергобарьер</b>, без ожидания, пока хватает энергии; E — фазовый рывок без задержки. C — временная защитная сфера (блокирует урон, не заряжает шкалу барьера), её перезарядка зависит от длительности. <b>Q — ЭМИ-импульс без задержки, расход 52 энергии.</b> Радиус и урон импульса улучшаются в общих модернизациях. На телефоне действуют те же способности через значки.</div>
- <h3>Общие модернизации</h3><div class="shopitems">${hangarData.map((x,i)=>{
-  const lv=save.perms[i],cost=permPrice(i);
-  const now=i===2?' · Сейчас '+permanentStat(30,PERM_COMPOUND.barrier,lv).toFixed(1)+' ед.':
-   i===6?' · Сейчас '+permanentStat(5.8,PERM_COMPOUND.pulseRadius,lv).toFixed(2)+' м':
-   i===7?' · Сейчас '+permanentStat(66,PERM_COMPOUND.pulseDamage,lv).toFixed(1)+' урона':'';
-  return `<div class="shopitem"><div><strong>${x.name} <span class="accent">LVL ${lv}/${PERM_MAX_LEVEL}</span></strong><small>${x.desc}${now}</small></div><button class="secondary" data-up="${i}" ${!developerCanAfford(cost)||lv>=PERM_MAX_LEVEL?'disabled':''}>${lv>=PERM_MAX_LEVEL?'МАКС':cost+' ◈'}</button></div>`;
- }).join('')}</div>
+ <div class="note"><b class="accent">СОВЕТ ДЛЯ УРОВНЯ ${next}:</b> костюм №${suggested+1} «${suggestedSuit.name}» (${suggestedSuit.price} ◈). Если тяжело — улучшай защиту и любимое оружие. Даже неудачные попытки приносят кредиты.</div>
+ <div class="smalltext"><b>F</b> — ремонт: корпус → костюм → барьер. <b>E</b> — рывок. <b>Q</b> — ЭМИ (52 энергии). <b>C</b> — защитная сфера (50 энергии, перезарядка 5 с после окончания). <b>Esc</b> — назад. На телефоне способности работают через кнопки.</div>
+ <h3>Общие модернизации</h3><p class="smalltext">Выбери категорию. Все проценты начисляются от предыдущего уровня; «Сейчас» — значение без временных бонусов забега.</p>
+ <div class="permCategories">${permShopHTML(suit)}</div>
  <h3>Оружейная мастерская · 20 уровней каждого свойства</h3><p class="smalltext">Пробиваемость — доля урона, проходящая мимо защиты робота. Радиус взрыва применяется к ракетам, ионным зарядам и гранатам; у остальных видов вместо этого свои профильные улучшения.</p>
  <div class="shopitems">${weaponShopHTML()}</div>
  <h3>Бронекостюмы · ${BODY_ARMOR_CATALOG.length} моделей</h3>
@@ -99,19 +133,20 @@ function hangar(section='',previousScroll=0){
  <div class="operatorPreview"><canvas id="operatorCanvas" width="265" height="340" aria-label="Внешний вид выбранного бронекостюма"></canvas><div><strong id="operatorPreviewName">${suit.id<0?'БАЗОВАЯ ФОРМА':BODY_ARMOR_CATALOG[suit.id].name}</strong><p class="smalltext">Предпросмотр показывает внешний вид бронекостюма. В бою он отображается на 3D-персонаже при режиме третьего или второго лица (F5). Можно посмотреть ещё не купленную модель — это не покупка.</p><small>При смене костюма внешний вид обновляется после экипировки.</small></div></div>
  <div class="shopitems">${armorShopHTML()}</div>
  <button id="back" class="primary">← ГЛАВНОЕ МЕНЮ</button>`);
- $('panel').scrollTop=previousScroll;
  const previewCanvas=$('operatorCanvas');
  const showPreview=id=>{renderArmorPreview(previewCanvas,id);const el=$('operatorPreviewName');if(el)el.textContent=id<0?'БАЗОВАЯ ФОРМА':BODY_ARMOR_CATALOG[id].name;};
  showPreview(suit.id);
  document.querySelectorAll('[data-preview-armor]').forEach(el=>el.onclick=()=>showPreview(Number(el.dataset.previewArmor)));
  if(section){const el=document.querySelector(`[data-section="${section}"]`);if(el)el.open=true;}
- const refresh=id=>hangar(id,$('panel').scrollTop);
+ for(const id of openPermSections){const el=document.querySelector(`[data-section="${id}"]`);if(el)el.open=true;}
+ $('panel').scrollTop=previousScroll;
+ const refresh=id=>hangar(id,$('panel').scrollTop,Array.from(document.querySelectorAll('.permCategory[open]'),el=>el.dataset.section));
  $('back').onclick=menu;
  $('removeArmor').onclick=()=>{save.bodyArmor.equipped=-1;persist();refresh('armor');};
  document.querySelectorAll('[data-up]').forEach(el=>el.onclick=()=>{
   const i=Number(el.dataset.up);if(!Number.isInteger(i)||i<0||i>=PERM_COUNT)return;
   const cost=permPrice(i);
-  if(developerCanAfford(cost)&&save.perms[i]<PERM_MAX_LEVEL){developerBuy(cost);save.perms[i]++;persist();refresh(section);}
+  if(developerCanAfford(cost)&&save.perms[i]<PERM_MAX_LEVEL){developerBuy(cost);save.perms[i]++;persist();refresh(section);document.querySelector(`[data-up="${i}"]`)?.focus?.({preventScroll:true});}
  });
  document.querySelectorAll('[data-gun-up]').forEach(el=>el.onclick=()=>{
   const i=Number(el.dataset.gunUp),path=el.dataset.mod,cost=gunPrice(i,path);

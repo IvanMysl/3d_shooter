@@ -3,9 +3,9 @@
 // energy barrier. No artificial cooldown; each action is paid from energy.
 function restorePriorityDefense(p){
  const stages=[
-  {key:'hp',max:'maxhp',perAction:49,cost:50,name:'КОРПУС'},
-  {key:'bodyArmor',max:'bodyArmorMax',perAction:(p.bodyArmorMax||0)*.07,cost:50,name:'КОСТЮМ'},
-  {key:'armor',max:'maxArmor',perAction:(p.maxArmor||0)*.30,cost:40,name:'ЭНЕРГОБАРЬЕР'}
+  {key:'hp',max:'maxhp',perAction:permanentStat(49,PERM_COMPOUND.repairHull,save.perms[8]),cost:50,name:'КОРПУС'},
+  {key:'bodyArmor',max:'bodyArmorMax',perAction:(p.bodyArmorMax||0)*permanentStat(.07,PERM_COMPOUND.repairSuit,save.perms[9]),cost:50,name:'КОСТЮМ'},
+  {key:'armor',max:'maxArmor',perAction:(p.maxArmor||0)*permanentStat(.30,PERM_COMPOUND.repairBarrier,save.perms[10]),cost:40,name:'ЭНЕРГОБАРЬЕР'}
  ];
  for(const stage of stages){
   const limit=Math.max(0,Number(p[stage.max])||0),value=clamp(Number(p[stage.key])||0,0,limit),missing=limit-value;
@@ -31,18 +31,19 @@ function useAbility(type){const g=game;if(!g||g.state!=='playing')return;const p
  if(type==='heal')return restorePriorityDefense(p);
  // Q is energy-limited rather than time-limited: deliberate presses can
  // fire immediately if enough battery charge remains.
- const ABILITY_COOLDOWNS={shield:8.4};
+ const ABILITY_COOLDOWNS={shield:5};
  const cooldowns=p.abilityCooldowns||(p.abilityCooldowns={});
- if(type==='shield'&&(cooldowns.shield||0)>0){toast('ПЕРЕЗАРЯДКА · '+cooldowns.shield.toFixed(1)+' с',.65);return;}
+ if(type==='shield'&&((p.shield||0)>0||(cooldowns.shield||0)>0)){toast((p.shield||0)>0?'ЗАЩИТНАЯ СФЕРА УЖЕ АКТИВНА':'ПЕРЕЗАРЯДКА · '+cooldowns.shield.toFixed(1)+' с',.65);return;}
  // Starter capacity of 100 permits one 52-energy pulse, not two in a row.
  // Later energy research improves the maximum burst rate naturally.
- let costs={dash:p.dashCost,pulse:52,shield:43,heal:50},cost=costs[type];
+ let costs={dash:p.dashCost,pulse:52,shield:50,heal:50},cost=costs[type];
  if(!Number.isFinite(cost))return;
  if(p.energy<cost){toast('НЕДОСТАТОЧНО ЭНЕРГИИ',.8);return}
  p.energy-=cost;
- // Longer shield upgrades still help, but cannot approach permanent
- // invulnerability: at three duration perks uptime is below 70%, not 81%.
- cooldowns[type]=type==='shield'?Math.max(ABILITY_COOLDOWNS.shield,(p.shieldDuration||3.5)*1.45):0;
+ // Five seconds of genuine recharge AFTER the sphere expires. Storing the
+ // combined timer keeps the existing per-frame update and old saves simple.
+ // Temporary/permanent duration perks cannot produce nonstop invulnerability.
+ cooldowns[type]=type==='shield'?(p.shieldDuration||3.5)+ABILITY_COOLDOWNS.shield:0;
  if(type==='dash'){
  const mx=input.mx,mz=input.mz,s=(Math.abs(mx)+Math.abs(mz)>0?p.yaw-Math.atan2(mx,mz):p.yaw);
  // The acquired phase-radius upgrade defines the hard upper bound. The

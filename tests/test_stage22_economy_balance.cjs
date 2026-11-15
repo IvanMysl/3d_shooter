@@ -75,18 +75,19 @@ const player={energy:100,dashCost:25,shieldDuration:3.5,shield:0,
  x:1,z:1,yaw:Math.PI/2,feetY:0,abilityCooldowns:{}};
 const power={game:{state:'playing',p:player},Math,Number,
  toast(){},burst(){},sound(){},input:{mx:0,mz:0},clamp:(v,a,b)=>Math.min(Math.max(v,a),b),
- moveEntity:(p,dx,dz)=>{p.x+=dx;p.z+=dz},save:{settings:{dashDistance:2.52}},
+ moveEntity:(p,dx,dz)=>{p.x+=dx;p.z+=dz},save:{perms:Array(12).fill(0),settings:{dashDistance:2.52}},
  DASH_DISTANCE_BASE:2.52,DASH_DISTANCE_MAX:14.52,DASH_DISTANCE_MIN:.5};
 vm.createContext(power);
+vm.runInContext(arsenal.slice(arsenal.indexOf('const PERM_COMPOUND='),arsenal.indexOf('function newPlayer(')),power);
 vm.runInContext(abilities.slice(abilities.indexOf('function restorePriorityDefense('),
  abilities.indexOf('function enemyFire(')),power);
 power.useAbility('shield');
 near(player.shield,3.5,'first shield activation');
-near(player.energy,57,'first shield energy price');
-check(player.abilityCooldowns.shield>player.shield,
- 'shield cooldown shorter than invulnerability duration');
+near(player.energy,50,'first shield energy price');
+near(player.abilityCooldowns.shield-player.shield,5,
+ 'shield must have exactly five seconds of downtime after its duration');
 power.useAbility('shield');
-near(player.energy,57,'shield cannot be spammed during cooldown');
+near(player.energy,50,'shield cannot be spammed during cooldown');
 player.energy=100;
 power.useAbility('heal');
 near(player.hp,69,'healing value was unintentionally modified');
@@ -124,9 +125,10 @@ check(recoveryMax<=Math.ceil((40+2.5*100+.1*100*100)*.75),
 
 // On-screen upgrade descriptions and mobile ability timers are real UI state.
 check(menus.includes('armorProgress(i,lv)'),'shop and gameplay armor formulas diverged');
-check(menus.includes('рекомендация по сложности'),'shop lacks optional difficulty guidance');
-check(menus.includes('без задержки')&&menus.includes('временная защитная сфера'),
- 'dash cooldown and temporary sphere are not explained to the player');
+check(menus.includes('СОВЕТ ДЛЯ УРОВНЯ')&&menus.includes('Если тяжело'),
+ 'shop lacks optional difficulty guidance');
+check(menus.includes('E</b> — рывок')&&menus.includes('C</b> — защитная сфера'),
+ 'dash and temporary sphere are not explained to the player');
 check(source('19-gameplay-update.js').includes('btn.dataset.cooldown'),
  'mobile action bar has no cooldown indicator');
 check(source('20-minimap-and-checkpoint.js').includes('RUN_UPGRADE_CAPS'),

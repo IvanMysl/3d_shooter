@@ -22,9 +22,9 @@ function normalizeDashDistanceSetting(raw){
  const n=Number(raw);if(!Number.isFinite(n))return null;
  return Number(clamp(n,DASH_DISTANCE_MIN,DASH_DISTANCE_MAX).toFixed(2));
 }
-const PERM_MAX_LEVEL=40,PERM_COUNT=8;
+const PERM_MAX_LEVEL=40,PERM_COUNT=12;
 function normalizePerms(raw){return Array.from({length:PERM_COUNT},(_,i)=>clamp(Math.floor(Number(raw?.[i])||0),0,PERM_MAX_LEVEL));}
-const saveDefaults={best:1,credits:0,kills:0,perms:[0,0,0,0,0,0,0,0],runs:0,settings:{audio:true,aim:true,quality:1,fpsLimit:60,cameraMode:'first',dashDistance:null,flightHorizontal:1,flightVertical:1},checkpoint:null};
+const saveDefaults={best:1,credits:0,kills:0,perms:Array(PERM_COUNT).fill(0),runs:0,settings:{audio:true,aim:true,quality:1,fpsLimit:60,cameraMode:'first',dashDistance:null,flightHorizontal:1,flightVertical:1},checkpoint:null};
 function getSaved(key,area){try{const s=JSON.parse(area.getItem(key));if(s&&typeof s==='object'&&Array.isArray(s.perms)&&s.best>=1)return s;}catch(e){}return null;}
 function loadJournal(){
  let main=null,backup=null,session=null;try{main=getSaved(SAVE_KEY,localStorage);backup=getSaved(SAVE_BACKUP_KEY,localStorage);}catch(e){}try{session=getSaved(SAVE_SESSION_KEY,sessionStorage);}catch(e){}const entries=[main,backup,session];

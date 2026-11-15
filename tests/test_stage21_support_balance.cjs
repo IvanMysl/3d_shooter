@@ -93,7 +93,7 @@ vm.runInContext(ui.slice(ui.indexOf('function armorShopHTML('),ui.indexOf('funct
 const html=vm.runInContext('armorShopHTML()',gear);
 check(html.includes('99,95%'),'final 99.95% reduction not shown correctly');
 check(!html.includes('100%'),'UI falsely promises invulnerability');
-check(ui.includes('×1,08 к предыдущему')&&ui.includes('×1,04 к предыдущему')&&ui.includes('×1,04 к предыдущей'),
+check(ui.includes('Максимальная прочность +8%')&&ui.includes('Урон любого оружия +4%')&&ui.includes('Восстановление энергии +4%')&&ui.includes('Все проценты начисляются от предыдущего уровня'),
  'permanent upgrade descriptions must disclose compound percentages');
 
 // Limits, old-save clamping and a terminal victory without level 101.

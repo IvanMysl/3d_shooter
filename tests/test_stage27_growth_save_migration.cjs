@@ -103,10 +103,10 @@ close(restore.game.p.energy,100*1.04**8/2+(100*1.04**9-100*1.04**8),
  'new energy capacity rank should grant its charge after migration');
 
 const shop=src('22-menus-and-upgrades.js'),inputs=src('26-input-handlers.js');
-for(const [phrase,label] of [['×1,08','health'],['×1,09','barrier'],
- ['×1,04 к предыдущей скорости','energy regeneration'],['×1,04 к предыдущей ёмкости','energy capacity'],
- ['×1,04 к урону Q','EMP damage']]){
- yes(shop.includes(phrase),`hangar still shows an old ${label} coefficient`);
+for(const [phrase,label] of [['Максимальная прочность +8%','health'],['Максимальный запас барьера +9%','barrier'],
+ ['Восстановление энергии +4%','energy regeneration'],['Максимальная энергия +4%','energy capacity'],
+ ['Урон импульса +4%','EMP damage']]){
+ yes(shop.includes(phrase),`hangar lost the Stage27 ${label} coefficient`);
 }
 yes(inputs.includes("if(e.code==='KeyE')useAbility('dash')")&&
  inputs.includes("if(e.code==='KeyF')useAbility('heal')")&&

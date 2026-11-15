@@ -50,5 +50,7 @@
 #touchActions .act{position:relative}
 #touchActions .act.recharging{filter:saturate(.60) brightness(.79)}
 #touchActions .act.recharging::after{content:attr(data-cooldown);position:absolute;right:3px;top:3px;padding:1px 3px;border:1px solid #8dd5e688;border-radius:4px;background:#081326e8;color:#d3f8ff;font:800 10px system-ui;pointer-events:none}
+#touchActions .act.abilityActive{box-shadow:0 0 15px #87fff399;border-color:#98f7f0}
+#touchActions .act.abilityActive::after{content:attr(data-cooldown);position:absolute;right:2px;top:2px;padding:1px 3px;border-radius:4px;background:#07544d;color:#e8fffd;font:800 9px system-ui;pointer-events:none}
 
 

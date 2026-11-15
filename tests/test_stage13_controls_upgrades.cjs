@@ -12,8 +12,8 @@ vm.createContext(saveCtx);
 vm.runInContext(read('00-core-save.js').split('const restoreInput=')[0],saveCtx);
 const normalize=raw=>vm.runInContext(`normalizePerms(${JSON.stringify(raw)})`,saveCtx);
 let result=normalize([5,3,1,8]);
-check(result.length===8,'legacy four upgrades were not extended to eight');
-check(result[0]===5&&result[3]===8&&result[4]===0&&result[5]===0&&result[6]===0&&result[7]===0,'old purchases changed during migration');
+check(result.length===12,'legacy four upgrades were not extended to twelve');
+check(result[0]===5&&result[3]===8&&Array.from(result).slice(4).every(v=>v===0),'old purchases changed during migration');
 result=normalize([-3,99,NaN,42,20,40]);
 check(result[0]===0&&result[1]===40&&result[3]===40,'upgrade level validation broken');
 check(result[4]===20&&result[5]===40,'new upgrade levels truncated');
@@ -34,7 +34,7 @@ eps(p.energy,p.maxEnergy,'energy tank not filled on fresh spawn');
 eps(p.dashRange,14.52,'max teleport range level 40');
 const hangar=read('22-menus-and-upgrades.js');
 vm.runInContext(hangar.slice(hangar.indexOf('const hangarData='),hangar.indexOf('function weaponShopHTML(')),saveCtx);
-check(vm.runInContext('hangarData.length',saveCtx)===8,'hangar missing EMP upgrade rows');
+check(vm.runInContext('hangarData.length',saveCtx)===12,'hangar missing Stage26 EMP and Stage28 repair/shield upgrades');
 check(vm.runInContext('PERM_MAX_LEVEL',saveCtx)===40,'permanent upgrades still capped at 8');
 
 // Check the real movement routine used by a level-40 dash; walls remain solid.

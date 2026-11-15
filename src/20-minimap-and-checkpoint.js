@@ -73,7 +73,7 @@ function saveRun(){
  const g=game;if(!g||g.state==='dead'||g.state==='victory')return false;
  const keys=['sectorTime','t','target','spawned','waveDelay','enemies','bullets','tracers','projectiles','burstQueue','loot','nodes','nodesDestroyed','portalReady','idCounter','combo','comboAt','helpTime','totalCredits','decals','scorch','mission','arenaEvent','devices','robotDebris'];
  const live={};for(const k of keys)live[k]=g[k];
- save.checkpoint={version:4,permanentFormula:'compound-v2',barrierFormula:'compound-v2',mapSchema:(g.sector===legacyResumeSector?(legacyResumeDivisor===10?'v10':legacyResumeDivisor===12?'v12':legacyResumeDivisor===14?'v14':'v16'):'v18'),state:g.state==='upgrade'?'upgrade':'playing',sector:g.sector,player:{...g.p},permanentLevels:[...(g.appliedPerms||save.perms)],score:g.score,kills:g.kills,upgrades:{...g.upgrades},pendingUpgrade:g.pendingUpgrade||null,live};
+ save.checkpoint={version:4,permanentFormula:'compound-v2',barrierFormula:'compound-v2',shieldRechargeModel:'after-duration-5s',mapSchema:(g.sector===legacyResumeSector?(legacyResumeDivisor===10?'v10':legacyResumeDivisor===12?'v12':legacyResumeDivisor===14?'v14':'v16'):'v18'),state:g.state==='upgrade'?'upgrade':'playing',sector:g.sector,player:{...g.p},permanentLevels:[...(g.appliedPerms||save.perms)],score:g.score,kills:g.kills,upgrades:{...g.upgrades},pendingUpgrade:g.pendingUpgrade||null,live};
  const ok=persist();if(!ok){saveNotice('⚠ БРАУЗЕР ЗАПРЕТИЛ СОХРАНЕНИЕ · ЭКСПОРТИРУЙ РЕЗЕРВНУЮ КОПИЮ');}return ok;
 }
 function restoreLiveCheckpoint(ck){
@@ -123,6 +123,9 @@ function restoreLiveCheckpoint(ck){
    permanentStat(100,PERM_COMPOUND.capacity,previous[4])-oldEnergy,
    newEnergy-permanentStat(100,PERM_COMPOUND.capacity,previous[4]));
   p.dashRange=Math.max(DASH_DISTANCE_BASE,p.dashRange+DASH_UPGRADE_STEP*diff(5));
+  // Duration also carries temporary 25% perks. Rescale only the permanent
+  // component, so purchases in the hangar apply exactly once on resume.
+  p.shieldDuration=(Number(p.shieldDuration)||3.5)*permanentStat(1,PERM_COMPOUND.shieldDuration,current[11])/permanentStat(1,PERM_COMPOUND.shieldDuration,previous[11]||0);
  }else{
   // Pre-stage24 checkpoints lack a rank snapshot. Conservatively fill only
   // the missing minimum derived from the purchased ranks and acquired perks.
@@ -133,6 +136,7 @@ function restoreLiveCheckpoint(ck){
   p.maxArmor=Math.max(p.maxArmor,newBarrier);p.armor=Math.min(p.maxArmor,p.armor+barrierAdded);
   p.armorTier=Math.max(p.armorTier||0,Math.min(4,Math.floor(current[2]/2)+(u.armor||0)));
   p.damage=Math.max(p.damage,permanentStat(1,PERM_COMPOUND.damage,current[1])*Math.pow(1.18,u.damage||0)*Math.pow(1.12,u.super||0));
+  p.shieldDuration=permanentStat(3.5,PERM_COMPOUND.shieldDuration,current[11])*Math.pow(1.25,u.energyshield||0);
  }
  g.appliedPerms=current;
  // Legacy four-perk saves have no permanent capacity/range fields. Restoring
@@ -180,6 +184,14 @@ function restoreLiveCheckpoint(ck){
  // A Stage24 snapshot may carry the obsolete E/F and dash recharge timers.
  // Never reintroduce a cooldown after importing an old save.
  g.p.abilityCooldowns.dash=0;g.p.abilityCooldowns.heal=0;g.p.abilityCooldowns.pulse=0;
+ if(ck.shieldRechargeModel!=='after-duration-5s'){
+  // Old saved C timers began at activation and could exceed eight seconds.
+  // Convert them to five seconds AFTER the remaining active sphere ends.
+  const active=Math.max(0,Number(g.p.shield)||0);
+  g.p.abilityCooldowns.shield=active>0?active+5:clamp(Number(g.p.abilityCooldowns.shield)||0,0,5);
+ }else{
+  g.p.abilityCooldowns.shield=Math.max(0,Number(g.p.abilityCooldowns.shield)||0);
+ }
  g.bullets=g.bullets||[];g.tracers=g.tracers||[];g.projectiles=g.projectiles||[];g.burstQueue=g.burstQueue||[];
  g.loot=g.loot||[];g.nodes=g.nodes||[];g.robotDebris=Array.isArray(g.robotDebris)?g.robotDebris.slice(-72):[];g.decals=g.decals||[];g.scorch=g.scorch||[];g.devices=Array.isArray(g.devices)?g.devices:[];if(!ck.live?.mission||!g.mission||!g.mission.version){g.mission={version:1,type:'purge',done:0,required:0,caches:[],hazardsHit:0,hazardsEvaded:0,sentinelId:0};}g.arenaEvent=g.arenaEvent||{phase:'quiet',countdown:14,kind:'emp',x:0,z:0,r:3.4,warning:0};g.p.armorDelay=Math.max(0,Number(g.p.armorDelay)||0);g.p.armorRegen=Math.max(0,Number(g.p.armorRegen)||2.6);
  g.p.armorDelay=0;

@@ -18,7 +18,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 INCLUDE_ROOT = (
     'index.html', 'dev.html', 'README_RU.md', 'ARCHITECTURE_RU.md',
-    'SOURCE_NAVIGATION_RU.md', 'FINAL_TEST_GUIDE_RU.md', 'BALANCE_LEVEL_BY_LEVEL_RU.md', 'WEAPON_VALUE_AUDIT_RU.md', 'QUALITY_STAGE3_RU.md', 'QUALITY_STAGE4_RU.md', 'QUALITY_STAGE5_RU.md', 'QUALITY_STAGE6_RU.md', 'QUALITY_STAGE7_RU.md', 'QUALITY_STAGE8_RU.md', 'QUALITY_STAGE9_RU.md', 'QUALITY_STAGE10_RU.md', 'QUALITY_STAGE11_RU.md', 'QUALITY_STAGE12_RU.md', 'QUALITY_STAGE13_RU.md', 'QUALITY_STAGE14_RU.md', 'QUALITY_STAGE15_RU.md', 'QUALITY_STAGE16_RU.md', 'QUALITY_STAGE17_RU.md', 'QUALITY_STAGE18_RU.md', 'QUALITY_STAGE19_RU.md', 'QUALITY_STAGE20_RU.md', 'QUALITY_STAGE21_RU.md', 'QUALITY_STAGE22_RU.md', 'QUALITY_STAGE23_RU.md', 'QUALITY_STAGE24_RU.md', 'QUALITY_STAGE25_RU.md', 'QUALITY_STAGE26_RU.md', 'QUALITY_STAGE27_RU.md', 'ROADMAP_EXPANSION_RU.md', 'REBUILD.bat', 'PACKAGE.bat',
+    'SOURCE_NAVIGATION_RU.md', 'FINAL_TEST_GUIDE_RU.md', 'BALANCE_LEVEL_BY_LEVEL_RU.md', 'WEAPON_VALUE_AUDIT_RU.md', 'QUALITY_STAGE3_RU.md', 'QUALITY_STAGE4_RU.md', 'QUALITY_STAGE5_RU.md', 'QUALITY_STAGE6_RU.md', 'QUALITY_STAGE7_RU.md', 'QUALITY_STAGE8_RU.md', 'QUALITY_STAGE9_RU.md', 'QUALITY_STAGE10_RU.md', 'QUALITY_STAGE11_RU.md', 'QUALITY_STAGE12_RU.md', 'QUALITY_STAGE13_RU.md', 'QUALITY_STAGE14_RU.md', 'QUALITY_STAGE15_RU.md', 'QUALITY_STAGE16_RU.md', 'QUALITY_STAGE17_RU.md', 'QUALITY_STAGE18_RU.md', 'QUALITY_STAGE19_RU.md', 'QUALITY_STAGE20_RU.md', 'QUALITY_STAGE21_RU.md', 'QUALITY_STAGE22_RU.md', 'QUALITY_STAGE23_RU.md', 'QUALITY_STAGE24_RU.md', 'QUALITY_STAGE25_RU.md', 'QUALITY_STAGE26_RU.md', 'QUALITY_STAGE27_RU.md', 'QUALITY_STAGE28_RU.md', 'QUALITY_STAGE29_RU.md', 'ROADMAP_EXPANSION_RU.md', 'REBUILD.bat', 'PACKAGE.bat',
 )
 INCLUDE_DIRS = ('dist', 'src', 'styles', 'tools', 'tests', 'reference')
 
@@ -125,6 +125,8 @@ def main():
         subprocess.run(['node', 'tests/test_stage25_mobile_controls.cjs'], cwd=ROOT, check=True)
         subprocess.run(['node', 'tests/test_stage26_emp_barrier_keymap.cjs'], cwd=ROOT, check=True)
         subprocess.run(['node', 'tests/test_stage27_growth_save_migration.cjs'], cwd=ROOT, check=True)
+        subprocess.run(['node', 'tests/test_stage28_repair_shield_hangar.cjs'], cwd=ROOT, check=True)
+        subprocess.run(['node', 'tests/test_stage29_hangar_categories.cjs'], cwd=ROOT, check=True)
         subprocess.run(['node', 'tools/continuous_campaign_audit.cjs'], cwd=ROOT, check=True)
         subprocess.run(['node', 'tests/test_world_scenes.cjs'], cwd=ROOT, check=True)
     if args.browser_tests:

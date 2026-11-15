@@ -18,10 +18,12 @@ const player={hp:40,maxhp:100,bodyArmor:0,bodyArmorMax:200,
  abilityCooldowns:{heal:123,dash:900},x:0,z:0,feetY:0,yaw:Math.PI/2};
 const abilities=src('18-ai-and-abilities.js');
 const ability={Math,Number,clamp,game:{state:'playing',p:player},
- input:{mx:0,mz:0},save:{settings:{dashDistance:2.52}},
+ input:{mx:0,mz:0},save:{perms:Array(12).fill(0),settings:{dashDistance:2.52}},
  DASH_DISTANCE_BASE:2.52,DASH_DISTANCE_MIN:.5,DASH_DISTANCE_MAX:14.52,
  toast(){},burst(){},sound(){},moveEntity(p,x,z){p.x+=x;p.z+=z}};
 vm.createContext(ability);
+const arsenal=src('12-arsenal-and-game.js');
+vm.runInContext(arsenal.slice(arsenal.indexOf('const PERM_COMPOUND='),arsenal.indexOf('function newPlayer(')),ability);
 vm.runInContext(abilities.slice(abilities.indexOf('function restorePriorityDefense('),abilities.indexOf('function enemyFire(')),ability);
 check(ability.useAbility('heal')==='hp','E first repairs hull');
 near(player.hp,89,'initial +49 hp');near(player.energy,450,'first 50 energy spent');

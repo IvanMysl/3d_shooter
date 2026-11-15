@@ -108,6 +108,30 @@ body{background:#050d13}
 @media(max-height:480px) and (orientation:landscape){.runTouch{left:26px;bottom:116px;padding:6px 10px;font-size:10px}}
 
 /* Permanent per-weapon and body-armor research displays. */
+.permCategories{display:grid;gap:10px;margin:13px 0 22px}
+.permCategory{min-width:0;border:1px solid #5789a76b;border-radius:13px;background:#0a1c30;overflow:hidden}
+.permCategory[open]{border-color:#67cec2a8;background:#0b2232}
+.permCategory>summary{display:flex;align-items:center;gap:12px;min-height:69px;padding:13px 14px;list-style:none;cursor:pointer;user-select:none;touch-action:manipulation}
+.permCategory>summary::-webkit-details-marker{display:none}
+.permCategory>summary:focus-visible{outline:2px solid #8af5e5;outline-offset:-3px;border-radius:11px}
+.permCategoryIcon{display:grid;place-items:center;flex:none;width:37px;height:37px;border:1px solid #6cc7c37a;border-radius:10px;background:#123b45;color:#8ef4e7;font-size:21px;font-weight:850}
+.permCategoryText{display:flex;flex:1;min-width:0;flex-direction:column;gap:3px}
+.permCategoryText strong{font-size:14px;line-height:1.25;letter-spacing:.015em}
+.permCategoryText small{color:#9abccb;font-size:11px;line-height:1.35}
+.permCategoryCount{flex:none;border-radius:8px;background:#193644;padding:5px 7px;color:#abdbdc;font-size:10px;font-weight:850}
+.permChevron{color:#8ef4e7;font-size:23px;line-height:1;transition:transform .15s}
+.permCategory[open] .permChevron{transform:rotate(180deg)}
+.permCategory>.shopitems{margin:0;padding:0 10px 12px;border-top:1px solid #4c8c9670;gap:7px}
+.permUpgrade{margin-top:8px;background:#0d2639;padding:12px}
+.permUpgrade>div{min-width:0}
+.permUpgradeTitle{display:flex;align-items:baseline;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:4px}
+.permUpgradeTitle strong{font-size:13px;letter-spacing:0;line-height:1.35}
+.permUpgradeTitle .accent{white-space:nowrap;font-size:11px;font-weight:900}
+.permUpgrade small{display:block;line-height:1.45;color:#a9c1d0}
+.permNow{display:block;margin-top:5px;color:#8ee5d9;font-size:12px;font-weight:800}
+.permCategory>summary:hover{background:#16364888}
+@media(max-width:540px){.permCategory>summary{gap:9px;padding:11px;min-height:66px}.permCategoryIcon{width:33px;height:33px}.permCategoryText strong{font-size:12px}.permCategoryText small{font-size:10px}.permCategoryCount{font-size:9px;padding:4px 5px}.permCategory>.shopitems{padding:0 7px 9px}.permUpgrade{padding:10px}.permUpgrade button{width:auto;min-height:40px}.permUpgradeTitle strong{font-size:12px}}
+.permCategory>summary:active{background:#22445495}
 .weaponShop{border:1px solid #598a9c75;border-radius:11px;background:#081a2a80;padding:8px 9px}
 .weaponShop summary{cursor:pointer;padding:8px 3px;font-weight:900;font-size:12px;line-height:1.5;list-style-position:inside}
 .weaponShop summary span{font-size:10px;color:#9ce2e1;display:block;margin-left:15px;font-weight:600}
