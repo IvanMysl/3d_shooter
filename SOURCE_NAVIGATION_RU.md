@@ -1,6 +1,99 @@
+## Быстрая навигация — этапы 16–17: модели и визуальные эффекты
+
+- `src/02-geometry.js`: `makeRoundedBox`, `makeEnergyBeam`, `makeSparkOrb` — скруглённый корпус, энергетический луч, искра с плавными нормалями.
+- `src/01-webgl-shaders.js`: регистрирует `geom.rounded`, `geom.tracer`, `geom.spark` при старте.
+- `src/07-robot-foundry-core.js`: `robotMaker.ellipsoid`, `robotMaker.rod`; `src/08-robot-foundry-rigs.js`: сглаженные внутренние корпуса и шарниры.
+- `src/09a-player-third-person.js`: округлённый костюм и запасной Canvas-контур.
+- `src/09-robot-foundry-artifacts.js`: `buildRobotAirframeVariant`, `airRobotVariants` — разные обводы трёх новых летающих классов.
+- `src/10-first-person-render.js`: `drawEnergyTail`, GPU-выстрелы и искры; `src/11-fallback-render.js`: светящиеся Canvas-выстрелы.
+- `src/13-enemy-navigation-spawn.js`, `src/17-weapon-combat.js`, `src/18-ai-and-abilities.js`: постоянный `maxLife` частицы для корректного fade.
+- Проверки: `tests/test_stage16_smooth_models.cjs`, `tests/test_stage17_visual_effects.cjs`.
+
+---
+
+## Быстрая навигация — этап 15: боевые летательные роботы
+
+- `src/12-arsenal-and-game.js`: характеристики `skyhunter`, `skyguard`, `stormray` и `drone`.
+- `src/13-enemy-navigation-spawn.js`: `spawnEnemy`, `spawnWave` — физически безопасное появление, этапы допуска и броня небесного стража.
+- `src/18-ai-and-abilities.js`: `updateFlyingRobot` — плавная смена высоты, объезд под платформами; `enemyFire` — трёхмерная баллистика и новые залпы.
+- `src/03-height-and-collision.js`, `src/13a-enemy-world-navigation.js`: поддержка воздушных акторов без привязки к полу, столкновения с мешами, толпой и грунтом.
+- `src/14-combat-raycast.js`, `src/17-weapon-combat.js`, `src/09-robot-foundry-artifacts.js`, `src/11-fallback-render.js`: согласованные крылья/турбины, хитбоксы и отображение воздушных классов.
+- `src/20-minimap-and-checkpoint.js`: воздушные отметки на карте, миграция старых чекпоинтов.
+- `src/27-main-loop-diagnostics.js`: `__neonTest.airRobotStatus()` и DEV-only `developerSummonFlyer(type)`.
+- `tests/test_stage15_flying_robots.cjs`, опциональный `tests/browser_stage15.py`; отчёт `QUALITY_STAGE15_RU.md`.
+
+---
+
+Этап 10: динамическое избегание NPC — `src/13a-enemy-world-navigation.js` (`enemyCrowdAllows`, `enemyCrowdRadius`, `enemyMove`); обязательная проверка каждого микрошагa — `src/03-height-and-collision.js`; экранная диагностика `src/27-main-loop-diagnostics.js`; тесты stage10.
+
+## Быстрая навигация — этап 9
+
+- `src/13a-enemy-world-navigation.js`: `enemyCanOccupy`, `enemyNavTile`, `enemyNavEdge`, `enemyPathClear`, `enemyDirectRoute`, `enemyMove`, `enemyBodyHeight` — ключевые функции 3D-движения и локального обхода.
+- `src/13-enemy-navigation-spawn.js`: `rebuildNavigation`, `enemyHeading` — BFS на основе 2D-стен + пространственных коробок, сохранён маршрут к подъёму на мост.
+- `src/03-height-and-collision.js`: `tryMoveEntity` — физические микрошаги роботов и игроков без прохода через видимую твёрдую геометрию.
+- `src/05-world-mesh.js`: непрерывная верхняя линия перил и сам мост при низком/высоком качестве.
+- `src/18-ai-and-abilities.js`: `updateEnemies` — выбор действий, движение с учётом укрытий, атаки (этап 8 не удалён).
+- `src/27-main-loop-diagnostics.js`: `__neonTest.npcNav` — диагностика на реальном устройстве.
+- `tests/test_stage9_enemy_navigation.cjs`, `tests/test_stage9_world_navigation.cjs`, `tests/browser_stage9.py`, `QUALITY_STAGE9_RU.md`.
+
+---
+
+## Быстрая навигация — этап 8
+
+- `src/18-ai-and-abilities.js`: `enemyCombatClear`, `enemyMeleeReach`, `bossGroundWaveReach`, `updateEnemies` — удары и помощь роботов через реальные укрытия, отдельная атака босса и временная невосприимчивость оглушённого босса к совершению атак.
+- `src/13-enemy-navigation-spawn.js`: `randFloor`, `spawnEnemy`, `spawnWave`, `damagePlayer` — спавн вне металлических конструкций, защита командира «Охоты», таймер регенерации энергии после фактического удара.
+- `src/27-main-loop-diagnostics.js`: `__neonTest.coverBetween`.
+- `tests/test_stage8_enemy_cover.cjs`, `tests/browser_stage8.py` — тесты уровня 8.
+
+---
+
+### Дополнение этапа 7
+
+`src/03-height-and-collision.js` — `tryMoveEntity` и микрошаги движения; `src/14-combat-raycast.js` — `embeddedSolidSurface` (ближайшая грань для старта внутри металла); `src/26-input-handlers.js` — `resetTransientInput` (пауза и очистка двухпальцевых состояний). Тесты: `tests/test_stage7_contact_motion.cjs`, `tests/browser_stage7.py`.
+
+## Дополнение этапа 6
+
+- `src/14-combat-raycast.js`: `sweptSphereAABB` (точный контакт с гранью, ребром, углом), `sweepWorldSphere` (общая коллизия объёмного снаряда и камеры), `robotNearRay` (ранний фильтр для луча), `robotNearArea` (ранний фильтр для взрыва/ЭМИ).
+- `src/17-weapon-combat.js`: `addSurfaceMark` — проекция следа на реальную грань, `splash` — фильтрация далёких роботов.
+- `src/18-ai-and-abilities.js`: `useAbility` — фильтрация далёких целей ЭМИ.
+- `tests/test_stage6_precision.cjs` — точная геометрия с 1200 независимыми численными эталонами, поверхностные декали, динамические роботы.
+
+## Дополнение этапа 5
+
+- `src/14-combat-raycast.js`: `robotAccessoryVolumes`, `robotAccessoryRay`, `rayEnemy` — дополнительные динамические части силуэта врага и лучевое попадание.
+- `src/17-weapon-combat.js`: `enemyBlastSamples` — радиусный урон с учётом ближайших частей модели.
+- `src/27-main-loop-diagnostics.js`: `window.__neonTest.traceRobot` — проверка луча в браузере.
+
+## Новые узлы этапа 3 — общие препятствия мира
+
+- `src/04a-static-world-solids.js`: `worldSolidBox`, `registerWorldSolid`, `worldSolidRayCell`, `worldSolidBodyCollision`, `worldSolidHeadBarrier`, `worldDecorObstructsRoute`, `worldSolidStats`. Главное место для изменения физических 3D-препятствий.
+- `src/05-world-mesh.js`: `createWorldMesh` теперь строит визуальные объекты **и** их AABB из одинаковых координат. Разделение фаз позволяет не закрывать верхние мосты случайными подвесными конструкциями.
+- `src/14-combat-raycast.js`: `rayWall`, `sweepWorldSphere`, `rebuildDecalMesh` — попадания, объёмные снаряды, границы следов.
+- `src/03-height-and-collision.js`: `tryMoveEntity`, `updateVertical` — боковая коллизия игрока и удар головой.
+- `src/09a-player-third-person.js`: `thirdPersonCameraPose` — учёт объёмной геометрии новой камерой.
+- `src/17-weapon-combat.js`: `updateProjectiles` — коллизия ракет.
+- `src/18-ai-and-abilities.js`: `updateBullets` — коллизия вражеских шаровых снарядов.
+- `tests/test_world_scenes.cjs` — **реальный исходник процедурного мира** с заглушкой WebGL, мосты, пять стилей и визуальная геометрия; `tests/test_world_solids.cjs` — точечные проверки формул.
+
+---
+
+## Новые узлы этапа 2
+
+- `src/09a-player-third-person.js` — `thirdPersonCameraPose`, `aimFromOperator`, `renderOperator`, `drawFallbackOperator`, `renderArmorPreview`, `toggleCameraMode`, `refreshCameraInterface`, `operatorPalette`. Это основная точка для изменений модели персонажа, камеры и её столкновений.
+- `src/10-first-person-render.js` — `render`: камера WebGL и выбор отображения игрока/оружия.
+- `src/11-fallback-render.js` — `renderFallback`: программная проекция камеры, силуэт в третьем лице.
+- `src/17-weapon-combat.js` — `shootPellet`: траектория выстрела из персонажа с наведением через камеру.
+- `src/19-gameplay-update.js` — `updateHud`: информация о цели соответствует реальной траектории.
+- `src/22-menus-and-upgrades.js` — `hangar`, `armorShopHTML`, `pause`: просмотр и экипировка костюма, настройка камеры.
+- `src/26-input-handlers.js` — `keydown` (F5), `#viewTouch` (Android).
+- `tests/test_third_person.cjs` — тесты геометрии и коллизий камеры без браузера.
+- `tests/browser_stage2.py` — реальное F5, смена вида, предпросмотр, одновременный джойстик + кнопка вида в Canvas fallback.
+
+---
+
 # Навигатор по исходникам NEON RIFT 3D
 
-Этот файл автоматически составлен из **оригинального синтаксического дерева JavaScript**. Ищите нужную функцию по имени и открывайте соответствующий `src/*.js`. Модули **НЕ** предназначены для отдельного подключения к HTML: они совместно собираются внутри исходной общей функции.
+Основная таблица ниже первоначально составлялась из **оригинального синтаксического дерева JavaScript** и может не отражать функции, добавленные позднее. Ищите нужную функцию по имени и открывайте соответствующий `src/*.js`. Модули **НЕ** предназначены для отдельного подключения к HTML: они совместно собираются внутри исходной общей функции.
 
 | Модуль | Описание | Размер, КБ | Функций |
 |---|---|---:|---:|
@@ -9,6 +102,7 @@
 | `02-geometry.js` | Геометрические примитивы, матрицы, WebGL draw | 5.0 | 17 |
 | `03-height-and-collision.js` | Этажность, прыжки, лестницы, столкновения | 5.1 | 14 |
 | `04-map-generation.js` | Алгоритм построения карт | 14.4 | 2 |
+| `04a-static-world-solids.js` | **Этап 3:** геометрия и единые статические препятствия | 4+ | 8 |
 | `05-world-mesh.js` | Процедурное создание трёхмерных миров | 29.1 | 1 |
 | `06-world-environment.js` | Декорации, навигационные маяки, передовые враги | 2.3 | 3 |
 | `07-robot-foundry-core.js` | Основы Robot Foundry и детали корпуса | 12.9 | 3 |
@@ -17,6 +111,7 @@
 | `10-first-person-render.js` | Оружие от первого лица, основной рендер | 13.5 | 2 |
 | `11-fallback-render.js` | Резервный Canvas-рендер без WebGL | 29.2 | 4 |
 | `12-arsenal-and-game.js` | Данные оружия/врагов/улучшений, игрок, запуск игры | 10.4 | 5 |
+| `12a-loadout-economy.js` | **НОВЫЙ**: числовая броня игрока, собственные ветки улучшения орудий, сохранения | динамич. | 5 |
 | `13-enemy-navigation-spawn.js` | Навигация, появление врагов, урон и смерть | 9.6 | 11 |
 | `14-combat-raycast.js` | Следы попаданий, геометрические лучи и поиск целей | 3.3 | 4 |
 | `15-mission-system.js` | Типы миссий, цели, маршрут и завершение | 7.9 | 12 |
@@ -242,4 +337,52 @@ Director’s Cut: визуальные эффекты и обёртки базо
 **Функции:** `resetFpsPacing` (стр. 4), `shouldRenderFpsFrame` (стр. 7), `frame` (стр. 15).
 
 **Ключевые переменные:** `uiTick`, `perfTick`, `fpsSamples`, `fpsTotal`, `frameBudgetMs`, `fpsLoopState`, `lastMeasuredFps`, `framesRenderedTotal`.
+
+## Этап 11 · Новая точка входа навигации
+Появление NPC: `src/13-enemy-navigation-spawn.js` → `enemySpawnSpaceClear`, `randFloor`, `spawnEnemy`, `spawnWave`. Тесты: `tests/test_stage11_spawn_safety.cjs` и `tests/browser_stage11.py`.
+
+## Этап 12 · Подъём по лестницам
+Если игрок застревает перед обычной ступенью, проверяйте два независимых места:
+
+1. `src/05-world-mesh.js` — геометрия ступеней и их декоративных антискользящих полос: полосы должны оставаться визуальными `box()`, но не попадать в `worldSolidGrid`.
+2. `src/03-height-and-collision.js` — `tryMoveEntity()` и `updateVertical()`: шаг не выше 0,245 м, горизонтальное движение микрошагами, высота ног синхронизируется **при принятом микрошаге** на земле; стены/рейлинги проверяются через `worldSolidBodyCollision()`.
+
+Тесты: `tests/test_stage12_stair_access.cjs`, `tests/browser_stage12.py`, исторический `tests/test_stage7_contact_motion.cjs`.
+# Быстрый указатель по этапу 13
+
+- Камера спереди, переключение трёх режимов: `src/09a-player-third-person.js` — `secondPersonCameraPose`, `toggleCameraMode`.
+- Расход энергии при беге: `src/19-gameplay-update.js` — `sprintMotionState`.
+- Прыжок с удержанием Space: `src/26-input-handlers.js` — `jumpHeld`; `src/03-height-and-collision.js` — `updateVertical`.
+- Общая модернизация до уровня 40: `src/22-menus-and-upgrades.js` — `hangarData`, `permPrice`; `src/00-core-save.js` — `normalizePerms`.
+- Максимальная энергия и дальность Shift: `src/12-arsenal-and-game.js` — `newPlayer`; `src/18-ai-and-abilities.js` — `useAbility('dash')`.
+- Диагностика: `window.__neonTest.expansionStatus()`. Тесты: `tests/test_stage13_controls_upgrades.cjs`, `tests/browser_stage13.py`.
+
+---
+
+## Этап 14 — дополнительные ориентиры
+
+| Функция | Исходник |
+| --- | --- |
+| Пароль DEV, смена, сброс тестовых покупок, изоляция | `src/21a-developer-mode.js` |
+| Ветвление `persist()` между обычной и тестовой игрой | `src/00-core-save.js` |
+| Кнопки DEV и бесконечные тестовые покупки | `src/22-menus-and-upgrades.js` |
+| Ввод любого уровня 1–99 999 | `src/21-campaign-map.js` |
+| `toggleFlight()` и вертикальная кинематика | `src/03-height-and-collision.js` |
+| Вертикальная swept-проверка посадки | `src/04a-static-world-solids.js` |
+| Двойной Space, V и кнопки на Android | `src/26-input-handlers.js` |
+| Тестовый статус без секрета пароля | `src/27-main-loop-diagnostics.js`: `developerFlightStatus()` |
+
+
+
+## Быстрая навигация — этап 18: изменяемая дальность рывка
+
+- `src/00-core-save.js`: сохраняемое значение `settings.dashDistance` и нормализация старых/новых JSON.
+- `src/19-gameplay-update.js`: измерение купленного максимума, переключение на шаг 0,24 м, боковая полоса при ↑/↓.
+- `src/26-input-handlers.js`: клавиатурный обработчик стрелок и задержка автоповтора.
+- `src/22-menus-and-upgrades.js`: ползунок во время паузы (включая Android).
+- `src/18-ai-and-abilities.js`: фактическая дистанция горизонтального Shift/сенсорного рывка.
+- `styles/40-hud.css`, `tools/index-template.html`, `dev.html`: оформление шкалы и сенсорного ползунка.
+- `tests/test_stage18_dash_distance.cjs`, `QUALITY_STAGE18_RU.md`: динамические проверки и сценарии ручной приёмки.
+
+---
 

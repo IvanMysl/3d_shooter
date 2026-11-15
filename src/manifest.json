@@ -74,6 +74,10 @@
       "bytes": 14768
     },
     {
+      "file": "04a-static-world-solids.js",
+      "description": "Единый реестр статических 3D-препятствий (геометрия/коллизии), пространственные ячейки"
+    },
+    {
       "file": "05-world-mesh.js",
       "description": "Процедурное создание трёхмерных миров",
       "statements": [
@@ -139,6 +143,10 @@
       "bytes": 16181
     },
     {
+      "file": "09a-player-third-person.js",
+      "description": "Третье лицо, камера с коллизией, 3D персонаж и бронекостюм, прицел и предпросмотр"
+    },
+    {
       "file": "10-first-person-render.js",
       "description": "Оружие от первого лица, основной рендер",
       "statements": [
@@ -178,6 +186,19 @@
       "bytes": 10689
     },
     {
+      "file": "12a-loadout-economy.js",
+      "description": "Независимая прокачка 10 орудий, 12 физических комплектов брони",
+      "statements": [
+        0,
+        0
+      ],
+      "originalLines": [
+        0,
+        0
+      ],
+      "bytes": 5475
+    },
+    {
       "file": "13-enemy-navigation-spawn.js",
       "description": "Навигация, появление врагов, урон и смерть",
       "statements": [
@@ -189,6 +210,10 @@
         3784
       ],
       "bytes": 9789
+    },
+    {
+      "file": "13a-enemy-world-navigation.js",
+      "description": "3D-осведомлённая навигация роботов: проверка проходимости, локальные уклонения и кэш потока"
     },
     {
       "file": "14-combat-raycast.js",
@@ -293,6 +318,10 @@
         4679
       ],
       "bytes": 9321
+    },
+    {
+      "file": "21a-developer-mode.js",
+      "description": "Изолированный режим разработчика, пароль, бесконечные тестовые кредиты и доступ ко всем уровням"
     },
     {
       "file": "22-menus-and-upgrades.js",

@@ -3,16 +3,16 @@
 const dcMenuCanvas=document.createElement('canvas');dcMenuCanvas.id='dcMenuScene';
 dcMenuCanvas.style.cssText='position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:0;opacity:.72';
 const dcOverlay=$('overlay');dcOverlay.insertBefore(dcMenuCanvas,dcOverlay.firstChild);
-const dcMenuCtx=dcMenuCanvas.getContext('2d',{alpha:false});let dcSceneW=0,dcSceneH=0,dcSceneLast=0;
+const dcMenuCtx=dcMenuCanvas.getContext('2d',{alpha:false});let dcSceneW=0,dcSceneH=0,dcSceneDirty=true;
 function dcMenuResize(){
  const dpr=Math.min(1.25,devicePixelRatio||1);dcSceneW=innerWidth;dcSceneH=innerHeight;
  dcMenuCanvas.width=Math.max(1,Math.round(dcSceneW*dpr));dcMenuCanvas.height=Math.max(1,Math.round(dcSceneH*dpr));dcMenuCtx.setTransform(dpr,0,0,dpr,0,0);
+ dcSceneDirty=true;requestAnimationFrame(dcDrawMenu);
 }
 addEventListener('resize',dcMenuResize);dcMenuResize();
 function dcDrawMenu(now){
- requestAnimationFrame(dcDrawMenu);
- if(dcOverlay.classList.contains('hidden')||now-dcSceneLast<65)return;
- dcSceneLast=now;
+ if(dcOverlay.classList.contains('hidden')||!dcSceneDirty)return;
+ dcSceneDirty=false;
  const ctx=dcMenuCtx,w=dcSceneW,h=dcSceneH,vx=w*.5,vy=h*.42,t=now*.00012;
  const sky=ctx.createLinearGradient(0,0,0,h);sky.addColorStop(0,'#04101a');sky.addColorStop(.5,'#0a242a');sky.addColorStop(1,'#030b11');
  ctx.fillStyle=sky;ctx.fillRect(0,0,w,h);
@@ -43,6 +43,10 @@ function dcDrawMenu(now){
  }
  let vg=ctx.createLinearGradient(0,0,w,0);vg.addColorStop(0,'rgba(1,8,13,.82)');vg.addColorStop(.3,'rgba(1,8,13,.12)');vg.addColorStop(.7,'rgba(1,8,13,.12)');vg.addColorStop(1,'rgba(1,8,13,.82)');ctx.fillStyle=vg;ctx.fillRect(0,0,w,h);
 }
+// Pause/map/login screens use a single static backdrop. Repeated 2D canvas
+// compositing on a 120-Hz monitor wasted GPU power even without gameplay.
+new MutationObserver(()=>{if(!dcOverlay.classList.contains('hidden')){dcSceneDirty=true;requestAnimationFrame(dcDrawMenu);}})
+ .observe(dcOverlay,{attributes:true,attributeFilter:['class']});
 requestAnimationFrame(dcDrawMenu);
 
 const dcMenuBase=menu;

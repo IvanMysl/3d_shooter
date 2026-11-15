@@ -12,6 +12,70 @@ quad(d,p1,p2,p3,p4,[nx/nn,ny/nn,nz/nn],[1,1,1])}}return toMesh(d)}function makeR
  for(let i=1;i<7;i++){addTri(d,front[0],front[i],front[i+1],[0,0,1],[1,1,1]);addTri(d,back[0],back[i+1],back[i],[0,0,-1],[1,1,1]);}
  return toMesh(d);
 }
+// Real curved bevels instead of the 8-edge extrusion used for minor props.
+// Faces, edges and corners share analytic normals; generated ONCE and reused.
+// A coarse bevel mesh remains available for distant/mobile animated parts.
+function makeRoundedBox(){
+ const verts=[],radius=.105,core=.5-radius;
+ // Mid-arc samples give a genuinely curved outline, not just interpolated
+ // normals on a single planar chamfer (7x7 shared grid per face).
+ const mid=core+radius*.5;
+ const grid=[-.5,-mid,-core,0,core,mid,.5];
+ const sample=(axis,side,u,v)=>{
+  const point=axis===0?[side*.5,u,v]:axis===1?[u,side*.5,v]:[u,v,side*.5];
+  const clampCore=x=>Math.max(-core,Math.min(core,x));
+  const base=point.map(clampCore),d=point.map((a,i)=>a-base[i]);
+  const length=Math.hypot(d[0],d[1],d[2])||1;
+  return {p:base.map((a,i)=>a+radius*d[i]/length),n:d.map(a=>a/length)};
+ };
+ const triangle=(a,b,c)=>{
+  for(const v of [a,b,c])verts.push(...v.p,...v.n,1,1,1,0);
+ };
+ for(let axis=0;axis<3;axis++)for(const side of [-1,1]){
+  for(let j=0;j<grid.length-1;j++)for(let i=0;i<grid.length-1;i++){
+   const a=sample(axis,side,grid[i],grid[j]);
+   const b=sample(axis,side,grid[i+1],grid[j]);
+   const c=sample(axis,side,grid[i+1],grid[j+1]);
+   const d=sample(axis,side,grid[i],grid[j+1]);
+   // Winding follows each outward face normal, including the negative sides.
+   const outward=(axis===1?-1:1)*side>0;
+   if(outward){triangle(a,b,c);triangle(a,c,d)}
+   else{triangle(a,c,b);triangle(a,d,c)}
+  }
+ }
+ return toMesh(verts);
+}
+// Slim, softly tapered energy filaments. The emissive center and slimmer ends
+// are baked per vertex: no extra shader passes, sprites, or remote textures.
+function makeEnergyBeam(segs=10){
+ const verts=[],rings=[[-.5,.08,.08],[-.435,.50,.93],[.435,.50,.93],[.5,.08,.08]];
+ const point=(ring,a)=>[ring[1]*Math.cos(a),ring[1]*Math.sin(a),ring[0]];
+ const normal=(a,slope)=>{const n=[Math.cos(a),Math.sin(a),-slope],len=Math.hypot(...n)||1;return n.map(x=>x/len)};
+ const emit=(p,n,e)=>verts.push(...p,...n,1,1,1,e);
+ for(let j=0;j<rings.length-1;j++){
+  const r0=rings[j],r1=rings[j+1],slope=(r1[1]-r0[1])/(r1[0]-r0[0]);
+  for(let i=0;i<segs;i++){
+   const a=i*TAU/segs,b=(i+1)*TAU/segs;
+   const p=point(r0,a),q=point(r0,b),r=point(r1,a),s=point(r1,b);
+   const n0=normal(a,slope),n1=normal(b,slope);
+   emit(p,n0,r0[2]);emit(q,n1,r0[2]);emit(r,n0,r1[2]);
+   emit(q,n1,r0[2]);emit(s,n1,r1[2]);emit(r,n0,r1[2]);
+  }
+ }
+ return toMesh(verts);
+}
+// Small volume sparks with smooth analytical normals. Quality 0 keeps octa LOD.
+function makeSparkOrb(segs=8,rings=5){
+ const verts=[],sample=(t,p)=>{const x=Math.sin(t)*Math.cos(p),y=Math.cos(t),z=Math.sin(t)*Math.sin(p);return [x,y,z]};
+ const add=(p)=>verts.push(p[0]*.5,p[1]*.5,p[2]*.5,...p,1,1,1,.24);
+ for(let i=0;i<rings;i++)for(let j=0;j<segs;j++){
+  const t0=i*Math.PI/rings,t1=(i+1)*Math.PI/rings,a=j*TAU/segs,b=(j+1)*TAU/segs;
+  const p=sample(t0,a),q=sample(t0,b),r=sample(t1,a),s=sample(t1,b);
+  if(i!==0){add(p);add(q);add(r)}
+  if(i!==rings-1){add(q);add(s);add(r)}
+ }
+ return toMesh(verts);
+}
 function makeCylinder(segments=12){
  const d=[],r=.5;
  for(let j=0;j<segments;j++){

@@ -13,7 +13,11 @@ function shouldRenderFpsFrame(elapsedMs,limit){
  return true;
 }
 function frame(now){
- requestAnimationFrame(frame);
+ // While in menus/pause, do not wake the compositor at the monitor refresh
+ // rate merely to discover that there is nothing to render. A short timer
+ // checks for a return to combat; gameplay itself retains full-rate RAF.
+ if(game?.state==='playing')requestAnimationFrame(frame);
+ else setTimeout(()=>requestAnimationFrame(frame),125);
  const elapsedMs=lastFrame>0?Math.max(0,now-lastFrame):16.6667;
  const actual=Math.min(.25,elapsedMs/1000);
  const dt=Math.min(.035,actual);
@@ -30,8 +34,10 @@ function frame(now){
  // Update movement, collisions, enemy AI, and gun cooldowns every browser tick.
  // Rendering is capped independently, so lowering FPS does not slow gameplay.
  if(state==='playing')update(dt);
- const willDraw=shouldRenderFpsFrame(elapsedMs,cap);
- if(game&&willDraw){
+ // No WebGL draw calls outside actual combat. Menus, pause, victory and the
+ // campaign map keep the last frozen frame; the GPU is never fed a new one.
+ const willDraw=state==='playing'&&shouldRenderFpsFrame(elapsedMs,cap);
+ if(game&&state==='playing'&&willDraw){
   render();
   if(state==='playing'&&game?.state==='playing'){fpsSamples++;framesRenderedTotal++;}
  }
@@ -75,10 +81,122 @@ window.__neonOperationsTest={
  selectStage:n=>{startGame(false,n);return game?.sector},
  state:()=>game&&({sector:game.sector,state:game.state,mission:structuredClone(game.mission),devices:structuredClone(game.devices||[]),portalReady:game.portalReady,boss:game.boss&&{hp:game.boss.hp,phase3:game.boss.phase3,ultWarn:game.boss.ultWarn},enemies:game.enemies.map(e=>e.type)}),
  activateDevice:i=>{const d=game?.devices?.[i];if(!d)return false;completeDevice(game,d);return true},
- setBossPhase3:()=>{if(!game)return false;if(!game.boss)spawnEnemy('boss',true);game.boss.hp=game.boss.maxhp*.18;updateEnemies(.016);return true},
+ setBossPhase3:()=>{if(!game)return false;if(!game.boss&&!spawnEnemy('boss',true))return false;game.boss.hp=game.boss.maxhp*.18;updateEnemies(.016);return true},
  simulateJump:()=>{queueJump();return game?.p.grounded},
  completeHoldout:()=>{if(game?.mission?.type!=='holdout')return false;game.mission.surviveRemaining=0;maybeFinishMission(game);return game.portalReady},
  mapNames:()=>sectorArchitecture
 };
 window.__neonMissionTest={current:()=>game&&({sector:game.sector,mission:game.mission,portal:game.portalReady,spawned:game.spawned,target:game.target,enemies:game.enemies.length,event:game.arenaEvent}),forceClear:()=>{if(!game)return false;game.spawned=game.target;game.enemies=[];if(game.mission){game.mission.done=game.mission.required;for(const c of game.mission.caches)c.got=true;}maybeFinishMission(game);return game.portalReady},defeatEnemiesOnly:()=>{if(!game)return false;game.spawned=game.target;game.enemies=[];return maybeFinishMission(game)},missionTick:(dt=.016)=>updateMission(dt),collectOneCache:(i=0)=>{if(!game?.mission?.caches?.[i])return false;const c=game.mission.caches[i];game.p.x=c.x;game.p.z=c.z;game.p.feetY=floorHeight(c.x,c.z);updateMission(.016);return c.got;},selectStage:(n)=>{save.campaign.highestUnlocked=Math.max(save.campaign.highestUnlocked,n);startGame(false,n);},killCommander:()=>{if(!game?.mission)return;game.mission.done=1;maybeFinishMission(game)},collectAll:()=>{if(!game?.mission)return;for(const c of game.mission.caches)c.got=true;game.mission.done=game.mission.required;maybeFinishMission(game);},nextEvent:()=>{if(game?.arenaEvent){game.arenaEvent.phase='quiet';game.arenaEvent.countdown=.01;}},missionFor:missionType,checkpoint:()=>save.checkpoint};
-window.__neonTest={debugDrone:()=>{if(!game)return null;const e=spawnEnemy('drone',false);e.x=game.p.x+5;e.z=game.p.z+4;e.feetY=floorHeight(e.x,e.z)+.8;return {type:e.type,y:e.feetY,hp:e.hp};},debugEnemyClimb:(frames=560)=>{if(!game||!bridgeSpecs.length)return null;const c=Math.floor(mapSize/2);game.p.x=c+.5;game.p.z=c+.5;game.p.feetY=BRIDGE_Y;game.p.vy=0;game.p.grounded=true;game.p.iframes=9999;game.spawned=game.target;game.enemies=[];const e=spawnEnemy('charger',false);e.x=c+14.5;e.z=c+.5;e.feetY=0;e.speed=2.8;e.attack=999;const samples=[];for(let k=0;k<frames;k++){updateEnemies(.016);if(k%45===0)samples.push([k,+e.x.toFixed(2),+e.feetY.toFixed(2)]);}return {enemy:{x:e.x,z:e.z,feetY:e.feetY},samples};},debugStart:()=>startGame(false),debugSector:(n)=>{if(!game)startGame(false);game.sector=n;enterSector(n);return {sector:game.sector,style:sectorStyle,architecture:sectorArchitecture};},debugUnder:()=>{if(!game||!bridgeSpecs.length)return null;const c=Math.floor(mapSize/2);game.p.x=c+.5;game.p.z=c+.5;game.p.feetY=0;game.p.vy=0;game.p.grounded=true;updateVertical(game.p,.016);return {surface:supportHeight(game.p,game.p.x,game.p.z),floor:floorHeight(game.p.x,game.p.z),deck:deckHeight(game.p.x,game.p.z),feet:game.p.feetY};},debugTop:()=>{if(!game||!bridgeSpecs.length)return null;const c=Math.floor(mapSize/2);game.p.x=c+.5;game.p.z=c+.5;game.p.feetY=BRIDGE_Y;game.p.vy=0;game.p.grounded=true;updateVertical(game.p,.016);return {surface:supportHeight(game.p,game.p.x,game.p.z),floor:floorHeight(game.p.x,game.p.z),deck:deckHeight(game.p.x,game.p.z),feet:game.p.feetY};},debugTraverse:(frames=360)=>{if(!game||!bridgeSpecs.length)return null;const c=Math.floor(mapSize/2),p=game.p;p.x=c+14.5;p.z=c+.5;p.feetY=0;p.vy=0;p.grounded=true;p.yaw=-Math.PI/2;game.waveDelay=1e6;input.keys.KeyW=true;const samples=[];for(let k=0;k<frames&&game.state==='playing';k++){update(.016);if(k%30===0)samples.push([k,p.x,p.feetY]);}input.keys.KeyW=false;return {x:p.x,z:p.z,y:p.feetY,grounded:p.grounded,samples};},debugDrop:(frames=190)=>{if(!game||!bridgeSpecs.length)return null;const c=Math.floor(mapSize/2),p=game.p;p.x=c+.5;p.z=c+.5;p.feetY=BRIDGE_Y;p.vy=0;p.grounded=true;p.yaw=0;game.waveDelay=1e6;input.keys.KeyW=true;const samples=[];for(let k=0;k<frames&&game.state==='playing';k++){update(.016);if(k%30===0)samples.push([k,p.z,p.feetY]);}input.keys.KeyW=false;return {z:p.z,y:p.feetY,grounded:p.grounded,samples};},debugLevelInfo:()=>({sector:game?.sector,player:game?{x:game.p.x,z:game.p.z,y:game.p.feetY,armor:game.p.armor}:null,mapSchema:save.checkpoint?.mapSchema}),bridge:()=>({specs:bridgeSpecs.map(x=>({...x})),cells:Array.from(deckCells).filter(x=>x>0).length,ceiling:ceilingHeight()}),bridgeAt:deckHeight,teleportBridge:()=>{if(!game||!bridgeSpecs.length)return false;const c=Math.floor(mapSize/2);game.p.x=c+.5;game.p.z=c+.5;game.p.feetY=BRIDGE_Y;game.p.vy=0;game.p.grounded=true;saveRun();return true;},vertical:()=>game?{feetY:game.p.feetY,vy:game.p.vy,grounded:game.p.grounded,ground:floorHeight(game.p.x,game.p.z),stages:stairStages.length,steps:[...new Set(Array.from(heightCells).map(h=>h.toFixed(2)))].sort()}:null,jump:queueJump,stairStages:()=>stairStages.map(s=>({...s})),groundHeight:floorHeight,setYaw:(a)=>{if(game)game.p.yaw=a;},playerPos:()=>game?{x:game.p.x,z:game.p.z,yaw:game.p.yaw}:null,currentStyle:()=>({sector:game?.sector,style:sectorStyle,arch:sectorArchitecture,themes:themes.length}),setDamage:(v=22)=>{if(game){game.p.armorDelay=0;game.p.armor=Math.max(0,game.p.armor-v);}},saveNow:()=>saveRun(),saveSummary:()=>({available:storageAvailable,snapshot:save.checkpoint&&{version:save.checkpoint.version,sector:save.checkpoint.sector,state:save.checkpoint.state,spawned:save.checkpoint.live?.spawned,player:save.checkpoint.player},credits:save.credits,kills:save.kills}),setPosition:(x,z)=>{if(game&&!collide(x,z,.22)){game.p.x=x;game.p.z=z;game.p.feetY=floorHeight(x,z);game.p.vy=0;game.p.grounded=true;saveRun();return true;}return false;},debugBuild:(n)=>{buildMap(n);if(game){game.p.x=spawnX;game.p.z=spawnZ;}},debugPortalReady:()=>{if(game)game.portalReady=true;},route:()=>game?.portalReady?portalRoute(game.p,500):[],mapInfo:()=>({mapCells:mapCells.map(row=>row.slice()),spawn:[spawnX,spawnZ],portal:[portal.x,portal.z],features:mapFeatures.map(f=>({x:f.x,z:f.z})),arch:sectorArchitecture,style:sectorStyle,size:mapSize,rooms:mapRooms.length,meshes:meshStats,webgl:glReady}),getState:()=>game&&({state:game.state,sector:game.sector,enemies:game.enemies.length,kills:game.kills,spawned:game.spawned,portalReady:game.portalReady,hp:game.p.hp,score:game.score,weapon:game.p.weapon,shots:game.p.shots,yaw:game.p.yaw,pitch:game.p.pitch}),nextSector:()=>{if(game){game.portalReady=true;game.p.x=portal.x;game.p.z=portal.z;portalNext()}},fire:shoot,weaponSelect:to=>switchWeapon(to),weaponList:()=>weapons.map(w=>({name:w.name,mode:w.mode,shots:w.shots})),nodes:()=>game?.nodes.map(n=>({x:n.x,z:n.z,type:n.type,hp:n.hp,dead:n.dead})),testAimNode:(i=0)=>{if(!game)return false;const n=game.nodes[i];if(!n||n.dead)return false;let p=game.p;const offsets=[[2,0],[-2,0],[0,2],[0,-2]];let pos=offsets.map(([x,z])=>({x:n.x+x,z:n.z+z})).find(q=>!collide(q.x,q.z,.24)&&lineClear(q.x,q.z,n.x,n.z));if(!pos)return false;p.x=pos.x;p.z=pos.z;p.yaw=Math.atan2(n.x-p.x,n.z-p.z);p.pitch=Math.atan2(1.3-1.47,hypot(n.x-p.x,n.z-p.z));return true;},damageNode:(i,d)=>game&&damagePowerNode(game.nodes[i],d),arsenal:()=>({opened:arsenalOpened,items:$('weaponDrawer').querySelectorAll('[data-wpn]').length}),effectCounts:()=>game&&({decals:game.decals.length,projectiles:game.projectiles.length,impacts:game.impactFx.length,tracers:game.tracers.length,scorch:game.scorch.length}),testAimWall:()=>{if(!game)return;const p=game.p;for(let i=0;i<48;i++){let a=TAU*i/48;const wall=rayWall({x:p.x,y:1.47,z:p.z},{x:Math.sin(a),y:0,z:Math.cos(a)},36);if(wall&&wall.t>1&&wall.t<34){p.yaw=a;p.pitch=0;return wall;}}},killAll:()=>{if(game){game.spawned=game.target;for(const e of [...game.enemies]){e.dead=true;awardKill(e)}game.enemies=[];game.portalReady=true}},boss:()=>{if(game){spawnEnemy('boss',true)}},campaign:()=>({...save.campaign}),campaignMap:()=>showCampaignMap(),campaignStart:(n)=>startGame(false,n),campaignClear:()=>{if(game){game.spawned=game.target;game.enemies=[];game.portalReady=true;portalNext();}},campaignPage:(p)=>showCampaignMap(p)};
+window.__neonTest={debugDrone:()=>{if(!game)return null;const e=spawnEnemy('drone',false);if(!e)return null;e.x=game.p.x+5;e.z=game.p.z+4;e.feetY=floorHeight(e.x,e.z)+.8;return {type:e.type,y:e.feetY,hp:e.hp};},debugEnemyClimb:(frames=560)=>{if(!game||!bridgeSpecs.length)return null;const c=Math.floor(mapSize/2);game.p.x=c+.5;game.p.z=c+.5;game.p.feetY=BRIDGE_Y;game.p.vy=0;game.p.grounded=true;game.p.iframes=9999;game.spawned=game.target;game.enemies=[];const e=spawnEnemy('charger',false);if(!e)return null;e.x=c+14.5;e.z=c+.5;e.feetY=0;e.speed=2.8;e.attack=999;const samples=[];for(let k=0;k<frames;k++){updateEnemies(.016);if(k%45===0)samples.push([k,+e.x.toFixed(2),+e.feetY.toFixed(2)]);}return {enemy:{x:e.x,z:e.z,feetY:e.feetY},samples};},debugStart:()=>startGame(false),debugSector:(n)=>{if(!game)startGame(false);game.sector=n;enterSector(n);return {sector:game.sector,style:sectorStyle,architecture:sectorArchitecture};},debugUnder:()=>{if(!game||!bridgeSpecs.length)return null;const c=Math.floor(mapSize/2);game.p.x=c+.5;game.p.z=c+.5;game.p.feetY=0;game.p.vy=0;game.p.grounded=true;updateVertical(game.p,.016);return {surface:supportHeight(game.p,game.p.x,game.p.z),floor:floorHeight(game.p.x,game.p.z),deck:deckHeight(game.p.x,game.p.z),feet:game.p.feetY};},debugTop:()=>{if(!game||!bridgeSpecs.length)return null;const c=Math.floor(mapSize/2);game.p.x=c+.5;game.p.z=c+.5;game.p.feetY=BRIDGE_Y;game.p.vy=0;game.p.grounded=true;updateVertical(game.p,.016);return {surface:supportHeight(game.p,game.p.x,game.p.z),floor:floorHeight(game.p.x,game.p.z),deck:deckHeight(game.p.x,game.p.z),feet:game.p.feetY};},debugTraverse:(frames=360)=>{if(!game||!bridgeSpecs.length)return null;const c=Math.floor(mapSize/2),p=game.p;p.x=c+14.5;p.z=c+.5;p.feetY=0;p.vy=0;p.grounded=true;p.yaw=-Math.PI/2;game.waveDelay=1e6;input.keys.KeyW=true;const samples=[];for(let k=0;k<frames&&game.state==='playing';k++){update(.016);if(k%30===0)samples.push([k,p.x,p.feetY]);}input.keys.KeyW=false;return {x:p.x,z:p.z,y:p.feetY,grounded:p.grounded,samples};},debugDrop:(frames=190)=>{if(!game||!bridgeSpecs.length)return null;const c=Math.floor(mapSize/2),p=game.p;p.x=c+.5;p.z=c+.5;p.feetY=BRIDGE_Y;p.vy=0;p.grounded=true;p.yaw=0;game.waveDelay=1e6;input.keys.KeyW=true;const samples=[];for(let k=0;k<frames&&game.state==='playing';k++){update(.016);if(k%30===0)samples.push([k,p.z,p.feetY]);}input.keys.KeyW=false;return {z:p.z,y:p.feetY,grounded:p.grounded,samples};},debugLevelInfo:()=>({sector:game?.sector,player:game?{x:game.p.x,z:game.p.z,y:game.p.feetY,armor:game.p.armor}:null,mapSchema:save.checkpoint?.mapSchema}),bridge:()=>({specs:bridgeSpecs.map(x=>({...x})),cells:Array.from(deckCells).filter(x=>x>0).length,ceiling:ceilingHeight()}),bridgeAt:deckHeight,teleportBridge:()=>{if(!game||!bridgeSpecs.length)return false;const c=Math.floor(mapSize/2);game.p.x=c+.5;game.p.z=c+.5;game.p.feetY=BRIDGE_Y;game.p.vy=0;game.p.grounded=true;saveRun();return true;},vertical:()=>game?{feetY:game.p.feetY,vy:game.p.vy,grounded:game.p.grounded,ground:floorHeight(game.p.x,game.p.z),stages:stairStages.length,steps:[...new Set(Array.from(heightCells).map(h=>h.toFixed(2)))].sort()}:null,jump:queueJump,stairStages:()=>stairStages.map(s=>({...s})),groundHeight:floorHeight,setYaw:(a)=>{if(game)game.p.yaw=a;},playerPos:()=>game?{x:game.p.x,z:game.p.z,yaw:game.p.yaw}:null,currentStyle:()=>({sector:game?.sector,style:sectorStyle,arch:sectorArchitecture,themes:themes.length}),setDamage:(v=22)=>{if(game){game.p.armorDelay=0;game.p.armor=Math.max(0,game.p.armor-v);}},saveNow:()=>saveRun(),saveSummary:()=>({available:storageAvailable,snapshot:save.checkpoint&&{version:save.checkpoint.version,sector:save.checkpoint.sector,state:save.checkpoint.state,spawned:save.checkpoint.live?.spawned,player:save.checkpoint.player},credits:save.credits,kills:save.kills}),setPosition:(x,z)=>{if(game&&!collide(x,z,.22)){game.p.x=x;game.p.z=z;game.p.feetY=floorHeight(x,z);game.p.vy=0;game.p.grounded=true;saveRun();return true;}return false;},debugBuild:(n)=>{buildMap(n);if(game){game.p.x=spawnX;game.p.z=spawnZ;}},debugPortalReady:()=>{if(game)game.portalReady=true;},route:()=>game?.portalReady?portalRoute(game.p,500):[],mapInfo:()=>({mapCells:mapCells.map(row=>row.slice()),spawn:[spawnX,spawnZ],portal:[portal.x,portal.z],features:mapFeatures.map(f=>({x:f.x,z:f.z})),arch:sectorArchitecture,style:sectorStyle,size:mapSize,rooms:mapRooms.length,meshes:meshStats,webgl:glReady}),getState:()=>game&&({state:game.state,sector:game.sector,enemies:game.enemies.length,kills:game.kills,spawned:game.spawned,portalReady:game.portalReady,hp:game.p.hp,score:game.score,weapon:game.p.weapon,shots:game.p.shots,yaw:game.p.yaw,pitch:game.p.pitch}),nextSector:()=>{if(game){game.portalReady=true;game.p.x=portal.x;game.p.z=portal.z;portalNext()}},fire:shoot,weaponSelect:to=>switchWeapon(to),weaponList:()=>weapons.map(w=>({name:w.name,mode:w.mode,shots:w.shots})),nodes:()=>game?.nodes.map(n=>({x:n.x,z:n.z,type:n.type,hp:n.hp,dead:n.dead})),testAimNode:(i=0)=>{if(!game)return false;const n=game.nodes[i];if(!n||n.dead)return false;let p=game.p;const offsets=[[2,0],[-2,0],[0,2],[0,-2]];let pos=offsets.map(([x,z])=>({x:n.x+x,z:n.z+z})).find(q=>!collide(q.x,q.z,.24)&&lineClear(q.x,q.z,n.x,n.z));if(!pos)return false;p.x=pos.x;p.z=pos.z;p.yaw=Math.atan2(n.x-p.x,n.z-p.z);p.pitch=Math.atan2(1.3-1.47,hypot(n.x-p.x,n.z-p.z));return true;},damageNode:(i,d)=>game&&damagePowerNode(game.nodes[i],d),arsenal:()=>({opened:arsenalOpened,items:$('weaponDrawer').querySelectorAll('[data-wpn]').length}),effectCounts:()=>game&&({decals:game.decals.length,projectiles:game.projectiles.length,impacts:game.impactFx.length,tracers:game.tracers.length,scorch:game.scorch.length}),testAimWall:()=>{if(!game)return;const p=game.p;for(let i=0;i<48;i++){let a=TAU*i/48;const wall=rayWall({x:p.x,y:1.47,z:p.z},{x:Math.sin(a),y:0,z:Math.cos(a)},36);if(wall&&wall.t>1&&wall.t<34){p.yaw=a;p.pitch=0;return wall;}}},killAll:()=>{if(game){game.spawned=game.target;for(const e of [...game.enemies]){e.dead=true;awardKill(e)}game.enemies=[];game.portalReady=true}},boss:()=>{if(game){spawnEnemy('boss',true)}},campaign:()=>({...save.campaign}),campaignMap:()=>showCampaignMap(),campaignStart:(n)=>startGame(false,n),campaignClear:()=>{if(game){game.spawned=game.target;game.enemies=[];game.portalReady=true;portalNext();}},campaignPage:(p)=>showCampaignMap(p)};// Stage 3 diagnostics: inspect active world geometry on a real WebGL device.
+Object.assign(window.__neonTest,{
+ worldSolids:()=>({webgl:glReady,...worldSolidStats()}),
+ traceWorld:(x,y,z,dx,dy,dz,len=10,r=0)=>{
+  const magnitude=Math.hypot(dx,dy,dz)||1;
+  const o={x,y,z},d={x:dx/magnitude,y:dy/magnitude,z:dz/magnitude};
+  const h=r>0?sweepWorldSphere(o,d,len,r):rayWall(o,d,len);
+  return h&&{t:h.t,x:h.x,y:h.y,z:h.z,kind:h.kind,nx:h.nx,ny:h.ny,nz:h.nz};
+ }
+});
+
+// Stage 5 diagnostics: compare a visible robot attachment with its hit volume.
+// Geometry comes from the active combat raycast, not a test-only duplicate.
+Object.assign(window.__neonTest,{
+ traceRobot:(x,y,z,dx,dy,dz,len=10)=>{
+  const mag=Math.hypot(dx,dy,dz)||1;
+  const h=rayEnemy({x,y,z},{x:dx/mag,y:dy/mag,z:dz/mag},len);
+  return h&&{id:h.enemy.id,type:h.enemy.type,boss:!!h.enemy.boss,part:h.part,
+    distance:h.t,x:h.x,y:h.y,z:h.z};
+ }
+});
+
+// Stage 8 diagnostics: evaluate real 3D cover without spawning or damaging
+// anything. Coordinates are foot positions in game world units (x, y, z).
+Object.assign(window.__neonTest,{
+ coverBetween:(x,y,z,X,Y,Z)=>enemyCombatClear(
+  {x,z,feetY:y},{x:X,z:Z,feetY:Y}),
+});
+
+// Stage 9: device-side diagnostics to compare map navigation and 3D body
+// clearance. Pure read-only probes; no weapon, score or save mutation.
+Object.assign(window.__neonTest,{
+ npcNav:(x,z,feetY=0,type='scout',radius=.55)=>{
+  if(!game||![x,z,feetY,radius].every(Number.isFinite))return null;
+  const e={x,z,feetY,type,radius,maxhp:100,boss:type==='boss',orbit:1,id:11};
+  const tx=Math.floor(x),tz=Math.floor(z);
+  return {at:[x,z,feetY],type,bodyHeight:enemyBodyHeight(e),
+   canOccupy:enemyCanOccupy(e,x,z),tile:enemyNavTile(tx,tz),
+   direct:enemyDirectRoute(e,game.p),
+   distance:Math.hypot(game.p.x-x,game.p.z-z),
+   webgl:glReady,solids:worldSolidCount,
+   field:navField&&tx>=0&&tz>=0&&tx<mapSize&&tz<mapSize?
+    navField[tz*mapSize+tx]:null};
+ }
+});
+
+// Stage 10: read-only measurements of living robot spacing in the current scene.
+// Unlike the route debugger this never inserts actors or modifies navigation.
+Object.assign(window.__neonTest,{
+ npcCrowd:()=>{
+  if(!game)return null;
+  const living=game.enemies.filter(e=>!e.dead);
+  let overlapPairs=0,closestGap=null;
+  for(let i=0;i<living.length;i++)for(let j=i+1;j<living.length;j++){
+   const a=living[i],b=living[j],ay=Number.isFinite(a.feetY)?a.feetY:0,
+         by=Number.isFinite(b.feetY)?b.feetY:0;
+   if(ay+enemyBodyHeight(a)<=by+.03||by+enemyBodyHeight(b)<=ay+.03)continue;
+   const gap=Math.hypot(a.x-b.x,a.z-b.z)-enemyCrowdRadius(a)-enemyCrowdRadius(b);
+   if(closestGap===null||gap<closestGap)closestGap=gap;
+   if(gap<-.02)overlapPairs++;
+  }
+  return {living:living.length,overlapPairs,closestGap,webgl:glReady};
+ }
+});
+
+// Stage 11: read-only spawn-space probe for real-device diagnosis.
+// In particular, a valid empty map cell is not necessarily an empty 3D
+// volume when a boss, player, handrail or elevated robot occupies it.
+Object.assign(window.__neonTest,{
+ npcSpawnCheck:(x,z,r=.48,height=1.9)=>{
+  if(!game||![x,z,r,height].every(Number.isFinite)||r<.1||height<.1)return null;
+  return enemySpawnSpaceClear(x,z,r,height);
+ }
+});
+
+// Stage 13: read-only status for camera, stamina and permanent upgrades.
+Object.assign(window.__neonTest,{
+ expansionStatus:()=>({camera:save.settings.cameraMode,
+  perkLevels:save.perms.slice(),perkMaximum:PERM_MAX_LEVEL,
+  energy:game?.p.energy??null,maxEnergy:game?.p.maxEnergy??null,
+  dashRange:game?.p.dashRange??null,
+  jumpHeld:input.jumpHeld,sprintTired:!!game?.p.sprintTired})
+});
+
+// Stage 14: public, read-only QA state. Never expose the password digest.
+Object.assign(window.__neonTest,{
+ developerFlightStatus:()=>({
+  developerMode:devMode,creditsShown:developerCredits(),
+  campaignAccessibleMaximum:devMode?CAMPAIGN_MAX_LEVEL:save.campaign.highestUnlocked,
+  armorOwnedCount:Object.keys(save.bodyArmor.owned).length,
+  equippedArmor:save.bodyArmor.equipped,
+  equippedArmorLevel:save.bodyArmor.owned[save.bodyArmor.equipped]??null,
+  flightUnlocked:!!game?.p.flightUnlocked,flying:!!game?.p.flying,
+  flightAltitude:game?.p.feetY??null,ceilingHeight:game?ceilingHeight():null,
+  skyPlatforms:game?skyDeckSpecs.length:null
+ })
+});
+
+// Stage 15: inspect altitude on real hardware. Only the authenticated local
+// developer sandbox can summon test robots; normal campaigns are unaffected.
+Object.assign(window.__neonTest,{
+ airRobotStatus:()=>game?game.enemies.filter(e=>e.airborne&&!e.dead).map(e=>({
+  id:e.id,type:e.type,altitude:+e.feetY.toFixed(3),
+  x:+e.x.toFixed(2),z:+e.z.toFixed(2),hp:+e.hp.toFixed(1),
+  blocked:+(e.airLiftBlocked||0).toFixed(2)
+ })):[],
+ developerSummonFlyer:type=>{
+  if(!devMode||game?.state!=='playing'||
+    !['drone','skyhunter','skyguard','stormray'].includes(type))return null;
+  const e=spawnEnemy(type,false);
+  return e?{id:e.id,type:e.type,altitude:e.feetY}:null;
+ }
+});

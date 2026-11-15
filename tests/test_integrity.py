@@ -28,9 +28,12 @@ class AssetParser(HTMLParser):
         self.styles = []
         self.css = []
         self.external = []
+        self.ids = []
 
     def handle_starttag(self, tag, attrs):
         a = dict(attrs)
+        if a.get('id'):
+            self.ids.append(a['id'])
         if tag == 'script':
             self.scripts.append(a)
         if tag == 'style':
@@ -138,6 +141,17 @@ class ModularIntegrity(unittest.TestCase):
                          ['dist/game.js', 'dist/legacy-notes.js'])
         self.assertTrue(all((ROOT / x['href']).is_file() for x in doc.css))
         self.assertTrue(all((ROOT / x['src']).is_file() for x in doc.scripts))
+
+    def test_launchers_share_exact_dom_ids(self):
+        # Prevent index.html from getting a new control which dev.html lacks.
+        standalone, developer = AssetParser(), AssetParser()
+        standalone.feed((ROOT / 'index.html').read_text('utf-8'))
+        developer.feed((ROOT / 'dev.html').read_text('utf-8'))
+        self.assertEqual(set(standalone.ids), set(developer.ids))
+        self.assertEqual(len(standalone.ids), len(set(standalone.ids)))
+        self.assertEqual(len(developer.ids), len(set(developer.ids)))
+        for required in ('gl', 'viewTouch', 'mobileSwitch', 'runTouch', 'weaponDrawer'):
+            self.assertIn(required, developer.ids)
 
     def test_standalone_has_all_assets_inline(self):
         page = (ROOT / 'index.html').read_bytes()

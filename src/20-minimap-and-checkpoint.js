@@ -45,7 +45,8 @@ function drawMinimap(){
     m.fillRect(dx-(miniZoom?3:2),dz-(miniZoom?3:2),miniZoom?6:4,miniZoom?6:4);m.restore();
   }
   for(const n of g.nodes)if(!n.dead){const [x,z]=plot(n.x,n.z);m.fillStyle=['#ff873f','#65deff','#77ff94'][n.type];m.fillRect(x-2.4,z-2.4,4.8,4.8);}if(g.portalReady){const [x,z]=plot(portal.x,portal.z);m.shadowBlur=10;m.shadowColor='#7affef';m.fillStyle='#76ffed';m.beginPath();m.arc(x,z,miniZoom?5:3,0,TAU);m.fill();m.shadowBlur=0;}
-  for(const e of g.enemies){if(e.dead)continue;const [x,z]=plot(e.x,e.z);m.fillStyle=e.boss?'#ffcf7a':'#ff6c96';m.beginPath();m.arc(x,z,e.boss?5:2.1,0,TAU);m.fill();
+  for(const e of g.enemies){if(e.dead)continue;const [x,z]=plot(e.x,e.z);m.fillStyle=e.boss?'#ffcf7a':e.airborne?'#73ebff':'#ff6c96';m.beginPath();m.arc(x,z,e.boss?5:e.airborne?2.8:2.1,0,TAU);m.fill();
+    if(e.airborne&&e.feetY>(g.p.feetY||0)+2){m.strokeStyle='#b5fcff';m.lineWidth=1.2;m.beginPath();m.arc(x,z,miniZoom?5.0:3.9,0,TAU);m.stroke();}
     if(e.boss&&e.ultWarn>0){m.strokeStyle='#ff8748';m.lineWidth=2;m.beginPath();m.arc(x,z,5.15*scale,0,TAU);m.stroke();}
   }
   const [x,z]=plot(g.p.x,g.p.z);
@@ -56,26 +57,132 @@ function drawMinimap(){
   m.fillStyle='#c8f2fa';m.font='bold 13px system-ui';m.textAlign='left';m.fillText(miniZoom?'◈ РАДАР':'◈ ВЕСЬ СЕКТОР',7,15);
   $('radarLabel').textContent=(miniZoom?'КАРТА: ПРИБЛИЖЕНИЕ':'КАРТА: ВЕСЬ СЕКТОР')+(deckHeight(g.p.x,g.p.z)>0&&g.p.feetY>BRIDGE_Y-.3?' · УРОВЕНЬ 2':' · УРОВЕНЬ 1');
 }
-function pickUpgrades(){let copy=[...upgrades].sort(()=>Math.random()-.5);return copy.slice(0,3)}function saveRun(){
- const g=game;if(!g||g.state==='dead')return false;
+// Across a 100-level continuous run, uncapped exponential perks can trivialize
+// bosses (rapid fire, stacked shield duration). Caps keep a finite power curve;
+// total available picks exceed 99, so the finale never runs out of choices.
+const RUN_UPGRADE_CAPS={damage:4,health:12,rapid:4,capacitor:8,armor:10,
+ pierce:5,cool:6,dash:5,magnet:6,lifesteal:6,shock:5,energyshield:3,
+ bullet:6,repair:12,fieldarmor:5,crit:5,walk:4,regen:8,fieldkit:6,super:4};
+function pickUpgrades(){
+ const owned=game?.upgrades||{};
+ const pool=upgrades.filter(x=>(Number(owned[x.id])||0)<(RUN_UPGRADE_CAPS[x.id]||5));
+ for(let i=pool.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[pool[i],pool[j]]=[pool[j],pool[i]];}
+ return pool.slice(0,3);
+}
+function saveRun(){
+ const g=game;if(!g||g.state==='dead'||g.state==='victory')return false;
  const keys=['sectorTime','t','target','spawned','waveDelay','enemies','bullets','tracers','projectiles','burstQueue','loot','nodes','nodesDestroyed','portalReady','idCounter','combo','comboAt','helpTime','totalCredits','decals','scorch','mission','arenaEvent','devices','robotDebris'];
  const live={};for(const k of keys)live[k]=g[k];
- save.checkpoint={version:3,mapSchema:(g.sector===legacyResumeSector?(legacyResumeDivisor===10?'v10':legacyResumeDivisor===12?'v12':legacyResumeDivisor===14?'v14':'v16'):'v18'),state:g.state==='upgrade'?'upgrade':'playing',sector:g.sector,player:{...g.p},score:g.score,kills:g.kills,upgrades:{...g.upgrades},pendingUpgrade:g.pendingUpgrade||null,live};
+ save.checkpoint={version:4,permanentFormula:'compound-v2',barrierFormula:'compound-v2',mapSchema:(g.sector===legacyResumeSector?(legacyResumeDivisor===10?'v10':legacyResumeDivisor===12?'v12':legacyResumeDivisor===14?'v14':'v16'):'v18'),state:g.state==='upgrade'?'upgrade':'playing',sector:g.sector,player:{...g.p},permanentLevels:[...(g.appliedPerms||save.perms)],score:g.score,kills:g.kills,upgrades:{...g.upgrades},pendingUpgrade:g.pendingUpgrade||null,live};
  const ok=persist();if(!ok){saveNotice('⚠ БРАУЗЕР ЗАПРЕТИЛ СОХРАНЕНИЕ · ЭКСПОРТИРУЙ РЕЗЕРВНУЮ КОПИЮ');}return ok;
 }
 function restoreLiveCheckpoint(ck){
  if(!ck||ck.version<3||!ck.live)return;
  const g=game;for(const [k,v] of Object.entries(ck.live)){if(Object.prototype.hasOwnProperty.call(g,k))g[k]=v;}
  Object.assign(g.p,ck.player||{});
+ // Persistent purchases are allowed in the hangar between two sectors. A
+ // snapshot of the permanent ranks actually applied to the running player
+ // prevents both the "new purchase had no effect" bug and double-applying it.
+ const current=[...save.perms],previous=Array.isArray(ck.permanentLevels)&&ck.permanentLevels.length>=6?
+  ck.permanentLevels.map((v,i)=>clamp(Math.floor(Number(v)||0),0,PERM_MAX_LEVEL)) : null;
+ if(previous){
+  const diff=i=>current[i]-previous[i],p=g.p;
+  // Stage24 had additive upgrades, Stage25/26 used the original compound
+  // rates, and Stage27 increases five of them. Decode the checkpoint's own
+  // formula before applying the new formula and any newly purchased ranks.
+  const oldBase=(base,mult,lv,linear,v1=mult)=>ck.permanentFormula==='compound-v2'?
+   permanentStat(base,mult,lv):ck.permanentFormula==='compound-v1'?
+   permanentStat(base,v1,lv):base*(1+linear*lv);
+  const oldHp=oldBase(100,PERM_COMPOUND.health,previous[0],.12,1.05),newHp=permanentStat(100,PERM_COMPOUND.health,current[0]);
+  const oldEnergy=oldBase(100,PERM_COMPOUND.capacity,previous[4],.08,1.035),newEnergy=permanentStat(100,PERM_COMPOUND.capacity,current[4]);
+  // Barrier changed independently in Stage26, so keep a separate marker.
+  const oldBarrier=ck.barrierFormula==='compound-v2'?
+   permanentStat(30,PERM_COMPOUND.barrier,previous[2]):ck.barrierFormula==='compound-v1'?
+   permanentStat(30,1.085,previous[2]):30+10*previous[2];
+  const newBarrier=permanentStat(30,PERM_COMPOUND.barrier,current[2]);
+  const hpIncrease=newHp-oldHp,barrierIncrease=newBarrier-oldBarrier,energyIncrease=newEnergy-oldEnergy;
+  // Formula replacements keep the current fill percentage. Ranks genuinely
+  // bought after the checkpoint grant their extra capacity at full charge.
+  const remapPool=(value,oldMaximum,newMaximum,formulaDelta,rankDelta)=>{
+   const fraction=clamp((Number(value)||0)/Math.max(1,Number(oldMaximum)||1),0,1);
+   return clamp((Number(value)||0)+formulaDelta*fraction+Math.max(0,rankDelta),0,newMaximum);
+  };
+  const hpMax=Math.max(1,Number(p.maxhp)||oldHp),energyMax=Math.max(1,Number(p.maxEnergy)||oldEnergy);
+  p.maxhp=Math.max(1,hpMax+hpIncrease);
+  p.hp=remapPool(p.hp,hpMax,p.maxhp,permanentStat(100,PERM_COMPOUND.health,previous[0])-oldHp,
+   newHp-permanentStat(100,PERM_COMPOUND.health,previous[0]));
+  p.damage*= permanentStat(1,PERM_COMPOUND.damage,current[1])/oldBase(1,PERM_COMPOUND.damage,previous[1],.08,1.04);
+  const savedMax=Math.max(1,Number(p.maxArmor)||30);
+  p.maxArmor=Math.max(1,savedMax+barrierIncrease);
+  const sameRankBarrier=permanentStat(30,PERM_COMPOUND.barrier,previous[2]);
+  p.armor=remapPool(p.armor,savedMax,p.maxArmor,sameRankBarrier-oldBarrier,newBarrier-sameRankBarrier);
+  p.armorTier=clamp((p.armorTier||0)+Math.floor(current[2]/2)-Math.floor(previous[2]/2),0,4);
+  p.regen*= permanentStat(16,PERM_COMPOUND.regen,current[3])/oldBase(16,PERM_COMPOUND.regen,previous[3],.125,1.03);
+  p.maxEnergy=Math.max(1,energyMax+energyIncrease);
+  p.energy=remapPool(p.energy,energyMax,p.maxEnergy,
+   permanentStat(100,PERM_COMPOUND.capacity,previous[4])-oldEnergy,
+   newEnergy-permanentStat(100,PERM_COMPOUND.capacity,previous[4]));
+  p.dashRange=Math.max(DASH_DISTANCE_BASE,p.dashRange+DASH_UPGRADE_STEP*diff(5));
+ }else{
+  // Pre-stage24 checkpoints lack a rank snapshot. Conservatively fill only
+  // the missing minimum derived from the purchased ranks and acquired perks.
+  const p=g.p,u=g.upgrades||{};
+  const newHp=permanentStat(100,PERM_COMPOUND.health,current[0])+30*(u.health||0),newBarrier=permanentStat(30,PERM_COMPOUND.barrier,current[2])+30*(u.armor||0);
+  const hpAdded=Math.max(0,newHp-p.maxhp),barrierAdded=Math.max(0,newBarrier-p.maxArmor);
+  p.maxhp=Math.max(p.maxhp,newHp);p.hp=Math.min(p.maxhp,p.hp+hpAdded);
+  p.maxArmor=Math.max(p.maxArmor,newBarrier);p.armor=Math.min(p.maxArmor,p.armor+barrierAdded);
+  p.armorTier=Math.max(p.armorTier||0,Math.min(4,Math.floor(current[2]/2)+(u.armor||0)));
+  p.damage=Math.max(p.damage,permanentStat(1,PERM_COMPOUND.damage,current[1])*Math.pow(1.18,u.damage||0)*Math.pow(1.12,u.super||0));
+ }
+ g.appliedPerms=current;
+ // Legacy four-perk saves have no permanent capacity/range fields. Restoring
+ // a checkpoint must not undo purchases made in the hangar since that run.
+ const permanentCapacity=permanentStat(100,PERM_COMPOUND.capacity,save.perms[4]);
+ if(!Number.isFinite(g.p.maxEnergy)||g.p.maxEnergy<permanentCapacity){
+  const oldCapacity=Number.isFinite(g.p.maxEnergy)?g.p.maxEnergy:100;
+  g.p.maxEnergy=permanentCapacity;
+  g.p.energy=Math.min(g.p.maxEnergy,Math.max(0,(Number(g.p.energy)||0)+permanentCapacity-oldCapacity));
+ }
+ g.p.dashRange=Math.max(DASH_DISTANCE_BASE+save.perms[5]*DASH_UPGRADE_STEP,Number(g.p.dashRange)||0);
+ g.p.regen=Math.max(permanentStat(16,PERM_COMPOUND.regen,save.perms[3]),Number(g.p.regen)||0);
  g.p.weapon=clamp(g.p.weapon|0,0,weapons.length-1);
  if(!Number.isFinite(g.p.feetY))g.p.feetY=floorHeight(g.p.x,g.p.z);
  if(!Number.isFinite(g.p.vy))g.p.vy=0;
  if(typeof g.p.grounded!=='boolean')g.p.grounded=true;
  g.p.armor=clamp(Number(g.p.armor)||0,0,g.p.maxArmor||30);
+ const suit=equippedArmorStats();
+ g.p.bodyArmorType=suit.id;g.p.bodyArmorMax=suit.maxDurability;g.p.bodyArmorReduction=suit.reduction;g.p.bodyArmorWear=suit.wear;
+ const oldSuit=Number(ck.player?.bodyArmorType),oldMax=Number(ck.player?.bodyArmorMax);
+ // Equipping a *different* newly bought suit gives its fresh durability;
+ // upgrading the same suit preserves damage but grants the extra capacity.
+ g.p.bodyArmor=oldSuit!==suit.id?suit.maxDurability:
+  Number.isFinite(ck.player?.bodyArmor)?clamp(ck.player.bodyArmor+Math.max(0,suit.maxDurability-(Number.isFinite(oldMax)?oldMax:suit.maxDurability)),0,suit.maxDurability):suit.maxDurability;
  if(!Number.isFinite(g.p.x)||!Number.isFinite(g.p.z)||collide(g.p.x,g.p.z,.23)){g.p.x=spawnX;g.p.z=spawnZ;}
- g.enemies=(g.enemies||[]).filter(e=>e&&!e.dead);g.boss=g.enemies.find(e=>e.boss)||null;
+ g.enemies=(g.enemies||[]).filter(e=>e&&!e.dead);
+ // Stage 14 and older checkpoints predate physical airborne AI. Restore the
+ // missing class flag without resetting combat HP, cooldowns or purchases.
+ for(const e of g.enemies){
+  if(!e.boss&&['drone','skyhunter','skyguard','stormray'].includes(e.type)){
+   e.airborne=true;
+   if(!Number.isFinite(e.feetY))e.feetY=floorHeight(e.x,e.z)+.13;
+   // The previous floating animation placed drones 0.8 m above the floor;
+   // beneath a bridge that can intersect the now-solid flying airframe.
+   // Repair only a bad saved placement, preserving valid midair heights.
+   if(worldSolidBodyCollision(e.x,e.z,enemyBodyRadius(e),e.feetY,enemyBodyHeight(e))){
+    const lower=floorHeight(e.x,e.z)+.13;
+    if(!worldSolidBodyCollision(e.x,e.z,enemyBodyRadius(e),lower,enemyBodyHeight(e)))
+     e.feetY=lower;
+   }
+  }
+ }
+ g.boss=g.enemies.find(e=>e.boss)||null;
+ g.p.abilityCooldowns=g.p.abilityCooldowns||{};
+ // A Stage24 snapshot may carry the obsolete E/F and dash recharge timers.
+ // Never reintroduce a cooldown after importing an old save.
+ g.p.abilityCooldowns.dash=0;g.p.abilityCooldowns.heal=0;g.p.abilityCooldowns.pulse=0;
  g.bullets=g.bullets||[];g.tracers=g.tracers||[];g.projectiles=g.projectiles||[];g.burstQueue=g.burstQueue||[];
  g.loot=g.loot||[];g.nodes=g.nodes||[];g.robotDebris=Array.isArray(g.robotDebris)?g.robotDebris.slice(-72):[];g.decals=g.decals||[];g.scorch=g.scorch||[];g.devices=Array.isArray(g.devices)?g.devices:[];if(!ck.live?.mission||!g.mission||!g.mission.version){g.mission={version:1,type:'purge',done:0,required:0,caches:[],hazardsHit:0,hazardsEvaded:0,sentinelId:0};}g.arenaEvent=g.arenaEvent||{phase:'quiet',countdown:14,kind:'emp',x:0,z:0,r:3.4,warning:0};g.p.armorDelay=Math.max(0,Number(g.p.armorDelay)||0);g.p.armorRegen=Math.max(0,Number(g.p.armorRegen)||2.6);
+ g.p.armorDelay=0;
  g.pendingUpgrade=ck.pendingUpgrade||null;g.state=ck.state==='upgrade'?'upgrade':'playing';
  navField=null;navClock=0;portalRouteField=null;decalDirty=true;
  $('sectorText').textContent=String(g.sector).padStart(2,'0')+' · '+sectorArchitecture;

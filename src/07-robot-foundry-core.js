@@ -16,6 +16,27 @@ function robotMaker(){
     const len=Math.hypot(...n)||1;n=n.map(x=>x/len);
     addTri(v,a,b,c,n,t,em);
   }
+  function smoothFacet(a,b,c,na,nb,nc,col,em=0){
+    // Analytic per-vertex normals remove the visible polygon bands on
+    // machine joints and domed composite shells, with unchanged shader format.
+    for(const [p,n] of [[a,na],[b,nb],[c,nc]])v.push(...p,...n,...col,em);
+  }
+  function ellipsoid(cx,cy,cz,rx,ry,rz,col,em=0,segs=12,rings=7){
+    const sample=(theta,phi)=>{
+      const sa=Math.sin(theta),co=Math.cos(theta);
+      const u=sa*Math.cos(phi),w=sa*Math.sin(phi);
+      const point=[cx+rx*u,cy+ry*co,cz+rz*w];
+      const norm=[u/rx,co/ry,w/rz],len=Math.hypot(...norm)||1;
+      return [point,norm.map(t=>t/len)];
+    };
+    for(let i=0;i<rings;i++)for(let j=0;j<segs;j++){
+      const t1=Math.PI*i/rings,t2=Math.PI*(i+1)/rings;
+      const a=TAU*j/segs,b=TAU*(j+1)/segs;
+      const p=sample(t1,a),q=sample(t1,b),r=sample(t2,a),s=sample(t2,b);
+      if(i!==0)smoothFacet(p[0],q[0],r[0],p[1],q[1],r[1],col,em);
+      if(i!==rings-1)smoothFacet(q[0],s[0],r[0],q[1],s[1],r[1],col,em);
+    }
+  }
   function panel(cx,cy,cz,w,h,d,col,em=0,bevel=.15){
     const x=cx-w/2,y=cy-h/2,ex=cx+w/2,ey=cy+h/2;
     const px=w*bevel,py=h*bevel;
@@ -45,11 +66,14 @@ function robotMaker(){
     const N=[dx/length,dy/length,dz/length],seed=Math.abs(N[1])>.86?[1,0,0]:[0,1,0];
     let U=[N[1]*seed[2]-N[2]*seed[1],N[2]*seed[0]-N[0]*seed[2],N[0]*seed[1]-N[1]*seed[0]],ul=Math.hypot(...U)||1;U=U.map(t=>t/ul);
     const V=[N[1]*U[2]-N[2]*U[1],N[2]*U[0]-N[0]*U[2],N[0]*U[1]-N[1]*U[0]];
-    const point=(org,phi)=>org.map((c,i)=>c+r*(U[i]*Math.cos(phi)+V[i]*Math.sin(phi)));
+    const normal=phi=>U.map((u,i)=>u*Math.cos(phi)+V[i]*Math.sin(phi));
+    const point=(org,phi)=>org.map((c,i)=>c+r*normal(phi)[i]);
     for(let i=0;i<sides;i++){
       const p=TAU*i/sides,q=TAU*(i+1)/sides;
       const a0=point(a,p),a1=point(a,q),b0=point(b,p),b1=point(b,q);
-      facet(a0,b0,a1,col,em);facet(a1,b0,b1,col,em);
+      const n0=normal(p),n1=normal(q);
+      smoothFacet(a0,a1,b0,n0,n1,n0,col,em);
+      smoothFacet(a1,b1,b0,n1,n1,n0,col,em);
       facet(a,a1,a0,col,em);facet(b,b0,b1,col,em);
     }
   }
@@ -57,7 +81,7 @@ function robotMaker(){
   function vent(x,y,z,n=4,w=.24,col=RF.dark){
     for(let i=0;i<n;i++)slab(x,y+(i-(n-1)/2)*.048,z,w,.018,.025,col);
   }
-  return {v,panel,poly,slab,rod,fastener,vent,finish:()=>toMesh(v)};
+  return {v,panel,poly,slab,rod,ellipsoid,fastener,vent,finish:()=>toMesh(v)};
 }
 function robotPalette(kind){
   const styles={

@@ -6,7 +6,7 @@ const dc={hitUntil:0,killUntil:0,showBadgeUntil:0,splashUntil:0,weaponUntil:0,sh
 function dcNamedEnemy(e){
   if(e.boss)return 'ВЛАДЫКА РАЗЛОМА';
   if(e.elite)return 'ЭЛИТНЫЙ БОЕВОЙ РОБОТ';
-  return ({scout:'РАЗВЕДЧИК',charger:'ШТУРМОВИК',brute:'ТЯЖЁЛЫЙ ДРОИД',sniper:'СНАЙПЕР',medic:'РЕМОНТНЫЙ ДРОН',shooter:'СТРЕЛОК',warden:'СТРАЖ БАРЬЕРА',artillery:'АРТИЛЛЕРИСТ',raider:'КВАНТОВЫЙ РЕЙДЕР',interceptor:'НЕБЕСНЫЙ ПЕРЕХВАТЧИК'})[e.type]||'БОЕВАЯ МАШИНА';
+  return ({scout:'РАЗВЕДЧИК',charger:'ШТУРМОВИК',brute:'ТЯЖЁЛЫЙ ДРОИД',sniper:'СНАЙПЕР',medic:'РЕМОНТНЫЙ ДРОН',shooter:'СТРЕЛОК',warden:'СТРАЖ БАРЬЕРА',artillery:'АРТИЛЛЕРИСТ',raider:'КВАНТОВЫЙ РЕЙДЕР',interceptor:'НЕБЕСНЫЙ ПЕРЕХВАТЧИК',drone:'НЕБЕСНЫЙ ПЕРЕХВАТЧИК',skyhunter:'ФАЗОВЫЙ ОХОТНИК',skyguard:'НЕБЕСНЫЙ СТРАЖ',stormray:'ГРОЗОВОЙ СКАТ'})[e.type]||'БОЕВАЯ МАШИНА';
 }
 function dcBadge(message,duration=1.05){
   const el=$('combatBadge');if(!el)return;

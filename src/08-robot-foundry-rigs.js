@@ -3,10 +3,11 @@
 // Fine motor modules: four separate articulated pieces per biped. Shorter
 // limb pivots allow knees and elbows to move independently, unlike a single box.
 function buildRobotArticulatedPart(kind,which){
-  const M=robotMaker(),{panel,slab,rod,fastener}=M,P=robotPalette(kind);
+  const M=robotMaker(),{panel,slab,rod,ellipsoid,fastener}=M,P=robotPalette(kind);
   const width=['boss','brute','artillery','warden'].includes(kind)?1.17:(kind==='raider'?.85:1);
   const W=width, A=P.base,H=P.highlight;
   if(which==='upperLeg'){
+    ellipsoid(0,-.21,.045,.165*W,.24,.18,RF.dark,0,10,6);
     rod([0,-.04,0],[0,-.42,.025],.10*W,RF.iron,0,11);
     panel(0,-.20,.06,.36*W,.34,.32,RF.dark);
     panel(0,-.20,.24,.31*W,.36,.125,A);
@@ -16,6 +17,7 @@ function buildRobotArticulatedPart(kind,which){
     panel(0,-.42,.07,.30*W,.12,.31,RF.iron);
     for(let side of [-1,1])fastener(side*.12*W,-.41,.24,.019);
   }else if(which==='lowerLeg'){
+    ellipsoid(0,-.18,.04,.155*W,.20,.16,RF.dark,0,10,6);
     rod([0,-.02,0],[0,-.32,.01],.086*W,RF.iron,0,10);
     panel(0,-.18,.05,.38*W,.32,.29,RF.dark);
     panel(0,-.15,.23,.31*W,.25,.10,A);
@@ -30,6 +32,7 @@ function buildRobotArticulatedPart(kind,which){
       fastener(side*.16*W,-.18,.30,.024);
     }
   }else if(which==='upperArm'){
+    ellipsoid(0,-.13,.04,.175*W,.24,.20,RF.dark,0,10,6);
     panel(0,-.04,.05,.38*W,.31,.47,RF.dark);
     panel(0,.02,.14,.36*W,.20,.42,H);
     panel(0,-.13,.29,.29*W,.20,.12,A);
@@ -38,6 +41,7 @@ function buildRobotArticulatedPart(kind,which){
     panel(0,-.40,.11,.25,.15,.22,RF.iron);
     for(let side of [-1,1])fastener(side*.12*W,-.41,.23,.019);
   }else if(which==='foreArm'){
+    ellipsoid(0,-.17,.08,.14*W,.21,.19,RF.dark,0,10,6);
     rod([0,-.015,0],[0,-.32,.07],.073*W,RF.iron,0,9);
     panel(0,-.17,.12,.26*W,.28,.39,RF.dark);
     panel(0,-.14,.33,.24*W,.26,.105,A);
@@ -416,13 +420,14 @@ function robotForgeSilhouette(M,kind){
 }
 
 function buildRobotBody(kind,withDetails=true){
-  const M=robotMaker(),{panel,slab,poly,rod,fastener,vent}=M;
+  const M=robotMaker(),{panel,slab,poly,rod,ellipsoid,fastener,vent}=M;
   const P=robotPalette(kind),A=P.base,H=P.highlight,G=P.glow;
   const insect=kind==='scout'||kind==='charger',flyer=kind==='drone',medic=kind==='medic';
   const giant=kind==='boss',heavy=kind==='brute'||kind==='warden'||kind==='artillery'||giant;
   const sniper=kind==='sniper',quick=kind==='raider';
   if(insect){
     // Long segmented carapace, wedge-shaped head, articulated mandibles.
+    ellipsoid(0,1.07,-.04,.38,.24,.47,P.trim,0,12,7);
     poly([[-.38,.73],[-.53,1.00],[-.40,1.20],[0,1.30],[.40,1.20],[.53,1.0],[.38,.73]],-.53,.40,RF.dark);
     panel(0,1.07,-.02,.86,.37,.83,A);
     poly([[-.29,.93],[-.40,1.10],[-.25,1.25],[.25,1.25],[.40,1.10],[.29,.93]],.27,.50,H);
@@ -450,6 +455,7 @@ function buildRobotBody(kind,withDetails=true){
   }
   if(flyer){
     // Wide swept-wing aerial body with asymmetric stabilizers and two ducted thrusters.
+    ellipsoid(0,1.09,.12,.41,.25,.48,RF.iron,0,12,7);
     poly([[-.48,.86],[-.54,1.03],[-.23,1.26],[.23,1.26],[.54,1.03],[.48,.86]],-.40,.55,RF.dark);
     panel(0,1.08,.16,.74,.30,.75,A);
     poly([[-.29,1.08],[-.24,1.27],[0,1.33],[.24,1.27],[.29,1.08]],.44,.68,H);
@@ -468,6 +474,7 @@ function buildRobotBody(kind,withDetails=true){
   }
   if(medic){
     // Suspended triage drone with a stacked chassis, medicinal cross and repair mandibles.
+    ellipsoid(0,1.21,.13,.39,.34,.32,RF.iron,0,12,7);
     poly([[-.43,.82],[-.56,1.13],[-.39,1.41],[.39,1.41],[.56,1.13],[.43,.82]],-.34,.40,RF.dark);
     panel(0,1.22,.20,.74,.63,.40,A);
     panel(0,1.27,.46,.55,.41,.10,RF.light);
@@ -486,6 +493,7 @@ function buildRobotBody(kind,withDetails=true){
   // Articulated combat infantry: NOT a cube with a glowing ball.
   const wide=heavy?1.13:sniper?.69:quick?.82:1;
   const chestWidth=.84*wide, shoulder=.49*wide;
+  ellipsoid(0,1.34,-.015,.34*wide,.40,.32,RF.dark,0,12,7);
   poly([[-.22,.73],[-.38,.89],[-.30,1.08],[.30,1.08],[.38,.89],[.22,.73]],-.20,.29,RF.dark);
   poly([[-shoulder,1.05],[-chestWidth*.67,1.55],[-chestWidth*.32,1.69],[chestWidth*.32,1.69],[chestWidth*.67,1.55],[shoulder,1.05],[.27,.96],[-.27,.96]],-.33,.28,RF.iron);
   // Front armored shell with distinct asymmetric upper plates.
@@ -512,6 +520,7 @@ function buildRobotBody(kind,withDetails=true){
   }
   // Neck and angled combat helmet; optical sockets are recessed.
   rod([0,1.59,.02],[0,1.78,.02],.12,RF.iron);
+  ellipsoid(0,1.84,.08,.255*wide,.235,.235,RF.iron,0,12,7);
   panel(0,1.82,.07,.48*wide,.40,.43,RF.dark);
   poly([[-.24*wide,1.76],[-.28*wide,1.97],[-.14,2.06],[.14,2.06],[.28*wide,1.97],[.24*wide,1.76],[0,1.70]],.10,.32,A);
   panel(0,1.87,.36,.40*wide,.17,.10,RF.soot);

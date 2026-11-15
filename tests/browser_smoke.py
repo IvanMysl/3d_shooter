@@ -65,7 +65,7 @@ def exercise(browser, filename, mobile):
           webgl: document.body.classList.contains('webgl'),
           mobileControls: !!document.getElementById('joystick')
         })""")
-        assert state['overlay'] and state['panelText'] > 200, state
+        assert state['overlay'] and state['panelText'] > 200, (state,served,errors)
         assert state['diagnostic'] == state['test'] == state['missionTest'] == 'object', state
         assert state['styles'] == (2 if filename == 'index.html' else 8), state
         assert state['scripts'] == 2 and state['mobileControls'], state

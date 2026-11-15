@@ -146,6 +146,47 @@ function buildRobotDebrisMesh(){
  return M.finish();
 }
 let robotDebrisMesh=null;
+// Three enemy airframes have different, truly 3-D silhouettes; their cores,
+// animated thrusters and shootable wing volumes remain the shared drone rig.
+// All curved skin/joint geometry is baked once, not regenerated per frame.
+function buildRobotAirframeVariant(kind){
+ const M=robotMaker(),{ellipsoid,poly,panel,rod}=M;
+ if(kind==='skyhunter'){
+   // Fast interceptor: needle nose, swept feather-like forward wings, twin tails.
+   ellipsoid(0,1.19,.25,.32,.19,.55,[.22,.31,.40],0,14,8);
+   ellipsoid(0,1.21,.68,.10,.095,.17,[.37,.49,.56],.17,12,6);
+   for(const side of [-1,1]){
+     poly([[side*.32,1.28],[side*.73,1.40],[side*1.14,1.20],[side*.72,1.12]],-.31,.23,[.30,.40,.47]);
+     rod([side*.48,1.35,.10],[side*1.02,1.22,-.19],.029,[.46,.58,.62],0,10);
+     poly([[side*.52,1.31],[side*.64,1.55],[side*.91,1.57],[side*.85,1.27]],-.55,-.39,[.17,.24,.32]);
+     ellipsoid(side*.84,1.00,-.38,.16,.12,.23,[.18,.25,.32],0,12,6);
+   }
+   rod([0,1.39,-.12],[0,1.48,-.50],.033,[.44,.56,.65],0,10);
+ }else if(kind==='skyguard'){
+   // Heavy hovering sentinel: recessed round command dome and shield nacelles.
+   ellipsoid(0,1.28,.07,.43,.30,.43,[.30,.34,.40],0,14,7);
+   ellipsoid(0,1.43,.26,.28,.13,.27,[.53,.53,.48],0,14,7);
+   panel(0,1.33,.49,.47,.13,.085,[.68,.51,.26],.43);
+   for(const side of [-1,1]){
+     ellipsoid(side*.82,1.16,-.08,.27,.28,.40,[.36,.40,.44],0,10,6);
+     ellipsoid(side*.82,1.13,.23,.17,.19,.13,[.57,.49,.35],.35,10,6);
+     rod([side*.37,1.38,-.25],[side*.81,1.47,-.28],.078,[.47,.49,.48],0,12);
+     poly([[side*.44,1.58],[side*.72,1.62],[side*.89,1.48],[side*.63,1.42]],-.48,-.12,[.52,.52,.49]);
+   }
+ }else if(kind==='stormray'){
+   // Manta-style hunter: wide pinioned wings and smooth bioluminescent dorsal keel.
+   ellipsoid(0,1.19,-.05,.39,.16,.51,[.19,.33,.36],0,16,8);
+   ellipsoid(0,1.32,.25,.16,.085,.35,[.34,.58,.53],.25,14,7);
+   for(const side of [-1,1]){
+     poly([[0,1.17],[side*.46,1.33],[side*1.18,1.25],[side*.92,1.05],[side*.35,1.03]],-.59,.12,[.24,.42,.43]);
+     rod([side*.24,1.27,.28],[side*1.03,1.21,-.37],.028,[.43,.69,.60],.13,12);
+     ellipsoid(side*.70,1.13,-.36,.15,.085,.19,[.15,.27,.28],0,10,6);
+     poly([[side*.16,1.30],[side*.31,1.52],[side*.48,1.56],[side*.53,1.32]],-.50,-.26,[.29,.49,.48]);
+   }
+ }
+ return M.finish();
+}
+const airRobotVariants={};
 function initRobotFoundry(){
   const keys=['scout','charger','shooter','brute','sniper','medic','warden','artillery','raider','drone','boss'];
   for(const kind of keys){
@@ -164,13 +205,19 @@ function initRobotFoundry(){
       eliteRig:buildRobotEliteRig(kind)
     };
   }
+ for(const kind of ['skyhunter','skyguard','stormray'])airRobotVariants[kind]=buildRobotAirframeVariant(kind);
  if(glReady)robotDebrisMesh=buildRobotDebrisMesh();
 }
 function drawEnemyModel(e,g,p){
   const dx=e.x-p.x,dz=e.z-p.z,d=Math.hypot(dx,dz);
   if(d>39 || e.dead)return;
-  const kind=e.boss?'boss':e.type,pack=robotFoundry[kind]||robotFoundry.shooter;
+  // Shared animated drone core; advanced flyers have individual airframe skins.
+  const kind=e.boss?'boss':e.airborne?'drone':e.type,pack=robotFoundry[kind]||robotFoundry.shooter;
   if(!pack)return;
+  // Advanced flyers have their own complete airframe. Rendering a whole
+  // humanoid drone *under* the manta/interceptor skin superimposed two robots
+  // (most obvious when a stormray came close to the camera).
+  const completeAirframe=e.airborne?airRobotVariants[e.type]:null;
   const r=e.boss?1.75:Math.max(.76,Math.min(1.31,e.radius/.51));
   const floor=Number.isFinite(e.feetY)?e.feetY:floorHeight(e.x,e.z);
   const hover=kind==='drone'||kind==='medic';
@@ -184,7 +231,8 @@ function drawEnemyModel(e,g,p){
   const mobile=touchOnly||save.settings.quality===0;
   const full=(!mobile&&d<18)||(mobile&&d<8)||(e.boss&&d<20);
   const reduced=(!full || (save.settings.quality===0&&d>5));
-  const tint=e.flash>0?[1.22,1.10,1.08]:[1,1,1];
+  const tint=e.flash>0?[1.22,1.10,1.08]:e.airborne?
+    e.color.map(c=>.76+.49*c):[1,1,1];
   const pitchOffset=e.stun>0?Math.sin(g.t*17+e.id)*.03:0;
   gl.uniform1f(u.uMatOverride,4);
   gl.uniform1f(u.uRobotDamage,clamp(1-e.hp/Math.max(1,e.maxhp),0,1));
@@ -196,11 +244,14 @@ function drawEnemyModel(e,g,p){
   const servoPitch=(e.boss?0.025:0.015)*Math.sin(g.t*1.15+e.id*.68);
   const bodyTilt=clamp(hitTilt+turnLean*.43-inertia*.22+servoPitch,-.3,.3);
   try{
-    draw((full?pack.body:pack.bodyLite)||pack.body,e.x,foot,e.z,r,r,r,yaw,tint,0,bodyTilt);
+    // Mobile and distant targets keep the existing low-detail silhouette;
+    // the advanced mesh is reserved for close inspection / high detail.
+    if(completeAirframe&&full)draw(completeAirframe,e.x,foot,e.z,r,r,r,yaw,tint,0,bodyTilt);
+    else draw((full?pack.body:pack.bodyLite)||pack.body,e.x,foot,e.z,r,r,r,yaw,tint,0,bodyTilt);
     // Armor has a *visible lifecycle*: protruding plates break away permanently.
     // Stage is derived from HP, so older saves load without extra migration.
-    if(full){
-      const condition=clamp(e.hp/Math.max(1,e.maxhp),0,1);
+    if(full&&!completeAirframe){
+      const condition=e.maxProtection>0?clamp((e.protection||0)/e.maxProtection,0,1):clamp(e.hp/Math.max(1,e.maxhp),0,1);
       if(condition>.46 && pack.armorChest)draw(pack.armorChest,e.x,foot,e.z,r,r,r,yaw,tint,0,bodyTilt);
       else if(pack.exposed)draw(pack.exposed,e.x,foot,e.z,r,r,r,yaw,tint,.11+(Number(e.robotDamageHeat)||0)*.12,bodyTilt);
       if(condition>.71 && pack.armorLeft)draw(pack.armorLeft,e.x,foot,e.z,r,r,r,yaw,tint,0,bodyTilt);

@@ -27,7 +27,7 @@
 .campaignNode .nodeBadge{position:absolute;right:4px;top:3px;font-size:11px}
 .campaignNode.done{background:linear-gradient(160deg,#175342,#0d2b33);color:#c8ffe2;border-color:#60eeb7;box-shadow:inset 0 0 15px #1dce8223,0 0 11px #38bd6a1a}
 .campaignNode.done .nodeN{color:#a7ffd1}
-.campaignNode.current{background:linear-gradient(160deg,#174868,#0e243d);color:#f0ffff;border:2px solid #79dcff;box-shadow:0 0 20px #50baff55,inset 0 0 18px #44caff21;animation:campaignPulse 2.6s ease-in-out infinite}
+.campaignNode.current{background:linear-gradient(160deg,#174868,#0e243d);color:#f0ffff;border:2px solid #79dcff;box-shadow:0 0 20px #50baff55,inset 0 0 18px #44caff21}
 .campaignNode.locked{opacity:.47;background:linear-gradient(145deg,#141b28,#0a1220);border-color:#45515d;color:#8899a8;cursor:not-allowed;filter:saturate(.4)}
 .campaignNode.boss:not(.locked){border-width:2px}
 .campaignNode.boss .nodeN{font-weight:1000}
@@ -35,7 +35,6 @@
 .campaignNode:focus-visible{outline:2px solid white;outline-offset:3px}
 .campaignNode.current .nodeCaption{color:#9eefff}
 .campaignNode.done .nodeCaption{color:#a6ead0}
-@keyframes campaignPulse{50%{box-shadow:0 0 27px #45bfff99,inset 0 0 20px #44caff2e}}
 .campaignDetails{margin-top:12px;border:1px solid #55839a70;border-radius:12px;padding:12px;background:#07172aa8;font-size:12px;line-height:1.6;color:#a7c6db}
 .campaignDetails strong{color:#e8fff9}
 .campaignActions{display:flex;gap:9px;flex-wrap:wrap;margin-top:14px}
@@ -48,7 +47,6 @@
 .campaignProgressInner{height:100%;background:linear-gradient(90deg,#34c97e,#9effd1);border-radius:20px}
 @media(max-width:560px){.campaignRoute{grid-template-columns:repeat(4,minmax(0,1fr));row-gap:8px}.campaignNode{height:69px;border-radius:10px}.campaignNode .nodeN{font-size:18px}.campaignChapterHead{align-items:flex-start}.campaignTitle{font-size:27px}.campaignChapter{padding:9px}.campaignDetails{padding:9px}.campaignPagination button{padding:8px 10px}}
 @media(max-width:380px){.campaignRoute{grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}.campaignNode{height:65px}.campaignNode .nodeCaption{font-size:8px}}
-@media(prefers-reduced-motion:reduce){.campaignNode.current{animation:none}}
 
 
 /* Campaign map usability: accessible touch scrolling, snake path and connectors. */

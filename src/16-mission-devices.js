@@ -29,8 +29,12 @@ function completeDevice(g,d){
   toast('⌁ РЕТРАНСЛЯТОР АКТИВИРОВАН · '+g.mission.done+'/'+g.mission.required,2);
  }else if(d.kind==='repair'){
   p.hp=Math.min(p.maxhp,p.hp+35*quality);
-  p.armor=Math.min(p.maxArmor,p.armor+22*quality);g.score+=85;
-  toast('✚ РЕМОНТ · КОРПУС И БРОНЯ ВОССТАНОВЛЕНЫ',1.6);
+  p.armor=Math.min(p.maxArmor,p.armor+22*quality);
+  // Repair the *physical* suit as well as the renewable energy barrier.
+  // This is the player's deliberate, map-limited way to rescue a worn suit.
+  p.bodyArmor=Math.min(p.bodyArmorMax||0,(p.bodyArmor||0)+(p.bodyArmorMax||0)*.18*quality);
+  g.score+=85;
+  toast('✚ РЕМОНТ · КОРПУС, ЭНЕРГОБАРЬЕР И КОСТЮМ',1.6);
  }else if(d.kind==='battery'){
   p.energy=Math.min(p.maxEnergy,p.energy+55*quality);p.heat=0;p.heatLock=0;
   g.score+=85;toast('ϟ ЭНЕРГОСТАНЦИЯ · ЗАРЯД И ОХЛАЖДЕНИЕ',1.5);
@@ -113,15 +117,17 @@ function spawnPowerNodes(level){
  }
  game.nodes=selected;
 }
-function rayNode(o,d,maxDist){
+function rayNode(o,d,maxDist,assist=0){
  if(!game)return null;let result=null,best=maxDist;
  for(const node of game.nodes){
   if(node.dead)continue;
   const ox=o.x-node.x,oy=o.y-(1.3+floorHeight(node.x,node.z)),oz=o.z-node.z;
-  const b=ox*d.x+oy*d.y+oz*d.z,disc=b*b-(ox*ox+oy*oy+oz*oz-node.radius*node.radius);
-  if(disc<0)continue;let t=-b-Math.sqrt(disc);if(t<.035)t=-b+Math.sqrt(disc);
-  if(t<.035||t>=best)continue;best=t;
-  result={kind:'node',node,t,x:o.x+d.x*t,y:o.y+d.y*t,z:o.z+d.z*t,nx:(o.x+d.x*t-node.x)/node.radius,ny:(o.y+d.y*t-1.3-floorHeight(node.x,node.z))/node.radius,nz:(o.z+d.z*t-node.z)/node.radius};
+  const radius=node.radius+Math.max(0,assist);
+  const b=ox*d.x+oy*d.y+oz*d.z,c=ox*ox+oy*oy+oz*oz-radius*radius,disc=b*b-c;
+  if(disc<0)continue;
+  const t=c<=0?.001:-b-Math.sqrt(disc);
+  if(t<0||t>=best)continue;best=t;
+  result={kind:'node',node,t,x:o.x+d.x*t,y:o.y+d.y*t,z:o.z+d.z*t,nx:(o.x+d.x*t-node.x)/radius,ny:(o.y+d.y*t-1.3-floorHeight(node.x,node.z))/radius,nz:(o.z+d.z*t-node.z)/radius};
  }
  return result;
 }

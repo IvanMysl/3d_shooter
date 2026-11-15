@@ -6,6 +6,9 @@
 #bars .arm{background:linear-gradient(90deg,#637e9e,#c6d7e2)}
 #bars.armorHit{box-shadow:0 0 0 2px #a3d6fc99,0 0 23px #75d9ff55}
 #bars.armorHit .arm{filter:brightness(1.6)}
+#bodyArmorFill{background:linear-gradient(90deg,#25a8a1,#96f5dd)!important}
+#bars.suitHit{box-shadow:0 0 0 2px #8cf7d6aa,0 0 23px #57ffbd66}
+#bars.suitHit #bodyArmorFill{filter:brightness(1.75);box-shadow:0 0 13px #54ffd9}
 .backupActions{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0 4px}
 .backupActions button{padding:10px 13px}
 /* VERTICAL FRONTIER: accessible mobile jump control and height readout */
@@ -15,5 +18,37 @@
 #altimeter{position:absolute;left:50%;top:calc(50% + 23px);transform:translateX(-50%);font:800 10px system-ui;color:#9af5fc;text-shadow:0 1px 8px #001;opacity:.8;pointer-events:none;white-space:nowrap}
 @media (max-width:600px){#touchActions{grid-template-columns:repeat(3,51px);grid-template-rows:repeat(2,51px)}#jumpTouch{width:60px;height:60px;margin-left:1px}#jumpTouch b{font-size:23px}}
 @media (max-height:480px) and (orientation:landscape){#touchActions{grid-template-columns:repeat(3,47px);grid-template-rows:repeat(2,47px)}#jumpTouch{width:56px;height:56px}}
+
+/* Phase distance: tiny transient PC gauge, fully hidden between changes. */
+#dashRangeHud{position:fixed;top:42%;right:max(14px,env(safe-area-inset-right));z-index:11;display:flex;align-items:center;flex-direction:column;gap:7px;width:84px;padding:10px 8px;color:#b9f7fb;background:linear-gradient(160deg,#0c2235ed,#07141fe8);border:1px solid #7ac2d47d;border-radius:12px;box-shadow:0 4px 30px #081721aa,0 0 16px #48f9fc26;opacity:0;transform:translateX(16px);visibility:hidden;transition:opacity .2s ease,transform .2s ease,visibility .2s;pointer-events:none;font:800 10px system-ui;text-align:center}
+#dashRangeHud.visible{opacity:1;transform:translateX(0);visibility:visible}
+#dashRangeHud>span{font-size:10px;letter-spacing:.04em}
+#dashRangeHud>strong{font-size:10px;color:#d9ffff;white-space:nowrap}
+#dashRangeHud>small{color:#7eb7c6;font-size:9px}
+#dashRangeTrack{height:112px;width:13px;border:1px solid #82b9c5a1;border-radius:7px;position:relative;overflow:hidden;background:repeating-linear-gradient(to top,#143344 0 13px,#355469 13px 14px);box-shadow:inset 0 0 8px #010c1b}
+#dashRangeFill{position:absolute;bottom:0;left:0;width:100%;height:100%;border-radius:6px;background:linear-gradient(to top,#2996c8,#75f4ff);box-shadow:0 0 11px #51edffad;transition:height .11s ease}
+/* The mobile pause control is an actual illuminated progress bar, not the
+   browser's anonymous thin gray range track. Native input remains accessible
+   and receives every pointer event above the decorated rail. */
+.dashPauseSettings{margin:13px 0;padding:15px 16px 13px;border:1px solid #4a9fb599;border-radius:14px;background:linear-gradient(135deg,#0b2635f5,#091c2eed);box-shadow:inset 0 1px #a3e6fb1d,0 4px 18px #04111a55}
+.dashPauseHead{display:flex;align-items:baseline;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:12px}
+.dashPauseHead label{font-size:12px;font-weight:900;color:#c7f4f6;letter-spacing:.045em}
+.dashPauseHead output{font-size:14px;font-weight:950;color:#8bfbf9;white-space:nowrap;font-variant-numeric:tabular-nums}
+.dashPauseRail{position:relative;height:43px;touch-action:pan-x}
+.dashPauseTrack{position:absolute;inset:9px 5px;border:1px solid #6e9dae99;border-radius:100px;background:linear-gradient(#19394d,#173044);box-shadow:inset 0 2px 7px #010b14,0 0 17px #43dfec13;overflow:visible}
+.dashPauseTrack:after{content:'';position:absolute;inset:2px 8px;pointer-events:none;background:repeating-linear-gradient(90deg,transparent 0 9.8%,#e0ffff45 9.9% 10%);opacity:.25}
+.dashPauseRailFill{position:absolute;inset:0 auto 0 0;width:var(--dash-fill,100%);max-width:100%;border-radius:100px;background:linear-gradient(90deg,#177cc4 0%,#20c9ea 54%,#8afdef 100%);box-shadow:0 0 15px #50ebf770,inset 0 2px 4px #dbffff45;transition:width .08s linear}
+.dashPauseRailKnob{position:absolute;top:50%;left:var(--dash-fill,100%);transform:translate(-50%,-50%);width:23px;height:31px;border-radius:9px;border:2px solid #d4ffff;background:linear-gradient(145deg,#bdfcff,#32d5e9 65%,#128cc3);box-shadow:0 0 0 4px #15a5cb3a,0 0 17px #47f7f2bd,0 3px 8px #010a12;pointer-events:none;transition:left .08s linear;z-index:2}
+.dashPauseRail input[type=range]{position:absolute;inset:0;width:100%;height:100%;margin:0;opacity:0;cursor:pointer;touch-action:pan-x;z-index:3}
+.dashPauseRail:focus-within{outline:2px solid #8afdf4;outline-offset:3px;border-radius:9px}
+.dashPauseScale{display:flex;justify-content:space-between;gap:12px;margin:0 3px 11px;color:#7eafbf;font-size:10px;font-weight:800;letter-spacing:.05em}
+.dashPauseSettings small{display:block;color:#9bbdc5;font-size:11px;line-height:1.5}
+@media (hover:none),(pointer:coarse){#dashRangeHud{display:none!important}.dashPauseRail{height:50px}.dashPauseTrack{inset:12px 5px}.dashPauseRailKnob{height:35px;width:25px}}
+@media (max-height:480px) and (orientation:landscape){#dashRangeHud{top:32%;right:12px}}
+
+/* Recharge feedback occupies the existing touch button — no extra HUD panel. */
+#touchActions .act{position:relative}
+#touchActions .act.recharging{filter:saturate(.60) brightness(.79)}
+#touchActions .act.recharging::after{content:attr(data-cooldown);position:absolute;right:3px;top:3px;padding:1px 3px;border:1px solid #8dd5e688;border-radius:4px;background:#081326e8;color:#d3f8ff;font:800 10px system-ui;pointer-events:none}
 
 

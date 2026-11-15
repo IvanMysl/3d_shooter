@@ -107,11 +107,21 @@ function renderHeldWeapon(g,p,eye,dir){
  }
  gl.uniform1f(u.uMatOverride,-1.);
 }
+// Directional glow tails share one tapered GPU mesh. No per-shot allocations
+// beyond a few scalars and no change to projectile collision or lifetimes.
+function drawEnergyTail(b,color,width,maxLength,glow=1.1){
+ const vx=Number(b.vx)||0,vy=Number(b.vy)||0,vz=Number(b.vz)||0;
+ const speed=Math.hypot(vx,vy,vz);if(speed<.001)return;
+ const len=Math.min(maxLength,.06+speed*.032);
+ const x=b.x-vx/speed*len*.5,y=b.y-vy/speed*len*.5,z=b.z-vz/speed*len*.5;
+ const yaw=Math.atan2(vx,vz),tilt=-Math.atan2(vy,Math.hypot(vx,vz));
+ draw(geom.tracer||geom.cylinder,x,y,z,width,width,len,yaw,color,glow,tilt);
+}
 function render(){if(!game)return;if(!glReady){renderFallback();return;}const g=game,p=g.p,tt=themes[sectorStyle%themes.length];
 // Physically restrained weapon sway and recoil, kept separate from the 3D scene.
 const gunEl=$('gun');if(gunEl){const bob=p.walk?Math.sin(g.t*11)*3.5:Math.sin(g.t*1.9)*.65;
  gunEl.style.transform=`translateX(calc(-50% + ${p.walk?Math.cos(g.t*8)*2.7:0}px)) translateY(${bob+(p.recoil||0)*12}px) rotate(${Math.sin(g.t*1.1)*.18}deg)`;}
-let width=innerWidth,height=innerHeight;const post=save.settings.quality===2&&!!postProgram&&ensurePost();gl.bindFramebuffer(gl.FRAMEBUFFER,post?postFbo:null);gl.viewport(0,0,glCanvas.width,glCanvas.height);gl.clearColor(...tt.fog,1);gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);gl.useProgram(program);gl.activeTexture(gl.TEXTURE0);gl.bindTexture(gl.TEXTURE_2D,materialAlbedo);gl.activeTexture(gl.TEXTURE1);gl.bindTexture(gl.TEXTURE_2D,materialNormals);gl.activeTexture(gl.TEXTURE0);let camY=1.47+(p.feetY||0)+Math.sin(g.t*10)*(p.walk? .028:0)+(p.recoil||0)*-.045;let eye=[p.x,camY,p.z],dir=[Math.sin(p.yaw)*Math.cos(p.pitch),Math.sin(p.pitch),Math.cos(p.yaw)*Math.cos(p.pitch)];matView=lookAt(...eye,p.x+dir[0],camY+dir[1],p.z+dir[2]);matProj=perspective((touchOnly&&height>width?79:73)*Math.PI/180,width/height,.045,60);gl.uniformMatrix4fv(u.uView,false,matView);gl.uniformMatrix4fv(u.uProj,false,matProj);gl.uniform3fv(u.uEye,eye);gl.uniform3fv(u.uFog,tt.fog);gl.uniform1f(u.uTime,g.t);gl.uniform3fv(u.uAccent,tt.accent);gl.uniform3fv(u.uCamDir,dir);gl.uniform1f(u.uQuality,save.settings.quality);gl.uniform1f(u.uShotFlash,clamp((p.shotGlow||0)*6,0,1.5));gl.uniform1f(u.uMatOverride,-1);backdrop(tt,p,g.t);
+let width=innerWidth,height=innerHeight;const post=save.settings.quality===2&&!!postProgram&&ensurePost();gl.bindFramebuffer(gl.FRAMEBUFFER,post?postFbo:null);gl.viewport(0,0,glCanvas.width,glCanvas.height);gl.clearColor(...tt.fog,1);gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);gl.useProgram(program);gl.activeTexture(gl.TEXTURE0);gl.bindTexture(gl.TEXTURE_2D,materialAlbedo);gl.activeTexture(gl.TEXTURE1);gl.bindTexture(gl.TEXTURE_2D,materialNormals);gl.activeTexture(gl.TEXTURE0);let camY=1.47+(p.feetY||0)+Math.sin(g.t*10)*(p.walk? .028:0)+(p.recoil||0)*-.045;const camera=externalCameraEnabled()?operatorCameraPose(p):null;let eye=camera?camera.eye:[p.x,camY,p.z],dir=camera?camera.dir:[Math.sin(p.yaw)*Math.cos(p.pitch),Math.sin(p.pitch),Math.cos(p.yaw)*Math.cos(p.pitch)];matView=lookAt(...eye,eye[0]+dir[0],eye[1]+dir[1],eye[2]+dir[2]);matProj=perspective((touchOnly&&height>width?79:73)*Math.PI/180,width/height,.045,60);gl.uniformMatrix4fv(u.uView,false,matView);gl.uniformMatrix4fv(u.uProj,false,matProj);gl.uniform3fv(u.uEye,eye);gl.uniform3fv(u.uFog,tt.fog);gl.uniform1f(u.uTime,g.t);gl.uniform3fv(u.uAccent,tt.accent);gl.uniform3fv(u.uCamDir,dir);gl.uniform1f(u.uQuality,save.settings.quality);gl.uniform1f(u.uShotFlash,clamp((p.shotGlow||0)*6,0,1.5));gl.uniform1f(u.uMatOverride,-1);backdrop(tt,p,g.t);
 const features=mapFeatures.filter(f=>hypot(f.x-p.x,f.z-p.z)<24).sort((a,b)=>hypot(a.x-p.x,a.z-p.z)-hypot(b.x-p.x,b.z-p.z));
 const lamps=[];for(let i=0;i<3;i++){let f=features[i];lamps.push(f?f.x:(p.x+dir[0]*7),f?(f.kind===3?3.55:3.15):3.1,f?f.z:(p.z+dir[2]*7));}
 gl.uniform3fv(u['uLampPos[0]'],new Float32Array(lamps));drawWorld();drawEnvironmentDetails(g,tt);drawRouteBeacons(g,tt);drawDevices(g);
@@ -189,7 +199,7 @@ for(const tr of (g.tracers||[])){
  const xx=tr.b.x-tr.a.x,yy=tr.b.y-tr.a.y,zz=tr.b.z-tr.a.z;
  const len=hypot(xx,yy,zz),fade=clamp(tr.life/tr.maxLife,0,1);
  if(len>.01){const yaw=Math.atan2(xx,zz),tilt=-Math.atan2(yy,hypot(xx,zz)),mid=v3((tr.a.x+tr.b.x)/2,(tr.a.y+tr.b.y)/2,(tr.a.z+tr.b.z)/2);
-  draw(geom.cube,mid.x,mid.y,mid.z,tr.r*fade,tr.r*fade,len,yaw,tr.col,.9+1.2*fade,tilt);
+  draw(geom.tracer||geom.cylinder,mid.x,mid.y,mid.z,tr.r*fade*1.65,tr.r*fade*1.65,len,yaw,tr.col,.9+1.3*fade,tilt);
  }
 }
 for(const f of (g.impactFx||[])){
@@ -199,8 +209,11 @@ for(const f of (g.impactFx||[])){
 }
 for(const b of (g.projectiles||[])){
  if(hypot(b.x-p.x,b.z-p.z)>40)continue;
- draw(geom.orb,b.x,b.y,b.z,b.rad*2,b.rad*2,b.rad*2,g.t*2,b.w.color,2.4);
- if(save.settings.quality>0)draw(geom.ring,b.x,b.y,b.z,b.rad*3,b.rad*3,b.rad*3,g.t,b.w.color,.9);
+ draw(geom.spark||geom.orb,b.x,b.y,b.z,b.rad*2,b.rad*2,b.rad*2,g.t*2,b.w.color,2.4);
+ if(save.settings.quality>0){
+   drawEnergyTail(b,b.w.color,b.rad*1.15,1.25,1.35);
+   draw(geom.ring,b.x,b.y,b.z,b.rad*2.5,b.rad*2.5,b.rad*2.5,g.t,b.w.color,.58);
+ }
 }
 if(save.settings.quality>0){
  // Slow-floating luminous dust: subtly conveys depth and air movement.
@@ -212,6 +225,22 @@ if(save.settings.quality>0){
   draw(geom.orb,px,py,pz,.014,.014,.014,aa,tt.accent,.25);
  }
 }
-for(const b of g.bullets){let c=b.from==='player'?[.1,1,1]:b.col||[1,.25,.43];draw(geom.orb,b.x,b.y,b.z,b.radius*2,b.radius*2,b.radius*2,g.t,c,2.5)}for(const pfx of g.particles){let scale=.035+pfx.life*.085;draw(geom.cube,pfx.x,pfx.y,pfx.z,scale,scale,scale,pfx.a,pfx.col,1.9)}
-renderHeldWeapon(g,p,eye,dir);if(p.shotGlow>.015){const rt=[-Math.cos(p.yaw),0,Math.sin(p.yaw)];const fx=eye[0]+dir[0]*1.55+rt[0]*.27,fy=eye[1]+dir[1]*1.55-.24,fz=eye[2]+dir[2]*1.55+rt[2]*.27;const sz=.10+Math.min(1,p.shotGlow*9)*.18;draw(geom.octa,fx,fy,fz,sz*.7,sz*.7,sz*1.8,g.t*25,weapons[p.weapon].color,1.75);}if(post)showPost(g.t);
+for(const b of g.bullets){
+ const c=b.from==='player'?[.1,1,1]:b.col||[1,.25,.43];
+ draw(geom.spark||geom.orb,b.x,b.y,b.z,b.radius*2,b.radius*2,b.radius*2,g.t,c,2.5);
+ if(save.settings.quality>0)drawEnergyTail(b,c,b.radius*.66,.92,1.05);
+}
+let renderedSparks=0;const maxSparks=save.settings.quality===0?75:touchOnly?110:145;
+for(let i=g.particles.length-1;i>=0&&renderedSparks<maxSparks;i--){
+ const pfx=g.particles[i];renderedSparks++;
+ const life=clamp(pfx.life/Math.max(.01,pfx.maxLife||.6),0,1);
+ const scale=(.037+.031*life)*Math.sqrt(life);
+ const vx=Number(pfx.vx)||0,vy=Number(pfx.vy)||0,vz=Number(pfx.vz)||0;
+ const speed=Math.hypot(vx,vy,vz);
+ const yaw=speed>.001?Math.atan2(vx,vz):Number(pfx.a)||0;
+ const tilt=speed>.001?-Math.atan2(vy,Math.hypot(vx,vz)):0;
+ const mesh=save.settings.quality===0?geom.octa:(geom.spark||geom.orb);
+ draw(mesh,pfx.x,pfx.y,pfx.z,scale,scale,scale*(1.2+Math.min(3,speed*.38)),yaw,pfx.col||[1,.65,.32],.5+2*life,tilt);
+}
+if(camera?.drawActor)renderOperator(g,p);else renderHeldWeapon(g,p,eye,dir);if(!camera?.drawActor&&p.shotGlow>.015){const rt=[-Math.cos(p.yaw),0,Math.sin(p.yaw)];const fx=eye[0]+dir[0]*1.55+rt[0]*.27,fy=eye[1]+dir[1]*1.55-.24,fz=eye[2]+dir[2]*1.55+rt[2]*.27;const sz=.10+Math.min(1,p.shotGlow*9)*.18;draw(geom.octa,fx,fy,fz,sz*.7,sz*.7,sz*1.8,g.t*25,weapons[p.weapon].color,1.75);}if(post)showPost(g.t);
 }
