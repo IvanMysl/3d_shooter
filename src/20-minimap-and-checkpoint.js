@@ -205,4 +205,18 @@ setInterval(()=>{if(game&&game.state!=='dead')saveRun();},2600);
 addEventListener('pagehide',()=>{if(game&&game.state!=='dead')saveRun();});
 document.addEventListener('visibilitychange',()=>{if(document.hidden&&game&&game.state!=='dead')saveRun();});
 
-function panel(html){$('panel').innerHTML=html+'<div class="line"></div><div class="row"><button class="secondary" type="button" data-fs>⛶ ПОЛНЫЙ ЭКРАН</button></div>';updateFullscreenButtons();$('overlay').classList.remove('hidden');$('hud').classList.remove('show')}
+function panel(html){
+ const content=$('panel');
+ const buildLabel=`<div class="buildReleaseStamp" aria-label="Версия игры">NEON RIFT 3D · V${GAME_BUILD} · ${GAME_RELEASE}</div>`;
+ const legacyNotice=legacyDiverged&&!game?'<div class="legacySaveWarning" role="status">⚠ Старая версия игры создала более позднее отдельное сохранение. Защищённый прогресс не перезаписан. Если нужны изменения из старой вкладки, экспортируй там JSON и импортируй сюда.</div>':'';
+ // A new query-string URL forces a separate HTML cache entry. Keep the same
+ // protocol/host: browser localStorage (and all purchases) is unchanged.
+ // Never expose a reload link during a live run, including Pause / rewards.
+ const releaseLink=!game&&typeof location!=='undefined'&&/^https?:$/.test(location.protocol)?
+  `<div class="buildReleaseTools"><a href="?v=${GAME_BUILD}" class="buildReleaseLink">↻ ОТКРЫТЬ ЭТУ ВЕРСИЮ ПО НОВОЙ ССЫЛКЕ</a><small>Для следующего обновления используй ссылку с новым номером версии.</small></div>`:'';
+ content.innerHTML=buildLabel+legacyNotice+html+'<div class="line"></div><div class="row"><button class="secondary" type="button" data-fs>⛶ ПОЛНЫЙ ЭКРАН</button></div>'+releaseLink;
+ // Different screens must start at their own heading. Otherwise a deeply
+ // scrolled campaign map can open the reward screen halfway through its cards.
+ content.scrollTop=0;
+ updateFullscreenButtons();$('overlay').classList.remove('hidden');$('hud').classList.remove('show');
+}

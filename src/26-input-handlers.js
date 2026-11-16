@@ -16,10 +16,13 @@ function setFlightThrottle(axis,value,commit=false){
 }
 function refreshFlightTuning(){
  for(const [axis,id] of [['horizontal','flightHorizontal'],['vertical','flightVertical']]){
-  const slider=$(id+'Slider'),value=$(id+'Value');if(!slider||!value)continue;
-  const ratio=normalizeFlightThrottle(save.settings[id]);slider.value=String(Math.round(ratio*100));
-  value.textContent=Math.round(ratio*100)+'%';
-  value.title='Доступно '+(axis==='horizontal'?(3.05*flightSpeedMultiplier(axis)).toFixed(2):(FLIGHT_SPEED*flightSpeedMultiplier(axis)).toFixed(2))+' м/с';
+  const ratio=normalizeFlightThrottle(save.settings[id]);
+  for(const suffix of ['','Pause']){
+   const slider=$(id+suffix+'Slider'),value=$(id+suffix+'Value');if(!slider||!value)continue;
+   slider.value=String(Math.round(ratio*100));
+   value.textContent=Math.round(ratio*100)+'%';
+   value.title='Доступно '+(axis==='horizontal'?(3.05*flightSpeedMultiplier(axis)).toFixed(2):(FLIGHT_SPEED*flightSpeedMultiplier(axis)).toFixed(2))+' м/с';
+  }
  }
 }
 for(const [axis,id] of [['horizontal','flightHorizontal'],['vertical','flightVertical']]){
@@ -27,6 +30,17 @@ for(const [axis,id] of [['horizontal','flightHorizontal'],['vertical','flightVer
  slider.addEventListener('input',()=>setFlightThrottle(axis,Number(slider.value)/100));
  slider.addEventListener('change',()=>setFlightThrottle(axis,Number(slider.value)/100,true));
  for(const action of ['pointerdown','pointermove','pointerup'])slider.addEventListener(action,e=>e.stopPropagation());
+}
+// The mobile pause panel is recreated after camera/settings changes, so its
+// sliders must be rebound each time. The HUD controls remain desktop-only.
+function wireFlightPauseSettings(){
+ for(const [axis,id] of [['horizontal','flightHorizontal'],['vertical','flightVertical']]){
+  const slider=$(id+'PauseSlider');if(!slider)continue;
+  slider.addEventListener('input',()=>setFlightThrottle(axis,Number(slider.value)/100));
+  slider.addEventListener('change',()=>setFlightThrottle(axis,Number(slider.value)/100,true));
+  for(const action of ['pointerdown','pointermove','pointerup'])slider.addEventListener(action,e=>e.stopPropagation());
+ }
+ refreshFlightTuning();
 }
 // Enter on an input invokes the exact associated action, just like clicking
 // its adjacent primary button. Password changes never accidentally log in.
@@ -108,7 +122,7 @@ if(touchOnly){
   let joy=$('joystick'),stick=$('stick');const joyPos=e=>{const r=joy.getBoundingClientRect(),cx=r.left+r.width/2,cy=r.top+r.height/2;let x=e.clientX-cx,y=e.clientY-cy,lim=r.width*.35,mag=hypot(x,y)||1;if(mag>lim){x*=lim/mag;y*=lim/mag}input.mx=x/lim;input.mz=-y/lim;stick.style.transform=`translate(${x}px,${y}px)`};joy.addEventListener('pointerdown',e=>{if(input.joyId!==null){e.preventDefault();return;}input.joyId=e.pointerId;joy.setPointerCapture(e.pointerId);joyPos(e);e.preventDefault()});joy.addEventListener('pointermove',e=>{if(input.joyId===e.pointerId){joyPos(e);e.preventDefault()}});const endJoy=e=>{if(e.pointerId===input.joyId){input.mx=0;input.mz=0;input.joyId=null;stick.style.transform='translate(0,0)'}};joy.addEventListener('pointerup',endJoy);joy.addEventListener('pointercancel',endJoy);
 [['dashTouch','dash'],['pulseTouch','pulse'],['shieldTouch','shield'],['healTouch','heal']].forEach(([id,ab])=>$(id).addEventListener('pointerdown',e=>{e.preventDefault();useAbility(ab)}));const runTouch=$('runTouch');
  runTouch.addEventListener('pointerdown',e=>{e.preventDefault();e.stopPropagation();input.mobileSprint=!input.mobileSprint;runTouch.classList.toggle('running',input.mobileSprint);runTouch.setAttribute('aria-pressed',String(input.mobileSprint));},{passive:false});
- const mobileView=$('viewTouch');mobileView.addEventListener('pointerdown',e=>{e.preventDefault();e.stopPropagation();toggleCameraMode();},{passive:false});
+ // Touch camera mode is selected exclusively through the pause menu.
  const flyButton=$('flightToggle');
  flyButton.addEventListener('pointerdown',e=>{e.preventDefault();e.stopPropagation();toggleFlight();},{passive:false});
  for(const [id,axis] of [['flightUp','flyUp'],['flightDown','flyDown']]){

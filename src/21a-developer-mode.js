@@ -60,6 +60,9 @@ function developerLeave(){
  if(game&&game.state!=='dead')saveRun();
  game=null;closeArsenal();
  save=normalPlayerSave;normalPlayerSave=null;devMode=false;
+ // The developer sandbox uses a different journal and timestamp. Restoring
+ // the normal save must restore its own concurrency watermark too.
+ lastSavedAt=Number(save._savedAt)||0;
  campaignPage=Math.floor((save.campaign.highestUnlocked-1)/CAMPAIGN_CHAPTER_SIZE);
  refreshCameraInterface();menu();
 }

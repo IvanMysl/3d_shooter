@@ -1,7 +1,13 @@
 
 (()=>{'use strict';
 const $=x=>document.getElementById(x), TAU=Math.PI*2, clamp=(n,a,b)=>Math.max(a,Math.min(b,n)), hypot=Math.hypot, rand=(a,b)=>a+Math.random()*(b-a), pick=a=>a[Math.random()*a.length|0], distance=(a,b)=>hypot(a.x-b.x,a.z-b.z);let game=null, lastFrame=0, deadlock=false;
-const SAVE_KEY='neonrift3d-save', SAVE_BACKUP_KEY='neonrift3d-save-backup', SAVE_SESSION_KEY='neonrift3d-save-session';
+// Stage32 uses a protected namespace. An already-open Stage31 (or older) page
+// still writes its legacy keys, but cannot overwrite this edition's progress.
+// Import the legacy journal once; never let a newer legacy write silently
+// replace an existing protected journal.
+const SAVE_KEY='neonrift3d-save-protected-v1',SAVE_BACKUP_KEY='neonrift3d-save-protected-backup-v1',SAVE_SESSION_KEY='neonrift3d-save-protected-session-v1';
+const LEGACY_SAVE_KEY='neonrift3d-save',LEGACY_BACKUP_KEY='neonrift3d-save-backup',LEGACY_SESSION_KEY='neonrift3d-save-session';
+const GAME_BUILD='32',GAME_RELEASE='2026-11-16';
 // Developer play is an isolated rehearsal save. It can never overwrite the
 // player's regular autosaves, backup journal or session save.
 const DEV_SAVE_KEY='neonrift3d-developer-sandbox-v1',DEV_PASSWORD_KEY='neonrift3d-developer-password-v1';
@@ -27,12 +33,17 @@ const PERM_MAX_LEVEL=40,PERM_COUNT=12;
 function normalizePerms(raw){return Array.from({length:PERM_COUNT},(_,i)=>clamp(Math.floor(Number(raw?.[i])||0),0,PERM_MAX_LEVEL));}
 const saveDefaults={best:1,credits:0,kills:0,perms:Array(PERM_COUNT).fill(0),runs:0,settings:{audio:true,aim:true,quality:1,fpsLimit:60,cameraMode:'first',dashDistance:null,flightHorizontal:1,flightVertical:1},checkpoint:null};
 function getSaved(key,area){try{const s=JSON.parse(area.getItem(key));if(s&&typeof s==='object'&&Array.isArray(s.perms)&&s.best>=1)return s;}catch(e){}return null;}
-function loadJournal(){
- let main=null,backup=null,session=null;try{main=getSaved(SAVE_KEY,localStorage);backup=getSaved(SAVE_BACKUP_KEY,localStorage);}catch(e){}try{session=getSaved(SAVE_SESSION_KEY,sessionStorage);}catch(e){}const entries=[main,backup,session];
+function latestJournal(mainKey,backupKey,sessionKey){
+ let main=null,backup=null,session=null;try{main=getSaved(mainKey,localStorage);backup=getSaved(backupKey,localStorage);}catch(e){}try{session=getSaved(sessionKey,sessionStorage);}catch(e){}const entries=[main,backup,session];
  let newest=null,stamp=-1;
  for(const s of entries){if(!s)continue;const at=Number(s._savedAt)||0;if(!newest||at>stamp){newest=s;stamp=at;}}
  return newest;
 }
+const protectedJournal=latestJournal(SAVE_KEY,SAVE_BACKUP_KEY,SAVE_SESSION_KEY);
+const legacyJournal=latestJournal(LEGACY_SAVE_KEY,LEGACY_BACKUP_KEY,LEGACY_SESSION_KEY);
+let legacyDiverged=!!protectedJournal&&!!legacyJournal&&
+ (Number(legacyJournal._savedAt)||0)>(Number(protectedJournal._savedAt)||0);
+function loadJournal(){return protectedJournal||legacyJournal;}
 const loadedSave=loadJournal();
 let save={...saveDefaults,...(loadedSave||{}),perms:normalizePerms(loadedSave?.perms||saveDefaults.perms),settings:{...saveDefaults.settings,...(loadedSave?.settings||{})}};
 save.settings.quality=clamp(save.settings.quality|0,0,2);
@@ -61,21 +72,64 @@ save.campaign=normalizeCampaign(save.campaign,save.best,save.checkpoint);
 save.best=clamp(Math.floor(Number(save.best)||1),1,CAMPAIGN_MAX_LEVEL);
 if(Number(save.checkpoint?.sector)>CAMPAIGN_MAX_LEVEL)save.checkpoint=null;
 let campaignPage=Math.floor((save.campaign.highestUnlocked-1)/CAMPAIGN_CHAPTER_SIZE);
-let storageAvailable=true,lastSavedAt=Number(save._savedAt)||0;
-function persist(){
+let storageAvailable=true,lastSavedAt=Number(save._savedAt)||0,saveConflict=false;
+function showSaveConflict(){
+ storageAvailable=false;
+ if(!document.body||$('saveConflictBanner'))return;
+ const banner=document.createElement('div');banner.id='saveConflictBanner';banner.setAttribute('role','alert');
+ banner.innerHTML='<strong>⚠ ПРОГРЕСС ИЗМЕНЁН В ДРУГОЙ ВКЛАДКЕ</strong><span>Автосохранение здесь остановлено, чтобы не затереть более новые покупки. Экспортируй своё состояние в JSON или загрузи прогресс из другой вкладки.</span><div class="saveConflictActions"><button type="button" data-conflict-export>⬇ ЭКСПОРТ JSON</button><button type="button" data-conflict-reload>↻ ЗАГРУЗИТЬ АКТУАЛЬНОЕ</button></div>';
+ document.body.append(banner);
+ banner.querySelector('[data-conflict-export]').onclick=backupFile;
+ banner.querySelector('[data-conflict-reload]').onclick=()=>window.location.reload();
+ // Do not let an unsavable run continue silently in the background.
+ if(game?.state==='playing'&&typeof pause==='function')pause();
+}
+function persist(force=false){
  try{
-  save._savedAt=Math.max(Date.now(),(Number(save._savedAt)||0)+1);
-  const blob=JSON.stringify(save);
   if(devMode){
-   localStorage.setItem(DEV_SAVE_KEY,blob);
-   storageAvailable=true;lastSavedAt=save._savedAt;return true;
+   save._savedAt=Math.max(Date.now(),(Number(save._savedAt)||0)+1);
+   localStorage.setItem(DEV_SAVE_KEY,JSON.stringify(save));
+   storageAvailable=true;return true;
+  }
+  const disk=getSaved(SAVE_KEY,localStorage),diskStamp=Number(disk?._savedAt)||0;
+  // Another Stage32 tab saved since this one loaded. Never silently replace
+  // its purchase/armor/checkpoint snapshot with an older in-memory copy.
+  if(!force&&(saveConflict||diskStamp>lastSavedAt)){
+   saveConflict=true;showSaveConflict();return false;
+  }
+  // A still-open Stage31 tab may have changed its own journal meanwhile.
+  // Preserve that separate branch for manual JSON export; never silently
+  // replace newer legacy progress with a mirror of the protected branch.
+  const oldLegacy=getSaved(LEGACY_SAVE_KEY,localStorage);
+  if((Number(oldLegacy?._savedAt)||0)>lastSavedAt)legacyDiverged=true;
+  save._savedAt=Math.max(Date.now(),(Number(save._savedAt)||0)+1,lastSavedAt+1,diskStamp+1);
+  const blob=JSON.stringify(save);
+  // Unlike Stage31, the backup is the PREVIOUS good snapshot, not an
+  // identical overwrite. Never replace a newer recovery copy with an older
+  // primary if a prior write failed partway through.
+  const rollback=getSaved(SAVE_BACKUP_KEY,localStorage);
+  if(disk&&diskStamp>=(Number(rollback?._savedAt)||0)){
+   try{localStorage.setItem(SAVE_BACKUP_KEY,JSON.stringify(disk));}
+   catch(e){console.warn('Previous save journal unavailable: ',e);}
   }
   localStorage.setItem(SAVE_KEY,blob);
-  localStorage.setItem(SAVE_BACKUP_KEY,blob);
+  // Compatibility mirror: Stage31 may still read legacy data, but its writes
+  // can no longer destroy this protected Stage32 copy. Best effort only.
+  if(!legacyDiverged)try{localStorage.setItem(LEGACY_SAVE_KEY,blob);}catch(e){}
   try{sessionStorage.setItem(SAVE_SESSION_KEY,blob);}catch(e){}
-  storageAvailable=true;lastSavedAt=save._savedAt;return true;
+  lastSavedAt=save._savedAt;storageAvailable=true;
+  if(force){saveConflict=false;legacyDiverged=false;$('saveConflictBanner')?.remove();}
+  return true;
  }catch(e){storageAvailable=false;console.warn('Save unavailable: ',e);return false;}
 }
+if(typeof addEventListener==='function')addEventListener('storage',e=>{
+ if(devMode||!e.newValue)return;
+ try{const updated=JSON.parse(e.newValue);
+  if((Number(updated?._savedAt)||0)<=lastSavedAt)return;
+  if(e.key===SAVE_KEY){saveConflict=true;showSaveConflict();}
+  if(e.key===LEGACY_SAVE_KEY)legacyDiverged=true;
+ }catch(_){/* A corrupt external write must not break gameplay. */}
+});
 if(loadedSave){try{if(getSaved(SAVE_KEY,localStorage)?._savedAt!==save._savedAt)persist();}catch(e){storageAvailable=false;}}
 let autosaveNoticeUntil=0;
 function saveNotice(message){const e=$('saveToast');if(!e)return;e.textContent=message;e.classList.add('visible');autosaveNoticeUntil=performance.now()+1500;}
@@ -91,6 +145,8 @@ restoreInput.addEventListener('change',async()=>{
  const f=restoreInput.files?.[0];if(!f)return;
  try{const payload=JSON.parse(await f.text());const backup=payload?.format==='NEON_RIFT_BACKUP_V3'?payload.saved:payload;
    if(!backup||typeof backup!=='object'||!Array.isArray(backup.perms)||!Number.isInteger(backup.best)||backup.best<1)throw Error('Invalid backup');
+   if(!confirm('Импорт ЗАМЕНИТ текущий прогресс, а не объединит покупки. Сначала экспортируй текущую игру в JSON. Продолжить?'))return;
+   const before=save;
    // An imported old backup does not specify dashDistance. Do not inherit
    // an unrelated current-session choice: old saves use their full range.
    save={...save,...backup,perms:normalizePerms(backup.perms),settings:{...save.settings,dashDistance:null,...(backup.settings||{})},weaponMods:backup.weaponMods||{},bodyArmor:backup.bodyArmor||{owned:{},equipped:-1}};
@@ -106,7 +162,11 @@ restoreInput.addEventListener('change',async()=>{
    save.best=clamp(Math.floor(Number(save.best)||1),1,CAMPAIGN_MAX_LEVEL);
    if(Number(save.checkpoint?.sector)>CAMPAIGN_MAX_LEVEL)save.checkpoint=null;
    campaignPage=Math.floor((save.campaign.highestUnlocked-1)/CAMPAIGN_CHAPTER_SIZE);
-   persist();game=null;saveNotice('СОХРАНЕНИЕ ИМПОРТИРОВАНО');showCampaignMap(campaignPage);
+   if(!persist(true)){
+    save=before;campaignPage=Math.floor((save.campaign.highestUnlocked-1)/CAMPAIGN_CHAPTER_SIZE);
+    refreshCameraInterface();throw Error('Save storage unavailable after import');
+   }
+   game=null;saveNotice('СОХРАНЕНИЕ ИМПОРТИРОВАНО');showCampaignMap(campaignPage);
  }catch(e){alert('Не удалось импортировать сохранение. Проверь JSON-файл резервной копии.');}finally{restoreInput.value='';}
 });
 function wireBackupButtons(){document.querySelectorAll('[data-export-save]').forEach(b=>b.onclick=backupFile);document.querySelectorAll('[data-import-save]').forEach(b=>b.onclick=()=>restoreInput.click());}
@@ -6508,7 +6568,21 @@ setInterval(()=>{if(game&&game.state!=='dead')saveRun();},2600);
 addEventListener('pagehide',()=>{if(game&&game.state!=='dead')saveRun();});
 document.addEventListener('visibilitychange',()=>{if(document.hidden&&game&&game.state!=='dead')saveRun();});
 
-function panel(html){$('panel').innerHTML=html+'<div class="line"></div><div class="row"><button class="secondary" type="button" data-fs>⛶ ПОЛНЫЙ ЭКРАН</button></div>';updateFullscreenButtons();$('overlay').classList.remove('hidden');$('hud').classList.remove('show')}
+function panel(html){
+ const content=$('panel');
+ const buildLabel=`<div class="buildReleaseStamp" aria-label="Версия игры">NEON RIFT 3D · V${GAME_BUILD} · ${GAME_RELEASE}</div>`;
+ const legacyNotice=legacyDiverged&&!game?'<div class="legacySaveWarning" role="status">⚠ Старая версия игры создала более позднее отдельное сохранение. Защищённый прогресс не перезаписан. Если нужны изменения из старой вкладки, экспортируй там JSON и импортируй сюда.</div>':'';
+ // A new query-string URL forces a separate HTML cache entry. Keep the same
+ // protocol/host: browser localStorage (and all purchases) is unchanged.
+ // Never expose a reload link during a live run, including Pause / rewards.
+ const releaseLink=!game&&typeof location!=='undefined'&&/^https?:$/.test(location.protocol)?
+  `<div class="buildReleaseTools"><a href="?v=${GAME_BUILD}" class="buildReleaseLink">↻ ОТКРЫТЬ ЭТУ ВЕРСИЮ ПО НОВОЙ ССЫЛКЕ</a><small>Для следующего обновления используй ссылку с новым номером версии.</small></div>`:'';
+ content.innerHTML=buildLabel+legacyNotice+html+'<div class="line"></div><div class="row"><button class="secondary" type="button" data-fs>⛶ ПОЛНЫЙ ЭКРАН</button></div>'+releaseLink;
+ // Different screens must start at their own heading. Otherwise a deeply
+ // scrolled campaign map can open the reward screen halfway through its cards.
+ content.scrollTop=0;
+ updateFullscreenButtons();$('overlay').classList.remove('hidden');$('hud').classList.remove('show');
+}
 
 
 const CAMPAIGN_ZONE_NAMES=['Цитадель Разлома','Реакторные кварталы','Архивный пояс','Вертикальные доки','Атриумы времени','Глубины металла','Пограничные системы','Небесные крепости'];
@@ -6554,8 +6628,12 @@ function showCampaignMap(page=campaignPage){
  const first=campaignPage*CAMPAIGN_CHAPTER_SIZE+1,last=Math.min(CAMPAIGN_MAX_LEVEL,first+CAMPAIGN_CHAPTER_SIZE-1);
  const done=save.campaign.completedThrough,unlocked=save.campaign.highestUnlocked;
  const checkpoint=save.checkpoint;
+ // A completed sector may have an unclaimed between-sector reward. The next
+ // stage is unlocked, but resume must first present that reward; never label
+ // this transition as if the next combat level starts immediately.
+ const pendingReward=!!checkpoint&&checkpoint.state==='upgrade'&&checkpoint.sector===unlocked-1;
  const nextCanResume=!!checkpoint&&(
-  checkpoint.state==='upgrade'&&checkpoint.sector===unlocked-1 ||
+  pendingReward ||
   checkpoint.state==='playing'&&checkpoint.sector===unlocked
  );
  const chapterDone=clamp(done-first+1,0,CAMPAIGN_CHAPTER_SIZE);
@@ -6573,17 +6651,19 @@ function showCampaignMap(page=campaignPage){
  const rec=save.campaign.records[unlocked]||{};
  const nextTitle=stageName(unlocked);
  const heroIcon=unlocked%5===0?'♛':'◆';
+ const rewardPrompt=pendingReward?`<div class="campaignPendingReward" role="status">🎁 Награда за уровень ${checkpoint.sector} ещё не выбрана. Выбери улучшение — затем автоматически начнётся уровень ${unlocked}.</div>`:'';
  panel(`<section class="campaignScreen" aria-label="Карта кампании">
  <div class="campaignTop"><div><div class="eyebrow">◈ ECLIPSE PROTOCOL · КАМПАНИЯ ${devMode?'· DEV':''}</div><h1 class="campaignTitle">КАРТА <span style="color:#63f6ff">УРОВНЕЙ</span></h1><div class="smalltext">${devMode?'Тестовый режим: все 100 уровней открыты. Выбери главу или введи номер уровня.':'Пять глав, 100 уровней. Выбирай пройденные или следующий открытый уровень.'}</div></div>
  <div class="campaignCounter"><strong>${done}</strong><small>УРОВНЕЙ ПРОЙДЕНО</small></div></div>
  <div class="campaignLegend"><span><i class="campaignDot done"></i> Пройден</span><span><i class="campaignDot now"></i> Доступен</span><span><i class="campaignDot locked"></i> Закрыт</span><span>♛ Босс каждые 5 уровней</span></div>
  <div class="campaignHero"><div style="font-size:33px;color:#81e3ff">${heroIcon}</div><div><b>${done>=CAMPAIGN_MAX_LEVEL?'✓ КАМПАНИЯ ЗАВЕРШЕНА':`Следующий: уровень ${unlocked}`}</b><small>${nextTitle} · ${missionInfo(unlocked).name}${rec.attempts?' · Попыток: '+rec.attempts:''}</small></div></div>
+ ${rewardPrompt}
  <div class="campaignChapter"><div class="campaignChapterHead"><div><b>ГЛАВА ${campaignPage+1} · ${chapterName}</b><small>Уровни ${first}–${last} · пройдено ${chapterDone}/20</small></div>
  <div class="campaignPagination"><button id="prevChapter" ${campaignPage===0?'disabled':''} aria-label="Предыдущая глава">‹</button><span style="font-weight:900;font-size:12px">${campaignPage+1} / ${maxPage}</span><button id="nextChapter" ${campaignPage>=maxPage-1?'disabled':''} aria-label="Следующая глава">›</button></div></div>
  <div class="campaignProgressOuter"><div class="campaignProgressInner" style="width:${(chapterDone/CAMPAIGN_CHAPTER_SIZE*100).toFixed(2)}%"></div></div>
  <div class="campaignRoute"><svg class="campaignWires" aria-hidden="true"></svg>${nodes.join('')}</div></div>
- <div class="campaignDetails" id="campaignStageDetail"><strong>Уровень ${unlocked}: ${nextTitle}</strong><div>Нажми на открытую клетку карты, чтобы увидеть рекорд и начать прохождение.</div></div>
- <div class="campaignActions"><button id="mapPlayNext" class="primary">${nextCanResume?`↪ ПРОДОЛЖИТЬ ЗАБЕГ · ${checkpoint.sector}`:done>=CAMPAIGN_MAX_LEVEL?'▶ ПОВТОРИТЬ ФИНАЛ · 100':`▶ ИГРАТЬ · УРОВЕНЬ ${unlocked}`}</button>${checkpoint&&!nextCanResume?`<button id="mapResume" class="secondary">↪ ПРОДОЛЖИТЬ ${checkpoint.sector}</button>`:''}<button id="mapHangar" class="secondary">⚙ АНГАР</button><button id="mapBack" class="secondary">← МЕНЮ</button></div>
+ <div class="campaignDetails" id="campaignStageDetail"><strong>Уровень ${unlocked}: ${nextTitle}</strong><div>${pendingReward?`Сначала забери награду за уровень ${checkpoint.sector}. После выбора начнётся уровень ${unlocked}.`:'Нажми на открытую клетку карты, чтобы увидеть рекорд и начать прохождение.'}</div></div>
+ <div class="campaignActions"><button id="mapPlayNext" class="primary">${pendingReward?`🎁 ВЫБРАТЬ НАГРАДУ · ${checkpoint.sector} → ${unlocked}`:nextCanResume?`↪ ПРОДОЛЖИТЬ ЗАБЕГ · ${checkpoint.sector}`:done>=CAMPAIGN_MAX_LEVEL?'▶ ПОВТОРИТЬ ФИНАЛ · 100':`▶ ИГРАТЬ · УРОВЕНЬ ${unlocked}`}</button>${checkpoint&&!nextCanResume?`<button id="mapResume" class="secondary">${checkpoint.state==='upgrade'?`🎁 НАГРАДА · ${checkpoint.sector}`:`↪ ПРОДОЛЖИТЬ ${checkpoint.sector}`}</button>`:''}<button id="mapHangar" class="secondary">⚙ АНГАР</button><button id="mapBack" class="secondary">← МЕНЮ</button></div>
  ${devMode?'<div class="devStageJump"><label for="devStageNumber">БЫСТРЫЙ ПЕРЕХОД К УРОВНЮ</label><input id="devStageNumber" type="number" min="1" max="100" value="'+first+'"><button id="devStageGo" class="primary">▶ ЗАПУСТИТЬ</button><button id="devStageChapter" class="secondary">ПОКАЗАТЬ НА КАРТЕ</button></div>':''}
  <p class="campaignNote">Прогресс кампании сохраняется после победы. Портал завершает уровень и открывает следующий. Повтор старых уровней не сбрасывает достижения.</p>
  <div class="backupActions"><button class="secondary" data-export-save>⬇ ЭКСПОРТ</button><button class="secondary" data-import-save>⬆ ИМПОРТ</button></div>
@@ -6597,7 +6677,7 @@ function showCampaignMap(page=campaignPage){
      const rec=save.campaign.records[stage]||{};
      const completed=stage<=save.campaign.completedThrough;
      const medal=rec.medal==='gold'?'★ Золото':rec.medal==='silver'?'◆ Серебро':rec.medal==='bronze'?'● Бронза':'—';
-     detail.innerHTML=`<strong>Уровень ${stage} · ${stageName(stage)}</strong><div>${completed?'✓ Пройден':'➤ Текущий доступный'} ${stage%5===0?'· ♛ БОСС':''}</div><div>Миссия: ${missionInfo(stage).icon} ${missionInfo(stage).name} — ${missionInfo(stage).hint}</div><div>Побед: ${rec.wins||0} · Попыток: ${rec.attempts||0} · Медаль: ${medal}${rec.bestStars?' · '+ '★'.repeat(rec.bestStars):''}${rec.bestScore?' · Рекорд: '+rec.bestScore:''}</div><button id="playSelected" class="primary" style="margin-top:9px">${nextCanResume&&stage===unlocked?'↪ ПРОДОЛЖИТЬ ЗАБЕГ':completed?'▶ ПОВТОРИТЬ':'▶ НАЧАТЬ'} · УРОВЕНЬ ${stage}</button>`;
+     detail.innerHTML=`<strong>Уровень ${stage} · ${stageName(stage)}</strong><div>${completed?'✓ Пройден':'➤ Текущий доступный'} ${stage%5===0?'· ♛ БОСС':''}</div><div>Миссия: ${missionInfo(stage).icon} ${missionInfo(stage).name} — ${missionInfo(stage).hint}</div><div>Побед: ${rec.wins||0} · Попыток: ${rec.attempts||0} · Медаль: ${medal}${rec.bestStars?' · '+ '★'.repeat(rec.bestStars):''}${rec.bestScore?' · Рекорд: '+rec.bestScore:''}</div>${pendingReward&&stage===unlocked?`<div class="campaignPendingReward">Забери улучшение за уровень ${checkpoint.sector} — после выбора сразу начнётся уровень ${stage}.</div>`:''}<button id="playSelected" class="primary" style="margin-top:9px">${pendingReward&&stage===unlocked?`🎁 НАГРАДА ${checkpoint.sector} → УРОВЕНЬ ${stage}`:nextCanResume&&stage===unlocked?'↪ ПРОДОЛЖИТЬ ЗАБЕГ · УРОВЕНЬ '+stage:completed?'▶ ПОВТОРИТЬ · УРОВЕНЬ '+stage:'▶ НАЧАТЬ · УРОВЕНЬ '+stage}</button>`;
      $('playSelected').onclick=()=>nextCanResume&&stage===unlocked?startGame(true):startGame(false,stage);
      detail.scrollIntoView({block:'nearest',behavior:'smooth'});
    });
@@ -6682,6 +6762,9 @@ function developerLeave(){
  if(game&&game.state!=='dead')saveRun();
  game=null;closeArsenal();
  save=normalPlayerSave;normalPlayerSave=null;devMode=false;
+ // The developer sandbox uses a different journal and timestamp. Restoring
+ // the normal save must restore its own concurrency watermark too.
+ lastSavedAt=Number(save._savedAt)||0;
  campaignPage=Math.floor((save.campaign.highestUnlocked-1)/CAMPAIGN_CHAPTER_SIZE);
  refreshCameraInterface();menu();
 }
@@ -6765,7 +6848,7 @@ function unpauseGame(){
 
 function menu(){closeArsenal();game=null;input.fire=false;if(document.pointerLockElement)document.exitPointerLock();const cp=save.checkpoint;panel(`<div class="eyebrow">▣ ROBOT FOUNDRY VI · РАЗРУШАЕМАЯ БРОНЯ</div><div class="logo">NEON <em>RIFT</em><small>ECLIPSE PROTOCOL</small></div>${devMode?'<div class="devFlag">🛠 DEV · ТЕСТОВЫЙ ПРОГРЕСС · ∞ КРЕДИТЫ</div>':''}<div class="scenehint">FOUNDRY VI · БРОНЕПЛАСТИНЫ · ОСКОЛКИ · 18 КАРТ · 7 МИССИЙ</div><div class="lede">Портал разлома разрушает миры. Пройди <b>100 уровней в пяти главах</b>, переживи волны машин, уничтожь владык разлома и усили свой боевой костюм. Каждый пятый сектор — особый босс.</div><div class="quickstats"><div><b>${save.campaign.completedThrough}</b><span>ПРОЙДЕНО УРОВНЕЙ</span></div><div><b>${developerCredits()}</b><span>КРЕДИТЫ</span></div><div><b>${save.kills}</b><span>ВСЕГО ПОБЕД</span></div></div><div class="row"><button id="campaignMap" class="primary">◈ КАРТА УРОВНЕЙ</button>${cp?`<button id="resume" class="secondary">↪ ПРОДОЛЖИТЬ · ${cp.sector}</button>`:''}<button id="newRun" class="secondary">▶ НОВЫЙ ЗАБЕГ · УРОВЕНЬ ${save.campaign.highestUnlocked}</button><button id="hangar" class="secondary">⚙ АНГАР / УСИЛЕНИЯ</button><button id="devToggle" class="secondary">${devMode?'⚙ ВЫЙТИ ИЗ DEV':'⌘ РЕЖИМ РАЗРАБОТЧИКА'}</button>${devMode?'<button id="devSettings" class="secondary">⚿ ПАРОЛЬ / СБРОС DEV</button>':''}</div>
 ${fpsSettingsHTML('menuFpsLimit')}
-<div class="backupActions"><button class="secondary" data-export-save>⬇ ЭКСПОРТ ПРОГРЕССА</button><button class="secondary" data-import-save>⬆ ИМПОРТ ПРОГРЕССА</button></div><div class="smalltext">${storageAvailable?'✓ Автосохранение: каждые 2,6 секунды, при паузе и закрытии страницы.':'⚠ Браузер запрещает запись. Экспортируй копию.'} Для переноса сохранения между файлами HTML и браузерами используй экспорт/импорт.</div><div class="line"></div><div class="smalltext"><b class="accent">ПК:</b> WASD — движение, пробел — прыжок, V/двойной пробел — полёт (если есть лётный костюм), удерживать Space/Shift — набор/снижение высоты; мышь — осмотр, ЛКМ — стрельба, 1–9/0 — оружие. <b>E — фазовый рывок без перезарядки</b>, ↑/↓ — его дальность; <b>F — восстановление по очереди: корпус → бронекостюм → энергобарьер (без ожидания, пока хватает энергии).</b> <b>Q — ЭМИ-импульс без перезарядки</b> (52 энергии); <b>C — временная защитная сфера</b> (50 энергии, перезарядка 5 секунд после окончания действия, но без заряда энергобарьера). Радиус и урон Q улучшаются в ангаре сложными процентами. F5 — камера, G — полный экран, M — масштаб карты, Esc — пауза (в ангаре — в меню). При полёте [ / ] меняют горизонтальную, , / . — вертикальную скорость; также есть ползунки прямо на игровом экране.<br><b class="accent">Телефон:</b> левый джойстик — движение, касание поля — выстрел, свайп — обзор; значки ➤ (рывок), ✚ (восстановление), ◈ (защитная сфера), ✺ (импульс), ⤒ (прыжок). Для лётных костюмов появляются ✈ / ↑ / ↓ и два ползунка скорости. Дальность рывка можно менять в паузе. <b>«Арсенал»</b> открывает список оружия; мини-карта меняет масштаб по касанию.</div><div class="note">Десять видов оружия, разные классы роботов, разрушаемые энергоядра, элитные противники и следы на стенах. Третья степень графики наиболее требовательна. В меню и на паузе отрисовка 3D отключается для экономии GPU. Игра работает без Интернета, внешних библиотек, регистрации и оплаты. Автосохранение текущего боя и экспорт резервной копии в JSON. ${glReady?'Аппаратный WebGL-движок активен.':'Работает программный 3D-режим, если WebGL недоступен.'}</div>`);$('campaignMap').onclick=()=>showCampaignMap();$('newRun').onclick=()=>startGame(false,save.campaign.highestUnlocked);if(cp)$('resume').onclick=()=>startGame(true);$('hangar').onclick=hangar;$('devToggle').onclick=()=>devMode?developerLeave():showDeveloperPanel();if(devMode)$('devSettings').onclick=showDeveloperPanel;wireBackupButtons();wireFpsSettings()}
+<div class="backupActions"><button class="secondary" data-export-save>⬇ ЭКСПОРТ ПРОГРЕССА</button><button class="secondary" data-import-save>⬆ ИМПОРТ ПРОГРЕССА</button></div><div class="smalltext">${storageAvailable?'✓ Автосохранение: каждые 2,6 секунды, при паузе и закрытии страницы.':'⚠ Браузер запрещает запись. Экспортируй копию.'} Для переноса сохранения между файлами HTML и браузерами используй экспорт/импорт.</div><div class="line"></div><div class="smalltext"><b class="accent">ПК:</b> WASD — движение, пробел — прыжок, V/двойной пробел — полёт (если есть лётный костюм), удерживать Space/Shift — набор/снижение высоты; мышь — осмотр, ЛКМ — стрельба, 1–9/0 — оружие. <b>E — фазовый рывок без перезарядки</b>, ↑/↓ — его дальность; <b>F — восстановление по очереди: корпус → бронекостюм → энергобарьер (без ожидания, пока хватает энергии).</b> <b>Q — ЭМИ-импульс без перезарядки</b> (52 энергии); <b>C — временная защитная сфера</b> (50 энергии, перезарядка 5 секунд после окончания действия, но без заряда энергобарьера). Радиус и урон Q улучшаются в ангаре сложными процентами. F5 — камера, G — полный экран, M — масштаб карты, Esc — пауза (в ангаре — в меню). При полёте [ / ] меняют горизонтальную, , / . — вертикальную скорость; также есть ползунки прямо на игровом экране.<br><b class="accent">Телефон:</b> левый джойстик — движение, касание поля — выстрел, свайп — обзор; значки ➤ (рывок), ✚ (восстановление), ◈ (защитная сфера), ✺ (импульс), ⤒ (прыжок). Для лётных костюмов появляются ✈ / ↑ / ↓. Скорости полёта, дальность рывка и режим камеры настраиваются в паузе. <b>«Арсенал»</b> открывает список оружия; мини-карта меняет масштаб по касанию.</div><div class="note">Десять видов оружия, разные классы роботов, разрушаемые энергоядра, элитные противники и следы на стенах. Третья степень графики наиболее требовательна. В меню и на паузе отрисовка 3D отключается для экономии GPU. Игра работает без Интернета, внешних библиотек, регистрации и оплаты. Автосохранение текущего боя и экспорт резервной копии в JSON. ${glReady?'Аппаратный WebGL-движок активен.':'Работает программный 3D-режим, если WebGL недоступен.'}</div>`);$('campaignMap').onclick=()=>showCampaignMap();$('newRun').onclick=()=>startGame(false,save.campaign.highestUnlocked);if(cp)$('resume').onclick=()=>startGame(true);$('hangar').onclick=hangar;$('devToggle').onclick=()=>devMode?developerLeave():showDeveloperPanel();if(devMode)$('devSettings').onclick=showDeveloperPanel;wireBackupButtons();wireFpsSettings()}
 const hangarData=[
  {name:'ПРОЧНОСТЬ КОРПУСА',desc:'Максимальная прочность +8% за уровень.'},
  {name:'УРОН ВСЕГО ОРУЖИЯ',desc:'Урон любого оружия +4% за уровень.'},
@@ -6858,7 +6941,7 @@ function hangar(section='',previousScroll=0,openPermSections=[]){
  <h3>Оружейная мастерская · 20 уровней каждого свойства</h3><p class="smalltext">Пробиваемость — доля урона, проходящая мимо защиты робота. Радиус взрыва применяется к ракетам, ионным зарядам и гранатам; у остальных видов вместо этого свои профильные улучшения.</p>
  <div class="shopitems">${weaponShopHTML()}</div>
  <h3>Бронекостюмы · ${BODY_ARMOR_CATALOG.length} моделей</h3>
- <p class="smalltext">Текущий костюм: <b>${suit.id<0?'нет':BODY_ARMOR_CATALOG[suit.id].name}</b>. Бронекостюм сначала нужно купить и надеть. Каждый выдерживает ограниченное количество ударов, до 20 уровней усовершенствования. <b class="accent">Костюмы №10–16 дают полёт сразу после покупки и экипировки; костюмы №1–9 — после улучшения до LVL 10.</b> Прочность костюма растёт на +8% к предыдущему значению за уровень. В четырёх поздних моделях снижение урона достигает 97–99,95%; физический костюм изнашивается. Между секторами автоматически чинится 34% его максимальной прочности (после босса ещё 12%), ремонтные станции восстанавливают 18%, бронепластины — 6%. F восстанавливает корпус, затем костюм, затем энергобарьер. На ПК: дважды Space либо V — полёт; Space — вверх, Shift — вниз. Для полётных костюмов доступны независимые улучшения горизонтальной и вертикальной скоростей (+5% к предыдущей за уровень); их доли регулируются ползунками во время боя. На телефоне те же функции доступны через значки и ползунки.</p>
+ <p class="smalltext">Текущий костюм: <b>${suit.id<0?'нет':BODY_ARMOR_CATALOG[suit.id].name}</b>. Бронекостюм сначала нужно купить и надеть. Каждый выдерживает ограниченное количество ударов, до 20 уровней усовершенствования. <b class="accent">Костюмы №10–16 дают полёт сразу после покупки и экипировки; костюмы №1–9 — после улучшения до LVL 10.</b> Прочность костюма растёт на +8% к предыдущему значению за уровень. В четырёх поздних моделях снижение урона достигает 97–99,95%; физический костюм изнашивается. Между секторами автоматически чинится 34% его максимальной прочности (после босса ещё 12%), ремонтные станции восстанавливают 18%, бронепластины — 6%. F восстанавливает корпус, затем костюм, затем энергобарьер. На ПК: дважды Space либо V — полёт; Space — вверх, Shift — вниз. Для полётных костюмов доступны независимые улучшения горизонтальной и вертикальной скоростей (+5% к предыдущей за уровень); их доли регулируются ползунками во время боя. На телефоне кнопки полёта остаются в бою, а настройки скоростей — в паузе.</p>
  <div class="row"><button id="removeArmor" class="secondary" ${suit.id<0?'disabled':''}>СНЯТЬ БРОНЕКОСТЮМ</button></div>
  <div class="operatorPreview"><canvas id="operatorCanvas" width="265" height="340" aria-label="Внешний вид выбранного бронекостюма"></canvas><div><strong id="operatorPreviewName">${suit.id<0?'БАЗОВАЯ ФОРМА':BODY_ARMOR_CATALOG[suit.id].name}</strong><p class="smalltext">Предпросмотр показывает внешний вид бронекостюма. В бою он отображается на 3D-персонаже при режиме третьего или второго лица (F5). Можно посмотреть ещё не купленную модель — это не покупка.</p><small>При смене костюма внешний вид обновляется после экипировки.</small></div></div>
  <div class="shopitems">${armorShopHTML()}</div>
@@ -6933,9 +7016,38 @@ function showFinalVictory(){
 function showUpgrade(savedIDs=null){closeArsenal();const g=game;
  if(g.sector>=CAMPAIGN_MAX_LEVEL){showFinalVictory();return;}
  const opts=Array.isArray(savedIDs)&&savedIDs.length===3?savedIDs.map(id=>upgrades.find(x=>x.id===id)).filter(Boolean):pickUpgrades();
- g.state='upgrade';g.pendingUpgrade=opts.map(x=>x.id);saveRun();panel(`<div class="eyebrow">✓ УРОВЕНЬ ${g.sector} ПРОЙДЕН · КАМПАНИЯ СОХРАНЕНА</div><h1>ПОБЕДА <span class="accent">/ УРОВЕНЬ ${g.sector}</span></h1><p class="lede">Следующий уровень ${g.sector+1} открыт. Выбери улучшение, чтобы сразу продолжить, или вернись на карту кампании. Зелёная отметка сохранится.</p><div class="missionWinBanner">${MISSION_TYPES[g.mission?.type||'purge'].icon} ${MISSION_TYPES[g.mission?.type||'purge'].name} · ${'★'.repeat(missionStars(g))}${'☆'.repeat(3-missionStars(g))} · БОНУС: ${4+missionStars(g)*4} ◈</div><div class="cards">${opts.map((x,i)=>`<button class="option" data-pick="${i}"><div class="ico">${x.icon}</div><strong>${x.name}</strong><p>${x.desc}</p><div class="tier">АДАПТАЦИЯ ${1+(g.upgrades[x.id]||0)}</div></button>`).join('')}</div><div class="smalltext">Прогресс сохранён. После выбора будет открыт следующий сектор.</div><div class="campaignActions"><button id="winMap" class="secondary">◈ КАРТА УРОВНЕЙ</button><button id="winReplay" class="secondary">↻ ПОВТОРИТЬ ${g.sector}</button></div>`);$('winMap').onclick=()=>showCampaignMap();$('winReplay').onclick=()=>startGame(false,g.sector);document.querySelectorAll('[data-pick]').forEach(el=>el.onclick=()=>{const x=opts[+el.dataset.pick];x.fn(g);g.upgrades[x.id]=(g.upgrades[x.id]||0)+1;g.pendingUpgrade=null;g.state='playing';enterSector(g.sector+1);saveRun();$('overlay').classList.add('hidden');$('hud').classList.add('show');toast('УЛУЧШЕНИЕ: '+x.name,2);})}
-function pause(){if(!game||game.state!=='playing')return;closeArsenal();game.state='paused';saveRun();input.fire=false;if(document.pointerLockElement)document.exitPointerLock();panel(`<div class="eyebrow">ПРИОСТАНОВЛЕНО</div><h1>ПАУЗА <span class="accent">Ⅱ</span></h1><p class="lede">Сектор ${game.sector}. Уничтожено ${game.kills} противников. Очки: ${game.score.toLocaleString('ru')}.</p><div class="row"><button class="primary" id="unpause">▶ ПРОДОЛЖИТЬ</button><button id="toMenu" class="secondary">⌂ В МЕНЮ</button><button id="pauseCampaign" class="secondary">◈ КАРТА УРОВНЕЙ</button></div><div class="backupActions"><button class="secondary" data-export-save>⬇ РЕЗЕРВНАЯ КОПИЯ</button><button class="secondary" data-import-save>⬆ ИМПОРТ</button></div><div class="note">${storageAvailable?'✓ Прогресс сохранён на этом устройстве':'⚠ Хранилище браузера недоступно — экспортируй сохранение!'}. При переходе в другой браузер или открытии HTML по другому пути используй экспорт/импорт.</div>${fpsSettingsHTML('pauseFpsLimit')}${dashDistanceSettingsHTML()}<div class="line"></div><div class="row"><button class="secondary" id="cameraToggle">◫ КАМЕРА: ${cameraModeLabel()} (F5)</button><button class="secondary" id="mute">${save.settings.audio?'🔊 ЗВУК ВКЛ':'🔈 ЗВУК ВЫКЛ'}</button><button class="secondary" id="aim">${save.settings.aim?'⊕ АВТОНАВЕДЕНИЕ ВКЛ':'⊙ АВТОНАВЕДЕНИЕ ВЫКЛ'}</button><button class="secondary" id="quality">${['◈ ГРАФИКА: ЭКОНОМНАЯ','✧ ГРАФИКА: ВЫСОКАЯ','✦ ГРАФИКА: КИНО'][clamp(save.settings.quality|0,0,2)]}</button></div>`);$('unpause').onclick=unpauseGame;$('toMenu').onclick=()=>{saveRun();menu()};$('pauseCampaign').onclick=()=>showCampaignMap();$('cameraToggle').onclick=()=>{toggleCameraMode();pauseRefresh()};$('mute').onclick=()=>{save.settings.audio=!save.settings.audio;persist();pauseRefresh()};$('aim').onclick=()=>{save.settings.aim=!save.settings.aim;persist();pauseRefresh()};$('quality').onclick=()=>{save.settings.quality=(save.settings.quality+1)%3;persist();createWorldMesh(game.sector);resize();pauseRefresh()};wireBackupButtons();wireFpsSettings();wireDashDistanceSettings()}
-function pauseRefresh(){if(game?.state==='paused'){game.state='playing';pause()}}
+ g.state='upgrade';g.pendingUpgrade=opts.map(x=>x.id);saveRun();panel(`<div class="eyebrow">✓ УРОВЕНЬ ${g.sector} ПРОЙДЕН · ПРОГРЕСС СОХРАНЁН</div><h1>НАГРАДА <span class="accent">/ УРОВЕНЬ ${g.sector}</span></h1><p class="lede"><b>Выбери одно из трёх улучшений.</b> После выбора сразу начнётся уровень ${g.sector+1}. Если вернёшься на карту, награда останется доступной.</p><div class="missionWinBanner">${MISSION_TYPES[g.mission?.type||'purge'].icon} ${MISSION_TYPES[g.mission?.type||'purge'].name} · ${'★'.repeat(missionStars(g))}${'☆'.repeat(3-missionStars(g))} · БОНУС: ${4+missionStars(g)*4} ◈</div><div class="cards">${opts.map((x,i)=>`<button class="option" data-pick="${i}"><div class="ico">${x.icon}</div><strong>${x.name}</strong><p>${x.desc}</p><div class="tier">АДАПТАЦИЯ ${1+(g.upgrades[x.id]||0)}</div></button>`).join('')}</div><div class="smalltext">Награда за уровень ${g.sector} ещё не выбрана. После её получения начнётся уровень ${g.sector+1}.</div><div class="campaignActions"><button id="winMap" class="secondary">◈ КАРТА УРОВНЕЙ</button><button id="winReplay" class="secondary">↻ ПОВТОРИТЬ ${g.sector}</button></div>`);$('winMap').onclick=()=>showCampaignMap();$('winReplay').onclick=()=>startGame(false,g.sector);document.querySelectorAll('[data-pick]').forEach(el=>el.onclick=()=>{const x=opts[+el.dataset.pick];x.fn(g);g.upgrades[x.id]=(g.upgrades[x.id]||0)+1;g.pendingUpgrade=null;g.state='playing';enterSector(g.sector+1);saveRun();$('overlay').classList.add('hidden');$('hud').classList.add('show');toast('УЛУЧШЕНИЕ: '+x.name,2);})}
+function flightPauseSettingsHTML(){
+ if(!touchOnly||!game?.p?.flightUnlocked)return '';
+ const controls=[['horizontal','flightHorizontal','↔ ГОРИЗОНТАЛЬНАЯ'],['vertical','flightVertical','↕ ВЕРТИКАЛЬНАЯ']].map(([axis,id,label])=>{
+  const value=Math.round(normalizeFlightThrottle(save.settings[id])*100);
+  return `<div class="flightPauseControl"><label for="${id}PauseSlider">${label}<output id="${id}PauseValue" for="${id}PauseSlider">${value}%</output></label><input id="${id}PauseSlider" type="range" min="25" max="100" step="5" value="${value}" aria-label="${axis==='horizontal'?'Горизонтальная':'Вертикальная'} скорость полёта, процент от максимума"></div>`;
+ }).join('');
+ return `<section class="flightPauseSettings" role="group" aria-label="Настройка скоростей полёта"><strong>✈ СКОРОСТЬ ПОЛЁТА</strong><p>Выбери скорость движения и подъёма. Показана доля от максимума с учётом улучшений костюма.</p><div class="flightPauseControls">${controls}</div></section>`;
+}
+function pause(){
+ if(!game||game.state!=='playing')return;
+ closeArsenal();game.state='paused';saveRun();input.fire=false;
+ if(document.pointerLockElement)document.exitPointerLock();
+ panel(`<div class="eyebrow">ПРИОСТАНОВЛЕНО</div><h1>ПАУЗА <span class="accent">Ⅱ</span></h1><p class="lede">Сектор ${game.sector}. Уничтожено ${game.kills} противников. Очки: ${game.score.toLocaleString('ru')}.</p><div class="row"><button class="primary" id="unpause">▶ ПРОДОЛЖИТЬ</button><button id="toMenu" class="secondary">⌂ В МЕНЮ</button><button id="pauseCampaign" class="secondary">◈ КАРТА УРОВНЕЙ</button></div><div class="backupActions"><button class="secondary" data-export-save>⬇ РЕЗЕРВНАЯ КОПИЯ</button><button class="secondary" data-import-save>⬆ ИМПОРТ</button></div><div class="note">${storageAvailable?'✓ Прогресс сохранён на этом устройстве':'⚠ Хранилище браузера недоступно — экспортируй сохранение!'}. При переходе в другой браузер или открытии HTML по другому пути используй экспорт/импорт.</div>${fpsSettingsHTML('pauseFpsLimit')}${dashDistanceSettingsHTML()}${flightPauseSettingsHTML()}<div class="line"></div><div class="row"><button class="secondary" id="cameraToggle">◫ КАМЕРА: ${cameraModeLabel()} (F5)</button><button class="secondary" id="mute">${save.settings.audio?'🔊 ЗВУК ВКЛ':'🔈 ЗВУК ВЫКЛ'}</button><button class="secondary" id="aim">${save.settings.aim?'⊕ АВТОНАВЕДЕНИЕ ВКЛ':'⊙ АВТОНАВЕДЕНИЕ ВЫКЛ'}</button><button class="secondary" id="quality">${['◈ ГРАФИКА: ЭКОНОМНАЯ','✧ ГРАФИКА: ВЫСОКАЯ','✦ ГРАФИКА: КИНО'][clamp(save.settings.quality|0,0,2)]}</button></div>`);
+ $('unpause').onclick=unpauseGame;
+ $('toMenu').onclick=()=>{saveRun();menu()};
+ $('pauseCampaign').onclick=()=>showCampaignMap();
+ $('cameraToggle').onclick=()=>{toggleCameraMode();pauseRefresh()};
+ $('mute').onclick=()=>{save.settings.audio=!save.settings.audio;persist();pauseRefresh()};
+ $('aim').onclick=()=>{save.settings.aim=!save.settings.aim;persist();pauseRefresh()};
+ $('quality').onclick=()=>{save.settings.quality=(save.settings.quality+1)%3;persist();createWorldMesh(game.sector);resize();pauseRefresh()};
+ wireBackupButtons();wireFpsSettings();wireDashDistanceSettings();wireFlightPauseSettings();
+}
+function pauseRefresh(){
+ if(game?.state!=='paused')return;
+ // Changing camera/settings redraws the SAME pause menu, so keep its scroll.
+ // Opening a different screen instead goes to the heading via panel().
+ const pane=$('panel');
+ const scroll=pane?.scrollTop||0;
+ game.state='playing';pause();
+ if(pane)pane.scrollTop=scroll;
+}
 function gameOver(){if(!game||game.state==='dead')return;closeArsenal();const g=game;g.state='dead';input.fire=false;save.checkpoint=null;const recovery=defeatRecoveryCredits(g);save.credits+=Math.floor(g.score/350)+recovery;save.best=Math.max(save.best,g.sector);persist();if(document.pointerLockElement)document.exitPointerLock();panel(`<div class="eyebrow">▣ СИГНАЛ ПОТЕРЯН</div><div class="logo">СИСТЕМА <em>ПОВРЕЖДЕНА</em></div><div class="lede">Твоё путешествие завершилось, но добытые технологии остались в ангаре. Следующий забег может стать сильнее.</div><div class="note">Данные противника сохранены: <b class="accent">+${recovery} ◈</b> кредитов за прогресс этой попытки. Если было трудно, попробуй усилить костюм и основное оружие.</div><div class="quickstats"><div><b>${g.sector}</b><span>СЕКТОР</span></div><div><b>${g.kills}</b><span>ПОБЕД</span></div><div><b>${g.score.toLocaleString('ru')}</b><span>ОЧКИ</span></div></div><div class="row"><button class="primary" id="retry">↻ СНОВА В БОЙ</button><button class="secondary" id="backMenu">⌂ МЕНЮ</button><button class="secondary" id="gameOverMap">◈ КАРТА УРОВНЕЙ</button></div>`);$('retry').onclick=()=>startGame(false,g.sector);$('backMenu').onclick=menu;$('gameOverMap').onclick=()=>showCampaignMap()}
 function switchWeapon(to){if(!game||game.state!=='playing')return;const p=game.p;p.equipAnim=.9;p.weapon=to===undefined?(p.weapon+1)%weapons.length:clamp(to,0,weapons.length-1);p.cooldown=.18;$('gun').dataset.gun=String(p.weapon);$('gun').style.setProperty('--weapon-glow',`rgb(${weapons[p.weapon].color.map(v=>Math.round(v*255)).join(',')})`);toast(weapons[p.weapon].name,.8);sound(360,.06,'square',.05)}
 
@@ -7182,10 +7294,13 @@ function setFlightThrottle(axis,value,commit=false){
 }
 function refreshFlightTuning(){
  for(const [axis,id] of [['horizontal','flightHorizontal'],['vertical','flightVertical']]){
-  const slider=$(id+'Slider'),value=$(id+'Value');if(!slider||!value)continue;
-  const ratio=normalizeFlightThrottle(save.settings[id]);slider.value=String(Math.round(ratio*100));
-  value.textContent=Math.round(ratio*100)+'%';
-  value.title='Доступно '+(axis==='horizontal'?(3.05*flightSpeedMultiplier(axis)).toFixed(2):(FLIGHT_SPEED*flightSpeedMultiplier(axis)).toFixed(2))+' м/с';
+  const ratio=normalizeFlightThrottle(save.settings[id]);
+  for(const suffix of ['','Pause']){
+   const slider=$(id+suffix+'Slider'),value=$(id+suffix+'Value');if(!slider||!value)continue;
+   slider.value=String(Math.round(ratio*100));
+   value.textContent=Math.round(ratio*100)+'%';
+   value.title='Доступно '+(axis==='horizontal'?(3.05*flightSpeedMultiplier(axis)).toFixed(2):(FLIGHT_SPEED*flightSpeedMultiplier(axis)).toFixed(2))+' м/с';
+  }
  }
 }
 for(const [axis,id] of [['horizontal','flightHorizontal'],['vertical','flightVertical']]){
@@ -7193,6 +7308,17 @@ for(const [axis,id] of [['horizontal','flightHorizontal'],['vertical','flightVer
  slider.addEventListener('input',()=>setFlightThrottle(axis,Number(slider.value)/100));
  slider.addEventListener('change',()=>setFlightThrottle(axis,Number(slider.value)/100,true));
  for(const action of ['pointerdown','pointermove','pointerup'])slider.addEventListener(action,e=>e.stopPropagation());
+}
+// The mobile pause panel is recreated after camera/settings changes, so its
+// sliders must be rebound each time. The HUD controls remain desktop-only.
+function wireFlightPauseSettings(){
+ for(const [axis,id] of [['horizontal','flightHorizontal'],['vertical','flightVertical']]){
+  const slider=$(id+'PauseSlider');if(!slider)continue;
+  slider.addEventListener('input',()=>setFlightThrottle(axis,Number(slider.value)/100));
+  slider.addEventListener('change',()=>setFlightThrottle(axis,Number(slider.value)/100,true));
+  for(const action of ['pointerdown','pointermove','pointerup'])slider.addEventListener(action,e=>e.stopPropagation());
+ }
+ refreshFlightTuning();
 }
 // Enter on an input invokes the exact associated action, just like clicking
 // its adjacent primary button. Password changes never accidentally log in.
@@ -7274,7 +7400,7 @@ if(touchOnly){
   let joy=$('joystick'),stick=$('stick');const joyPos=e=>{const r=joy.getBoundingClientRect(),cx=r.left+r.width/2,cy=r.top+r.height/2;let x=e.clientX-cx,y=e.clientY-cy,lim=r.width*.35,mag=hypot(x,y)||1;if(mag>lim){x*=lim/mag;y*=lim/mag}input.mx=x/lim;input.mz=-y/lim;stick.style.transform=`translate(${x}px,${y}px)`};joy.addEventListener('pointerdown',e=>{if(input.joyId!==null){e.preventDefault();return;}input.joyId=e.pointerId;joy.setPointerCapture(e.pointerId);joyPos(e);e.preventDefault()});joy.addEventListener('pointermove',e=>{if(input.joyId===e.pointerId){joyPos(e);e.preventDefault()}});const endJoy=e=>{if(e.pointerId===input.joyId){input.mx=0;input.mz=0;input.joyId=null;stick.style.transform='translate(0,0)'}};joy.addEventListener('pointerup',endJoy);joy.addEventListener('pointercancel',endJoy);
 [['dashTouch','dash'],['pulseTouch','pulse'],['shieldTouch','shield'],['healTouch','heal']].forEach(([id,ab])=>$(id).addEventListener('pointerdown',e=>{e.preventDefault();useAbility(ab)}));const runTouch=$('runTouch');
  runTouch.addEventListener('pointerdown',e=>{e.preventDefault();e.stopPropagation();input.mobileSprint=!input.mobileSprint;runTouch.classList.toggle('running',input.mobileSprint);runTouch.setAttribute('aria-pressed',String(input.mobileSprint));},{passive:false});
- const mobileView=$('viewTouch');mobileView.addEventListener('pointerdown',e=>{e.preventDefault();e.stopPropagation();toggleCameraMode();},{passive:false});
+ // Touch camera mode is selected exclusively through the pause menu.
  const flyButton=$('flightToggle');
  flyButton.addEventListener('pointerdown',e=>{e.preventDefault();e.stopPropagation();toggleFlight();},{passive:false});
  for(const [id,axis] of [['flightUp','flyUp'],['flightDown','flyDown']]){

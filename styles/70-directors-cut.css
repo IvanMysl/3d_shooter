@@ -177,6 +177,19 @@ body.flightUnlocked #hud.show #flightTuning{display:grid;gap:7px}
  #flightTuning label{font-size:8px;gap:2px}
  #flightTuning input{height:16px}
 }
+/* A phone/tablet has too little combat space for tuning. Keep both speed
+   controls in Pause; desktop players retain their in-combat HUD sliders. */
+@media(hover:none),(pointer:coarse){body.flightUnlocked #hud.show #flightTuning{display:none!important}}
+.flightPauseSettings{margin:13px 0;padding:14px 16px;border:1px solid #4caaa394;border-radius:14px;background:linear-gradient(135deg,#102c32f0,#081d2aef);color:#daf8f4}
+.flightPauseSettings>strong{display:block;font-size:13px;letter-spacing:.06em}
+.flightPauseSettings>p{margin:5px 0 12px;color:#accbcb;font-size:12px;line-height:1.45}
+.flightPauseControls{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.flightPauseControls label{display:flex;align-items:center;justify-content:space-between;gap:8px;font-weight:800;font-size:12px}
+.flightPauseControls output{font-variant-numeric:tabular-nums;color:#86efdb;font-weight:900}
+.flightPauseControls input{display:block;width:100%;min-width:0;height:36px;margin:5px 0 0;cursor:pointer;accent-color:#61f0d4;touch-action:none}
+@media(max-width:560px){.flightPauseControls{grid-template-columns:1fr;gap:8px}.flightPauseSettings{padding:12px}}
+/* Camera modes on touch devices can only be changed in the pause menu. */
+#viewTouch{display:none!important}
 #viewTouch{position:absolute;right:132px;bottom:159px;pointer-events:auto;border:1px solid #85dcdf9c;background:#102e38df;color:#d6f9ff;font-size:11px;font-weight:950;border-radius:8px;padding:7px 10px;touch-action:none;user-select:none}
 #viewTouch[aria-pressed="true"]{background:#155a5d;border-color:#acf7df;color:#f4fff9}
 .operatorPreview{display:grid;grid-template-columns:minmax(170px,230px) 1fr;align-items:center;gap:18px;padding:12px;border:1px solid #7ac6c75b;border-radius:13px;background:linear-gradient(140deg,#142b30aa,#07141dba);margin:12px 0}

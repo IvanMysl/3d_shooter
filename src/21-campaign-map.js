@@ -43,8 +43,12 @@ function showCampaignMap(page=campaignPage){
  const first=campaignPage*CAMPAIGN_CHAPTER_SIZE+1,last=Math.min(CAMPAIGN_MAX_LEVEL,first+CAMPAIGN_CHAPTER_SIZE-1);
  const done=save.campaign.completedThrough,unlocked=save.campaign.highestUnlocked;
  const checkpoint=save.checkpoint;
+ // A completed sector may have an unclaimed between-sector reward. The next
+ // stage is unlocked, but resume must first present that reward; never label
+ // this transition as if the next combat level starts immediately.
+ const pendingReward=!!checkpoint&&checkpoint.state==='upgrade'&&checkpoint.sector===unlocked-1;
  const nextCanResume=!!checkpoint&&(
-  checkpoint.state==='upgrade'&&checkpoint.sector===unlocked-1 ||
+  pendingReward ||
   checkpoint.state==='playing'&&checkpoint.sector===unlocked
  );
  const chapterDone=clamp(done-first+1,0,CAMPAIGN_CHAPTER_SIZE);
@@ -62,17 +66,19 @@ function showCampaignMap(page=campaignPage){
  const rec=save.campaign.records[unlocked]||{};
  const nextTitle=stageName(unlocked);
  const heroIcon=unlocked%5===0?'♛':'◆';
+ const rewardPrompt=pendingReward?`<div class="campaignPendingReward" role="status">🎁 Награда за уровень ${checkpoint.sector} ещё не выбрана. Выбери улучшение — затем автоматически начнётся уровень ${unlocked}.</div>`:'';
  panel(`<section class="campaignScreen" aria-label="Карта кампании">
  <div class="campaignTop"><div><div class="eyebrow">◈ ECLIPSE PROTOCOL · КАМПАНИЯ ${devMode?'· DEV':''}</div><h1 class="campaignTitle">КАРТА <span style="color:#63f6ff">УРОВНЕЙ</span></h1><div class="smalltext">${devMode?'Тестовый режим: все 100 уровней открыты. Выбери главу или введи номер уровня.':'Пять глав, 100 уровней. Выбирай пройденные или следующий открытый уровень.'}</div></div>
  <div class="campaignCounter"><strong>${done}</strong><small>УРОВНЕЙ ПРОЙДЕНО</small></div></div>
  <div class="campaignLegend"><span><i class="campaignDot done"></i> Пройден</span><span><i class="campaignDot now"></i> Доступен</span><span><i class="campaignDot locked"></i> Закрыт</span><span>♛ Босс каждые 5 уровней</span></div>
  <div class="campaignHero"><div style="font-size:33px;color:#81e3ff">${heroIcon}</div><div><b>${done>=CAMPAIGN_MAX_LEVEL?'✓ КАМПАНИЯ ЗАВЕРШЕНА':`Следующий: уровень ${unlocked}`}</b><small>${nextTitle} · ${missionInfo(unlocked).name}${rec.attempts?' · Попыток: '+rec.attempts:''}</small></div></div>
+ ${rewardPrompt}
  <div class="campaignChapter"><div class="campaignChapterHead"><div><b>ГЛАВА ${campaignPage+1} · ${chapterName}</b><small>Уровни ${first}–${last} · пройдено ${chapterDone}/20</small></div>
  <div class="campaignPagination"><button id="prevChapter" ${campaignPage===0?'disabled':''} aria-label="Предыдущая глава">‹</button><span style="font-weight:900;font-size:12px">${campaignPage+1} / ${maxPage}</span><button id="nextChapter" ${campaignPage>=maxPage-1?'disabled':''} aria-label="Следующая глава">›</button></div></div>
  <div class="campaignProgressOuter"><div class="campaignProgressInner" style="width:${(chapterDone/CAMPAIGN_CHAPTER_SIZE*100).toFixed(2)}%"></div></div>
  <div class="campaignRoute"><svg class="campaignWires" aria-hidden="true"></svg>${nodes.join('')}</div></div>
- <div class="campaignDetails" id="campaignStageDetail"><strong>Уровень ${unlocked}: ${nextTitle}</strong><div>Нажми на открытую клетку карты, чтобы увидеть рекорд и начать прохождение.</div></div>
- <div class="campaignActions"><button id="mapPlayNext" class="primary">${nextCanResume?`↪ ПРОДОЛЖИТЬ ЗАБЕГ · ${checkpoint.sector}`:done>=CAMPAIGN_MAX_LEVEL?'▶ ПОВТОРИТЬ ФИНАЛ · 100':`▶ ИГРАТЬ · УРОВЕНЬ ${unlocked}`}</button>${checkpoint&&!nextCanResume?`<button id="mapResume" class="secondary">↪ ПРОДОЛЖИТЬ ${checkpoint.sector}</button>`:''}<button id="mapHangar" class="secondary">⚙ АНГАР</button><button id="mapBack" class="secondary">← МЕНЮ</button></div>
+ <div class="campaignDetails" id="campaignStageDetail"><strong>Уровень ${unlocked}: ${nextTitle}</strong><div>${pendingReward?`Сначала забери награду за уровень ${checkpoint.sector}. После выбора начнётся уровень ${unlocked}.`:'Нажми на открытую клетку карты, чтобы увидеть рекорд и начать прохождение.'}</div></div>
+ <div class="campaignActions"><button id="mapPlayNext" class="primary">${pendingReward?`🎁 ВЫБРАТЬ НАГРАДУ · ${checkpoint.sector} → ${unlocked}`:nextCanResume?`↪ ПРОДОЛЖИТЬ ЗАБЕГ · ${checkpoint.sector}`:done>=CAMPAIGN_MAX_LEVEL?'▶ ПОВТОРИТЬ ФИНАЛ · 100':`▶ ИГРАТЬ · УРОВЕНЬ ${unlocked}`}</button>${checkpoint&&!nextCanResume?`<button id="mapResume" class="secondary">${checkpoint.state==='upgrade'?`🎁 НАГРАДА · ${checkpoint.sector}`:`↪ ПРОДОЛЖИТЬ ${checkpoint.sector}`}</button>`:''}<button id="mapHangar" class="secondary">⚙ АНГАР</button><button id="mapBack" class="secondary">← МЕНЮ</button></div>
  ${devMode?'<div class="devStageJump"><label for="devStageNumber">БЫСТРЫЙ ПЕРЕХОД К УРОВНЮ</label><input id="devStageNumber" type="number" min="1" max="100" value="'+first+'"><button id="devStageGo" class="primary">▶ ЗАПУСТИТЬ</button><button id="devStageChapter" class="secondary">ПОКАЗАТЬ НА КАРТЕ</button></div>':''}
  <p class="campaignNote">Прогресс кампании сохраняется после победы. Портал завершает уровень и открывает следующий. Повтор старых уровней не сбрасывает достижения.</p>
  <div class="backupActions"><button class="secondary" data-export-save>⬇ ЭКСПОРТ</button><button class="secondary" data-import-save>⬆ ИМПОРТ</button></div>
@@ -86,7 +92,7 @@ function showCampaignMap(page=campaignPage){
      const rec=save.campaign.records[stage]||{};
      const completed=stage<=save.campaign.completedThrough;
      const medal=rec.medal==='gold'?'★ Золото':rec.medal==='silver'?'◆ Серебро':rec.medal==='bronze'?'● Бронза':'—';
-     detail.innerHTML=`<strong>Уровень ${stage} · ${stageName(stage)}</strong><div>${completed?'✓ Пройден':'➤ Текущий доступный'} ${stage%5===0?'· ♛ БОСС':''}</div><div>Миссия: ${missionInfo(stage).icon} ${missionInfo(stage).name} — ${missionInfo(stage).hint}</div><div>Побед: ${rec.wins||0} · Попыток: ${rec.attempts||0} · Медаль: ${medal}${rec.bestStars?' · '+ '★'.repeat(rec.bestStars):''}${rec.bestScore?' · Рекорд: '+rec.bestScore:''}</div><button id="playSelected" class="primary" style="margin-top:9px">${nextCanResume&&stage===unlocked?'↪ ПРОДОЛЖИТЬ ЗАБЕГ':completed?'▶ ПОВТОРИТЬ':'▶ НАЧАТЬ'} · УРОВЕНЬ ${stage}</button>`;
+     detail.innerHTML=`<strong>Уровень ${stage} · ${stageName(stage)}</strong><div>${completed?'✓ Пройден':'➤ Текущий доступный'} ${stage%5===0?'· ♛ БОСС':''}</div><div>Миссия: ${missionInfo(stage).icon} ${missionInfo(stage).name} — ${missionInfo(stage).hint}</div><div>Побед: ${rec.wins||0} · Попыток: ${rec.attempts||0} · Медаль: ${medal}${rec.bestStars?' · '+ '★'.repeat(rec.bestStars):''}${rec.bestScore?' · Рекорд: '+rec.bestScore:''}</div>${pendingReward&&stage===unlocked?`<div class="campaignPendingReward">Забери улучшение за уровень ${checkpoint.sector} — после выбора сразу начнётся уровень ${stage}.</div>`:''}<button id="playSelected" class="primary" style="margin-top:9px">${pendingReward&&stage===unlocked?`🎁 НАГРАДА ${checkpoint.sector} → УРОВЕНЬ ${stage}`:nextCanResume&&stage===unlocked?'↪ ПРОДОЛЖИТЬ ЗАБЕГ · УРОВЕНЬ '+stage:completed?'▶ ПОВТОРИТЬ · УРОВЕНЬ '+stage:'▶ НАЧАТЬ · УРОВЕНЬ '+stage}</button>`;
      $('playSelected').onclick=()=>nextCanResume&&stage===unlocked?startGame(true):startGame(false,stage);
      detail.scrollIntoView({block:'nearest',behavior:'smooth'});
    });

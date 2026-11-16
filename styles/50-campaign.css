@@ -43,6 +43,17 @@
 .campaignHero{display:flex;gap:10px;align-items:center;border:1px solid #4dcbac65;background:linear-gradient(105deg,#123e36aa,#0c263dba);border-radius:13px;padding:13px;margin:10px 0}
 .campaignHero b{font-size:18px;color:#c0ffda}
 .campaignHero small{display:block;color:#99c9ba;font-size:11px;margin-top:4px}
+.campaignPendingReward{margin:10px 0;padding:10px 12px;border:1px solid #e8c97d9c;border-left:3px solid #ffd98b;border-radius:10px;background:linear-gradient(105deg,#49362082,#132630c9);color:#ffe6ac;font-size:12px;font-weight:760;line-height:1.55}
+.campaignDetails .campaignPendingReward{margin:10px 0 4px}
+.buildReleaseStamp{font-size:10px;font-weight:850;letter-spacing:.12em;text-align:right;color:#a5d8ed;margin:0 0 10px}
+.buildReleaseTools{display:grid;gap:6px;margin-top:16px;font-size:11px;color:#92b6c6}
+.buildReleaseLink{display:inline-flex;align-items:center;justify-content:center;min-height:42px;padding:9px 12px;border:1px solid #67c9bd86;border-radius:10px;background:#102d32;color:#c7fff2;text-align:center;text-decoration:none;font-size:11px;font-weight:850;letter-spacing:.03em}
+.buildReleaseLink:hover,.buildReleaseLink:focus-visible{filter:brightness(1.15);outline-color:#9cffee}
+.legacySaveWarning{padding:10px 12px;margin:8px 0 14px;border:1px solid #e9c279a8;border-left:3px solid #ffe4a0;border-radius:9px;background:#433020a6;color:#ffe8bd;font-size:12px;line-height:1.5}
+#saveConflictBanner{position:fixed;inset:auto max(10px,env(safe-area-inset-right)) max(10px,env(safe-area-inset-bottom)) max(10px,env(safe-area-inset-left));z-index:9999;display:grid;gap:8px;max-width:760px;max-height:55dvh;margin-inline:auto;overflow:auto;padding:14px 16px;background:#241725f5;border:2px solid #ffca81;border-radius:13px;box-shadow:0 10px 40px #000b;color:#fff1d3;font-size:12px;line-height:1.5}
+#saveConflictBanner strong{color:#ffe4a3;font-size:13px}
+.saveConflictActions{display:flex;gap:8px;flex-wrap:wrap}
+.saveConflictActions button{min-height:40px;padding:8px 12px;background:#102d38;color:#d7fcff;border:1px solid #7ccbcc;border-radius:8px;font-size:12px;font-weight:800}
 .campaignProgressOuter{height:7px;background:#203c4b;border-radius:20px;overflow:hidden;margin-top:10px}
 .campaignProgressInner{height:100%;background:linear-gradient(90deg,#34c97e,#9effd1);border-radius:20px}
 @media(max-width:560px){.campaignRoute{grid-template-columns:repeat(4,minmax(0,1fr));row-gap:8px}.campaignNode{height:69px;border-radius:10px}.campaignNode .nodeN{font-size:18px}.campaignChapterHead{align-items:flex-start}.campaignTitle{font-size:27px}.campaignChapter{padding:9px}.campaignDetails{padding:9px}.campaignPagination button{padding:8px 10px}}

@@ -1,6 +1,12 @@
 
 const $=x=>document.getElementById(x), TAU=Math.PI*2, clamp=(n,a,b)=>Math.max(a,Math.min(b,n)), hypot=Math.hypot, rand=(a,b)=>a+Math.random()*(b-a), pick=a=>a[Math.random()*a.length|0], distance=(a,b)=>hypot(a.x-b.x,a.z-b.z);let game=null, lastFrame=0, deadlock=false;
-const SAVE_KEY='neonrift3d-save', SAVE_BACKUP_KEY='neonrift3d-save-backup', SAVE_SESSION_KEY='neonrift3d-save-session';
+// Stage32 uses a protected namespace. An already-open Stage31 (or older) page
+// still writes its legacy keys, but cannot overwrite this edition's progress.
+// Import the legacy journal once; never let a newer legacy write silently
+// replace an existing protected journal.
+const SAVE_KEY='neonrift3d-save-protected-v1',SAVE_BACKUP_KEY='neonrift3d-save-protected-backup-v1',SAVE_SESSION_KEY='neonrift3d-save-protected-session-v1';
+const LEGACY_SAVE_KEY='neonrift3d-save',LEGACY_BACKUP_KEY='neonrift3d-save-backup',LEGACY_SESSION_KEY='neonrift3d-save-session';
+const GAME_BUILD='32',GAME_RELEASE='2026-11-16';
 // Developer play is an isolated rehearsal save. It can never overwrite the
 // player's regular autosaves, backup journal or session save.
 const DEV_SAVE_KEY='neonrift3d-developer-sandbox-v1',DEV_PASSWORD_KEY='neonrift3d-developer-password-v1';
@@ -26,12 +32,17 @@ const PERM_MAX_LEVEL=40,PERM_COUNT=12;
 function normalizePerms(raw){return Array.from({length:PERM_COUNT},(_,i)=>clamp(Math.floor(Number(raw?.[i])||0),0,PERM_MAX_LEVEL));}
 const saveDefaults={best:1,credits:0,kills:0,perms:Array(PERM_COUNT).fill(0),runs:0,settings:{audio:true,aim:true,quality:1,fpsLimit:60,cameraMode:'first',dashDistance:null,flightHorizontal:1,flightVertical:1},checkpoint:null};
 function getSaved(key,area){try{const s=JSON.parse(area.getItem(key));if(s&&typeof s==='object'&&Array.isArray(s.perms)&&s.best>=1)return s;}catch(e){}return null;}
-function loadJournal(){
- let main=null,backup=null,session=null;try{main=getSaved(SAVE_KEY,localStorage);backup=getSaved(SAVE_BACKUP_KEY,localStorage);}catch(e){}try{session=getSaved(SAVE_SESSION_KEY,sessionStorage);}catch(e){}const entries=[main,backup,session];
+function latestJournal(mainKey,backupKey,sessionKey){
+ let main=null,backup=null,session=null;try{main=getSaved(mainKey,localStorage);backup=getSaved(backupKey,localStorage);}catch(e){}try{session=getSaved(sessionKey,sessionStorage);}catch(e){}const entries=[main,backup,session];
  let newest=null,stamp=-1;
  for(const s of entries){if(!s)continue;const at=Number(s._savedAt)||0;if(!newest||at>stamp){newest=s;stamp=at;}}
  return newest;
 }
+const protectedJournal=latestJournal(SAVE_KEY,SAVE_BACKUP_KEY,SAVE_SESSION_KEY);
+const legacyJournal=latestJournal(LEGACY_SAVE_KEY,LEGACY_BACKUP_KEY,LEGACY_SESSION_KEY);
+let legacyDiverged=!!protectedJournal&&!!legacyJournal&&
+ (Number(legacyJournal._savedAt)||0)>(Number(protectedJournal._savedAt)||0);
+function loadJournal(){return protectedJournal||legacyJournal;}
 const loadedSave=loadJournal();
 let save={...saveDefaults,...(loadedSave||{}),perms:normalizePerms(loadedSave?.perms||saveDefaults.perms),settings:{...saveDefaults.settings,...(loadedSave?.settings||{})}};
 save.settings.quality=clamp(save.settings.quality|0,0,2);
@@ -60,21 +71,64 @@ save.campaign=normalizeCampaign(save.campaign,save.best,save.checkpoint);
 save.best=clamp(Math.floor(Number(save.best)||1),1,CAMPAIGN_MAX_LEVEL);
 if(Number(save.checkpoint?.sector)>CAMPAIGN_MAX_LEVEL)save.checkpoint=null;
 let campaignPage=Math.floor((save.campaign.highestUnlocked-1)/CAMPAIGN_CHAPTER_SIZE);
-let storageAvailable=true,lastSavedAt=Number(save._savedAt)||0;
-function persist(){
+let storageAvailable=true,lastSavedAt=Number(save._savedAt)||0,saveConflict=false;
+function showSaveConflict(){
+ storageAvailable=false;
+ if(!document.body||$('saveConflictBanner'))return;
+ const banner=document.createElement('div');banner.id='saveConflictBanner';banner.setAttribute('role','alert');
+ banner.innerHTML='<strong>⚠ ПРОГРЕСС ИЗМЕНЁН В ДРУГОЙ ВКЛАДКЕ</strong><span>Автосохранение здесь остановлено, чтобы не затереть более новые покупки. Экспортируй своё состояние в JSON или загрузи прогресс из другой вкладки.</span><div class="saveConflictActions"><button type="button" data-conflict-export>⬇ ЭКСПОРТ JSON</button><button type="button" data-conflict-reload>↻ ЗАГРУЗИТЬ АКТУАЛЬНОЕ</button></div>';
+ document.body.append(banner);
+ banner.querySelector('[data-conflict-export]').onclick=backupFile;
+ banner.querySelector('[data-conflict-reload]').onclick=()=>window.location.reload();
+ // Do not let an unsavable run continue silently in the background.
+ if(game?.state==='playing'&&typeof pause==='function')pause();
+}
+function persist(force=false){
  try{
-  save._savedAt=Math.max(Date.now(),(Number(save._savedAt)||0)+1);
-  const blob=JSON.stringify(save);
   if(devMode){
-   localStorage.setItem(DEV_SAVE_KEY,blob);
-   storageAvailable=true;lastSavedAt=save._savedAt;return true;
+   save._savedAt=Math.max(Date.now(),(Number(save._savedAt)||0)+1);
+   localStorage.setItem(DEV_SAVE_KEY,JSON.stringify(save));
+   storageAvailable=true;return true;
+  }
+  const disk=getSaved(SAVE_KEY,localStorage),diskStamp=Number(disk?._savedAt)||0;
+  // Another Stage32 tab saved since this one loaded. Never silently replace
+  // its purchase/armor/checkpoint snapshot with an older in-memory copy.
+  if(!force&&(saveConflict||diskStamp>lastSavedAt)){
+   saveConflict=true;showSaveConflict();return false;
+  }
+  // A still-open Stage31 tab may have changed its own journal meanwhile.
+  // Preserve that separate branch for manual JSON export; never silently
+  // replace newer legacy progress with a mirror of the protected branch.
+  const oldLegacy=getSaved(LEGACY_SAVE_KEY,localStorage);
+  if((Number(oldLegacy?._savedAt)||0)>lastSavedAt)legacyDiverged=true;
+  save._savedAt=Math.max(Date.now(),(Number(save._savedAt)||0)+1,lastSavedAt+1,diskStamp+1);
+  const blob=JSON.stringify(save);
+  // Unlike Stage31, the backup is the PREVIOUS good snapshot, not an
+  // identical overwrite. Never replace a newer recovery copy with an older
+  // primary if a prior write failed partway through.
+  const rollback=getSaved(SAVE_BACKUP_KEY,localStorage);
+  if(disk&&diskStamp>=(Number(rollback?._savedAt)||0)){
+   try{localStorage.setItem(SAVE_BACKUP_KEY,JSON.stringify(disk));}
+   catch(e){console.warn('Previous save journal unavailable: ',e);}
   }
   localStorage.setItem(SAVE_KEY,blob);
-  localStorage.setItem(SAVE_BACKUP_KEY,blob);
+  // Compatibility mirror: Stage31 may still read legacy data, but its writes
+  // can no longer destroy this protected Stage32 copy. Best effort only.
+  if(!legacyDiverged)try{localStorage.setItem(LEGACY_SAVE_KEY,blob);}catch(e){}
   try{sessionStorage.setItem(SAVE_SESSION_KEY,blob);}catch(e){}
-  storageAvailable=true;lastSavedAt=save._savedAt;return true;
+  lastSavedAt=save._savedAt;storageAvailable=true;
+  if(force){saveConflict=false;legacyDiverged=false;$('saveConflictBanner')?.remove();}
+  return true;
  }catch(e){storageAvailable=false;console.warn('Save unavailable: ',e);return false;}
 }
+if(typeof addEventListener==='function')addEventListener('storage',e=>{
+ if(devMode||!e.newValue)return;
+ try{const updated=JSON.parse(e.newValue);
+  if((Number(updated?._savedAt)||0)<=lastSavedAt)return;
+  if(e.key===SAVE_KEY){saveConflict=true;showSaveConflict();}
+  if(e.key===LEGACY_SAVE_KEY)legacyDiverged=true;
+ }catch(_){/* A corrupt external write must not break gameplay. */}
+});
 if(loadedSave){try{if(getSaved(SAVE_KEY,localStorage)?._savedAt!==save._savedAt)persist();}catch(e){storageAvailable=false;}}
 let autosaveNoticeUntil=0;
 function saveNotice(message){const e=$('saveToast');if(!e)return;e.textContent=message;e.classList.add('visible');autosaveNoticeUntil=performance.now()+1500;}
@@ -90,6 +144,8 @@ restoreInput.addEventListener('change',async()=>{
  const f=restoreInput.files?.[0];if(!f)return;
  try{const payload=JSON.parse(await f.text());const backup=payload?.format==='NEON_RIFT_BACKUP_V3'?payload.saved:payload;
    if(!backup||typeof backup!=='object'||!Array.isArray(backup.perms)||!Number.isInteger(backup.best)||backup.best<1)throw Error('Invalid backup');
+   if(!confirm('Импорт ЗАМЕНИТ текущий прогресс, а не объединит покупки. Сначала экспортируй текущую игру в JSON. Продолжить?'))return;
+   const before=save;
    // An imported old backup does not specify dashDistance. Do not inherit
    // an unrelated current-session choice: old saves use their full range.
    save={...save,...backup,perms:normalizePerms(backup.perms),settings:{...save.settings,dashDistance:null,...(backup.settings||{})},weaponMods:backup.weaponMods||{},bodyArmor:backup.bodyArmor||{owned:{},equipped:-1}};
@@ -105,7 +161,11 @@ restoreInput.addEventListener('change',async()=>{
    save.best=clamp(Math.floor(Number(save.best)||1),1,CAMPAIGN_MAX_LEVEL);
    if(Number(save.checkpoint?.sector)>CAMPAIGN_MAX_LEVEL)save.checkpoint=null;
    campaignPage=Math.floor((save.campaign.highestUnlocked-1)/CAMPAIGN_CHAPTER_SIZE);
-   persist();game=null;saveNotice('СОХРАНЕНИЕ ИМПОРТИРОВАНО');showCampaignMap(campaignPage);
+   if(!persist(true)){
+    save=before;campaignPage=Math.floor((save.campaign.highestUnlocked-1)/CAMPAIGN_CHAPTER_SIZE);
+    refreshCameraInterface();throw Error('Save storage unavailable after import');
+   }
+   game=null;saveNotice('СОХРАНЕНИЕ ИМПОРТИРОВАНО');showCampaignMap(campaignPage);
  }catch(e){alert('Не удалось импортировать сохранение. Проверь JSON-файл резервной копии.');}finally{restoreInput.value='';}
 });
 function wireBackupButtons(){document.querySelectorAll('[data-export-save]').forEach(b=>b.onclick=backupFile);document.querySelectorAll('[data-import-save]').forEach(b=>b.onclick=()=>restoreInput.click());}

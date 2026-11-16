@@ -18,7 +18,8 @@ function element(id){
   setPointerCapture(){},releasePointerCapture(){}};
 }
 const ids=['flightHorizontalSlider','flightVerticalSlider','flightHorizontalValue',
- 'flightVerticalValue','joystick','stick','dashTouch','pulseTouch',
+ 'flightVerticalValue','flightHorizontalPauseSlider','flightVerticalPauseSlider',
+ 'flightHorizontalPauseValue','flightVerticalPauseValue','joystick','stick','dashTouch','pulseTouch',
  'shieldTouch','healTouch','runTouch','viewTouch','flightToggle',
  'flightUp','flightDown','mobileSwitch','jumpTouch','fullscreenBtn',
  'overlay','pauseBtn','minimap'];
@@ -51,6 +52,8 @@ const ctx={Math,Number,console,Map,Set,Date,TouchEvent:{},
  clamp:(v,a,b)=>Math.max(a,Math.min(b,v)),hypot:Math.hypot};
 vm.createContext(ctx);
 vm.runInContext(source,ctx);
+// Pause creates these two mobile inputs dynamically after opening the overlay.
+ctx.wireFlightPauseSettings();
 for(const id of ['dashTouch','pulseTouch','shieldTouch','healTouch'])
  check(elems[id].handlers.has('pointerdown'),`${id} lacks actual touch listener`);
 for(const [id,expected] of [['dashTouch','dash'],['pulseTouch','pulse'],
@@ -83,20 +86,20 @@ elems.flightDown.dispatch('pointerdown',{pointerId:61});
 check(ctx.input.flyDown,'mobile descend does not set held flight input');
 elems.flightDown.dispatch('pointercancel',{pointerId:61});
 check(!ctx.input.flyDown,'mobile descend stuck after cancellation');
-elems.flightHorizontalSlider.value='35';
-elems.flightHorizontalSlider.dispatch('input');
-check(ctx.save.settings.flightHorizontal===.35,'mobile horizontal slider ignores drag');
-elems.flightVerticalSlider.value='60';
-elems.flightVerticalSlider.dispatch('input');
-check(ctx.save.settings.flightVertical===.6,'mobile vertical slider ignores drag');
+elems.flightHorizontalPauseSlider.value='35';
+elems.flightHorizontalPauseSlider.dispatch('input');
+check(ctx.save.settings.flightHorizontal===.35,'pause horizontal slider ignores drag');
+elems.flightVerticalPauseSlider.value='60';
+elems.flightVerticalPauseSlider.dispatch('input');
+check(ctx.save.settings.flightVertical===.6,'pause vertical slider ignores drag');
 const persistedBefore=persisted;
-elems.flightHorizontalSlider.dispatch('change');
-elems.flightVerticalSlider.dispatch('change');
-check(persisted===persistedBefore+2,'mobile flight sliders do not save final selection');
+elems.flightHorizontalPauseSlider.dispatch('change');
+elems.flightVerticalPauseSlider.dispatch('change');
+check(persisted===persistedBefore+2,'pause flight sliders do not save final selection');
 ctx.refreshFlightButtons();
-check(elems.flightHorizontalValue.textContent==='35%'&&
- elems.flightVerticalValue.textContent==='60%',
- 'mobile flight setting labels do not match persisted values');
+check(elems.flightHorizontalPauseValue.textContent==='35%'&&
+ elems.flightVerticalPauseValue.textContent==='60%',
+ 'pause flight setting labels do not match persisted values');
 check(elems.flightToggle.attributes['aria-pressed']==='true',
  'flight toggle inaccessible state does not match flight');
 // A swipe changes camera direction; it must not fire an accidental shot.
@@ -116,6 +119,7 @@ check(weaponList===1,'one mobile tap opened then immediately closed weapon drawe
 elems.jumpTouch.dispatch('pointerdown');
 check(jumped===1,'mobile jump touch button does not work');
 elems.viewTouch.dispatch('pointerdown');
-check(changedView===1,'mobile view button does not work');
+check(changedView===0&&!elems.viewTouch.handlers.has('pointerdown'),
+ 'mobile combat view button must be inert; camera is changed in Pause');
 check(paused===0,'mobile interactions unexpectedly paused the game');
 console.log(`STAGE25 MOBILE: ${checks} production touch/slider/joystick/gesture assertions passed`);
