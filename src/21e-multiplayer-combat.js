@@ -114,12 +114,12 @@ function mpCombatReceiveEffect(data){
  if(game.impactFx.length>35)game.impactFx.splice(0,game.impactFx.length-35);
 }
 function mpCombatOrdnance(){
- return mpMatch.projectiles.slice(0,24).map(s=>({x:+s.pos.x.toFixed(2),y:+s.pos.y.toFixed(2),
+ return mpMatch.projectiles.slice(0,72).map(s=>({x:+s.pos.x.toFixed(2),y:+s.pos.y.toFixed(2),
   z:+s.pos.z.toFixed(2),vx:+s.v.x.toFixed(1),vy:+s.v.y.toFixed(1),vz:+s.v.z.toFixed(1),
   gun:weapons.indexOf(s.w)}));
 }
 function mpCombatApplyOrdnance(list){
- if(!Array.isArray(list)||list.length>24)return;
+ if(!Array.isArray(list)||list.length>48)return;
  const display=[];
  for(const obj of list){
   if(!obj||![obj.x,obj.y,obj.z,obj.vx,obj.vy,obj.vz].every(n=>Number.isFinite(n)&&Math.abs(n)<1000)||

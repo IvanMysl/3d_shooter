@@ -100,15 +100,17 @@ function mpRtcSend(link,channel,value){
  if(!mpRtcAlive(link)||channel?.readyState!=='open'||channel.bufferedAmount>131072)return false;
  const serialized=JSON.stringify(value);
  if(serialized.length>4000)return false;
- try{channel.send(serialized);return true;}catch(_){return false;}
+ try{channel.send(serialized);if(typeof mp10RecordTx==='function')mp10RecordTx(serialized.length);return true;}catch(_){return false;}
 }
 function mpRtcFastSend(peer,value){
  const l=mpRtcLinks.get(peer);
  if(!l||typeof mp7BufferAllowed==='function'&&!mp7BufferAllowed(l))return false;
- return mpRtcSend(l,l.fast,value);
+ const payload=typeof mp10Encode==='function'?mp10Encode(value,peer):value;
+ return !!payload&&mpRtcSend(l,l.fast,payload);
 }
 function mpRtcControl(link,e){
  if(typeof e.data!=='string'||e.data.length>4000)return;
+ if(typeof mp10RecordRx==='function')mp10RecordRx(e.data.length);
  let data;try{data=JSON.parse(e.data);}catch(_){return;}
  if(data?.v!==MP_VERSION)return;
  link.lastHeard=Date.now();
@@ -121,8 +123,10 @@ function mpRtcControl(link,e){
 }
 function mpRtcFastMessage(link,e){
  if(typeof e.data!=='string'||e.data.length>4000)return;
+ if(typeof mp10RecordRx==='function')mp10RecordRx(e.data.length);
  let data;try{data=JSON.parse(e.data);}catch(_){return;}
  if(data?.v!==MP_VERSION)return;
+ if(data.c===1){data=typeof mp10Decode==='function'?mp10Decode(data):null;if(!data)return;}
  if(data.kind==='probe'&&Number.isSafeInteger(data.n))mpRtcSend(link,link.fast,{v:MP_VERSION,kind:'probe-ack',n:data.n});
  if(data.kind==='probe-ack'&&data.n===link.probeSeq){link.probeVerified=true;mpRtcPaint();}
  if(typeof data.kind==='string'&&data.kind.startsWith('mp3-')&&typeof mpMatchFast==='function')mpMatchFast(link.peer,data);

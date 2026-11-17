@@ -10,13 +10,13 @@ function restorePriorityDefense(p){
  for(const stage of stages){
   const limit=Math.max(0,Number(p[stage.max])||0),value=clamp(Number(p[stage.key])||0,0,limit),missing=limit-value;
   if(limit<=0||missing<=1e-5)continue;
-  // Even a fraction of one energy unit can be sufficient to complete the
-  // final tiny remainder of a repair. Do not impose an undocumented 1-unit
-  // gate when the actual proportional cost is lower.
-  if(!(p.energy>0)){toast('ВОССТАНОВЛЕНИЕ · НЕДОСТАТОЧНО ЭНЕРГИИ',.8);return false;}
-  const added=Math.min(missing,stage.perAction,p.energy/stage.cost*stage.perAction);
+  // F is atomic: restore the full advertised action (or all missing points),
+  // or restore nothing. A small final remainder costs only its actual share.
+  const added=Math.min(missing,stage.perAction);
   if(added<=1e-8)return false;
-  p.energy=Math.max(0,p.energy-added/stage.perAction*stage.cost);
+  const required=added/stage.perAction*stage.cost;
+  if(p.energy+1e-6<required){toast('ВОССТАНОВЛЕНИЕ · НЕДОСТАТОЧНО ЭНЕРГИИ',.8);return false;}
+  p.energy=Math.max(0,p.energy-required);
   p[stage.key]=Math.min(limit,value+added);
   if(stage.key==='armor')p.armorDelay=0;
   burst(p.x,(p.feetY||0)+.9,p.z,stage.key==='hp'?[.22,1,.66]:stage.key==='bodyArmor'?[.96,.78,.37]:[.45,.73,1],10);

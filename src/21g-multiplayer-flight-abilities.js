@@ -6,7 +6,7 @@ const MP6_EVENTS=['ft','ad','aq','ac','ah'];
 const MP6_SKILLS={dash:{key:'ad',cost:30,cooldown:1.15},
  pulse:{key:'aq',cost:52,cooldown:2.2},
  shield:{key:'ac',cost:50,cooldown:8.5},
- heal:{key:'ah',cost:45,cooldown:1.6}};
+ heal:{key:'ah',cost:45,cooldown:0}};
 
 function mp6Init(){
  const m=mpMatch;if(!m?.active)return;
@@ -116,18 +116,35 @@ function mp6Pulse(a){
 function mp6Skill(a,name){
  const p=a.p,rule=MP6_SKILLS[name];if(!rule||p.hp<=0||a.respawnAt>mpMatch.tick)return false;
  const cds=p.abilityCooldowns;
- if(cds[name]>.001||p.energy+1e-6<rule.cost)return false;
- if(name==='heal'&&p.hp>=100&&p.armor>=30)return false;
+ if(cds[name]>.001)return false;
+ if(name==='heal'){
+  // No artificial cooldown. Repair the full intended amount or nothing;
+  // the last small missing remainder requires only its proportional cost.
+  const missing=p.hp<100-1e-6?100-p.hp:Math.max(0,30-p.armor);
+  const gain=p.hp<100-1e-6?38:22;
+  if(missing<=1e-6)return false;
+  const restored=Math.min(missing,gain),spent=restored/gain*rule.cost;
+  if(p.energy+1e-6<spent)return false;
+  p.energy=Math.max(0,p.energy-spent);
+  if(p.hp<100-1e-6)p.hp=Math.min(100,p.hp+restored);
+  else p.armor=Math.min(30,p.armor+restored);
+  cds.heal=0;
+  // The owner sees the restored HP immediately; do not wait for the periodic
+  // 350 ms scoreboard update on the host. Guests still trust host snapshots.
+  if(a.id===mpMatch.self&&typeof mpCombatSyncHud==='function')mpCombatSyncHud();
+  // A final tiny remainder need not emit a barely visible network effect.
+  if(restored>=.5){
+   const o={x:p.x,y:p.feetY+1,z:p.z};mpCombatEmit('heal',o,o,p.weapon,a.id);
+  }
+  return true;
+ }
+ if(p.energy+1e-6<rule.cost)return false;
  if(name==='shield'&&p.shield>.001)return false;
  p.energy=Math.max(0,p.energy-rule.cost);cds[name]=rule.cooldown;
  if(name==='dash')mp6Dash(a,a.cmd);
  else if(name==='pulse')mp6Pulse(a);
  else if(name==='shield'){
   p.shield=3;const o={x:p.x,y:p.feetY+1,z:p.z};mpCombatEmit('shield',o,o,p.weapon,a.id);
- }else if(name==='heal'){
-  if(p.hp<100)p.hp=Math.min(100,p.hp+38);
-  else p.armor=Math.min(30,p.armor+22);
-  const o={x:p.x,y:p.feetY+1,z:p.z};mpCombatEmit('heal',o,o,p.weapon,a.id);
  }
  return true;
 }

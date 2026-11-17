@@ -54,7 +54,8 @@ function createBrowser(server,combat=false,rounds=false,special=false,smoothing=
  const specialSource=special?fs.readFileSync(path.join(folder,'21g-multiplayer-flight-abilities.js'),'utf8'):'';
  const smoothingSource=smoothing?fs.readFileSync(path.join(folder,'21h-multiplayer-smoothing.js'),'utf8'):'';
  const recoverySource=recovery?fs.readFileSync(path.join(folder,'21i-multiplayer-recovery.js'),'utf8'):'';
- const a=app(server,source+'\n'+combatSource+'\n'+roundSource+'\n'+specialSource+'\n'+smoothingSource+'\n'+recoverySource,extra);
+ const trafficSource=fs.readFileSync(path.join(folder,'21j-multiplayer-traffic.js'),'utf8');
+ const a=app(server,source+'\n'+combatSource+'\n'+roundSource+'\n'+specialSource+'\n'+smoothingSource+'\n'+recoverySource+'\n'+trafficSource,extra);
  const decorate=el=>{
   if(!el.classList){const values=new Set();el.classList={add(...xs){xs.forEach(x=>values.add(x));},remove(...xs){xs.forEach(x=>values.delete(x));},contains(x){return values.has(x);}};}
   if(!el.style)el.style={};if(!el.setAttribute)el.setAttribute=()=>{};

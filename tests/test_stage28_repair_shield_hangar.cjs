@@ -51,9 +51,14 @@ near(player.armor,300*.30*1.02**40,'LVL 40 barrier repair');near(player.energy,6
 player.hp=player.maxhp;player.bodyArmor=player.bodyArmorMax;player.armor=player.maxArmor;
 player.energy=50;yes(powers.useAbility('heal')===false,'full defenses must block repair');
 near(player.energy,50,'full defenses must not drain energy');
-player.hp=0;player.energy=2;powers.useAbility('heal');
-near(player.hp,49*1.03**40*2/50,'partial hull repair scales with energy');
-near(player.energy,0,'partial repair cannot overdraw energy');
+player.hp=0;player.energy=2;
+yes(powers.useAbility('heal')===false,'underfunded hull repair is rejected');
+near(player.hp,0,'no proportional partial hull repair');
+near(player.energy,2,'rejected repair must not spend energy');
+player.energy=50;
+yes(powers.useAbility('heal')==='hp','fully funded hull repair works with no cooldown');
+near(player.hp,49*1.03**40,'full hull action is restored');
+near(player.energy,0,'full hull action spends exactly 50');
 
 player.energy=49;player.shield=0;player.abilityCooldowns.shield=0;
 powers.useAbility('shield');near(player.energy,49,'C should reject 49 energy');

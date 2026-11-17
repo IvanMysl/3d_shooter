@@ -128,7 +128,7 @@ function mpRoundShowResults(){
   return `<li class="mpResultRow ${p.id===m.self?'mpResultSelf':''}"><span>${i+1}. ${mpEscape(name)}`+
    `${result.mode==='teams'?(p.team===0?' 🔵':' 🟠'):''}</span><b>${p.k} / ${p.d}</b></li>`;
  }).join('');
- panel(`<div class="eyebrow">СЕТЕВАЯ ИГРА / MP-9 · РЕЗУЛЬТАТЫ</div>
+ panel(`<div class="eyebrow">СЕТЕВАЯ ИГРА / MP-10 · РЕЗУЛЬТАТЫ</div>
   <h2>${mpEscape(winner)}</h2><p class="lede">${mpEscape(reason)} · ${mpEscape(mpMap(m.settings.mapId)?.name||'Карта')}</p>
   <p class="smalltext">Очки / смерти · ${m.settings.scoreLimit} очков для победы · ${m.settings.timeLimitSec/60} мин. максимум</p>
   ${result.mode==='teams'?`<div class="mpResultTeams">🔵 ${result.scores[0]} : ${result.scores[1]} 🟠</div>`:''}

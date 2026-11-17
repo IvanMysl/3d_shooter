@@ -11,7 +11,7 @@ const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 let checks=0;
 
 // One real ability instance receives a fully equipped player. Do not replace
-// the restoration function with a mock, including partial-energy cases.
+// the restoration function with a mock, including insufficient-energy cases.
 const player={hp:40,maxhp:100,bodyArmor:0,bodyArmorMax:200,
  armor:10,maxArmor:60,energy:500,maxEnergy:500,dashCost:25,
  dashRange:2.52,shield:0,shieldDuration:3.5,iframes:0,
@@ -33,13 +33,19 @@ check(ability.useAbility('heal')==='bodyArmor','E repairs suit after hull');
 near(player.bodyArmor,14,'suit +7% max, not arbitrary hit points');
 const suitEnergy=player.energy;
 player.energy=3;
-check(ability.useAbility('heal')==='bodyArmor','low-energy partial suit repair allowed');
-near(player.bodyArmor,14+14*3/50,'partial suit repair proportional');near(player.energy,0,'no negative energy');
+check(ability.useAbility('heal')===false,'low energy cannot partially repair the suit');
+near(player.bodyArmor,14,'failed suit repair changes no durability');near(player.energy,3,'failed suit repair spends nothing');
+player.energy=50;
+check(ability.useAbility('heal')==='bodyArmor','full-cost suit repair becomes available immediately');
+near(player.bodyArmor,28,'suit repairs its entire advertised action');near(player.energy,0,'full suit repair costs 50');
 player.energy=100;player.bodyArmor=200;
 check(ability.useAbility('heal')==='armor','E charges barrier only after full suit');
 near(player.armor,28,'barrier +30% max');near(player.energy,60,'barrier energy cost');
-player.armor=59.5;player.energy=2;
-check(ability.useAbility('heal')==='armor','partial remaining barrier repair succeeds');
+player.armor=59.5;player.energy=.5;
+check(ability.useAbility('heal')===false,'even a tiny remainder needs its entire energy price');
+near(player.armor,59.5,'underpowered barrier tap restores nothing');near(player.energy,.5,'no charge for rejected barrier tap');
+player.energy=2;
+check(ability.useAbility('heal')==='armor','fully funded final barrier remainder succeeds');
 near(player.armor,60,'last 0.5 barrier repaired');check(player.energy>0,'excess barrier energy not charged');
 player.energy=100;check(ability.useAbility('heal')===false,'full defenses do not spend energy');
 near(player.energy,100,'full-state energy untouched');

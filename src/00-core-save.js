@@ -6,7 +6,7 @@ const $=x=>document.getElementById(x), TAU=Math.PI*2, clamp=(n,a,b)=>Math.max(a,
 // replace an existing protected journal.
 const SAVE_KEY='neonrift3d-save-protected-v1',SAVE_BACKUP_KEY='neonrift3d-save-protected-backup-v1',SAVE_SESSION_KEY='neonrift3d-save-protected-session-v1';
 const LEGACY_SAVE_KEY='neonrift3d-save',LEGACY_BACKUP_KEY='neonrift3d-save-backup',LEGACY_SESSION_KEY='neonrift3d-save-session';
-const GAME_BUILD='42',GAME_RELEASE='2026-11-17 MP-9 / METERED';
+const GAME_BUILD='43',GAME_RELEASE='2026-11-17 MP-10 / LOW TRAFFIC';
 // Developer play is an isolated rehearsal save. It can never overwrite the
 // player's regular autosaves, backup journal or session save.
 const DEV_SAVE_KEY='neonrift3d-developer-sandbox-v1',DEV_PASSWORD_KEY='neonrift3d-developer-password-v1';

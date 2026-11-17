@@ -29,7 +29,7 @@ async function main(){
   'up/down retain individual touch targets, with no overlap with fly toggle');
  check(css.includes('max-height:340px')&&css.includes('min-height:36px'),
   'extremely short landscape displays have dedicated compact control layout');
- check(/GAME_BUILD='(?:41|42)'/.test(fs.readFileSync(path.join(__dirname,'../src/00-core-save.js'),'utf8')),
+ check(/GAME_BUILD='(?:41|42|43)'/.test(fs.readFileSync(path.join(__dirname,'../src/00-core-save.js'),'utf8')),
   'user-visible version is incremented without changing save schema');
 
  const server=new FakeMetered();const {host,guest}=await connected(server);

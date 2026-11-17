@@ -26,7 +26,7 @@ async function main(){
   guest.run('[...mpRtcLinks.values()][0].control?.readyState==="open"'));
  await host.run('mpReady()');await guest.run('mpReady()');
  host.run('mpMatchStartTraining()');await until(()=>active(host)&&active(guest));
- check(host.run('MP_VERSION')===2,'new flight schema requires protocol v2');
+ check(host.run('MP_VERSION')===3,'new flight schema requires protocol v3');
  check(host.run('mpMatch.actors.size')===2,'both players start in the new physics world');
  check(host.run('[...mpMatch.actors.values()].every(a=>a.p.flightUnlocked)'),
   'every player receives fair baseline flight regardless of owned suits');

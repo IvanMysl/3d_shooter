@@ -356,6 +356,10 @@
       "description": "MP-8: заморозка локального прогноза при потере снимков ведущего, безопасное восстановление, одно автоматическое переподключение и предупреждение в HUD"
     },
     {
+      "file": "21j-multiplayer-traffic.js",
+      "description": "MP-10: loss-tolerant compact P2P codec, adaptive idle traffic, smarter projectile relevance"
+    },
+    {
       "file": "22-menus-and-upgrades.js",
       "description": "Настройки FPS, меню, ангар, улучшения, пауза",
       "statements": [

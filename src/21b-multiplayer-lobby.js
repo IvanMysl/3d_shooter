@@ -4,7 +4,7 @@
 const MP_PUBLISHABLE_KEY='pk_live_3faca90fc2e0eb3f14b34a1bc453242cfe73e937';
 // MP-6 changes the actor state and control schema: older MP-5 pages must not
 // silently enter a room with incompatible flight/ability physics.
-const MP_VERSION=2,MP_CAP=8,MP_PREFIX='NR-',MP_ALPHABET='ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
+const MP_VERSION=3,MP_CAP=8,MP_PREFIX='NR-',MP_ALPHABET='ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
 const MP_MAPS=[
  ['citadel','ЦИТАДЕЛЬ'],['reactor','РЕАКТОРНЫЕ КОЛЬЦА'],['temple','ХРАМ ПЕРЕХОДОВ'],
  ['sky-docks','НЕБЕСНЫЕ ДОКИ'],['archives','АРХИВ ЛАБИРИНТОВ'],['shipyards','ГРУЗОВЫЕ ВЕРФИ'],
@@ -121,7 +121,7 @@ class MpWire{
 
 function mpHome(message=''){
  mpScreenError=message;
- panel(`<div class="eyebrow">◉ СЕТЕВАЯ ИГРА · MP-9</div><h2>Комнаты до 8 игроков</h2>
+ panel(`<div class="eyebrow">◉ СЕТЕВАЯ ИГРА · MP-10</div><h2>Комнаты до 8 игроков</h2>
  <p class="smalltext">Бой на одной из 18 карт: полёт, рывок, импульс, щит, ремонт, стрельба, командные очки, таймер, победа и результаты. Одиночная кампания и её сохранения независимы.</p>
  <div class="mpGrid"><button class="primary" id="mpOpenHost">＋ СОЗДАТЬ ИГРУ</button><button class="secondary" id="mpOpenJoin">↪ ПРИСОЕДИНИТЬСЯ</button></div>
  <div class="mpStatus ${message?'mpError':''}" id="mpStatus" role="status">${mpEscape(message||(!mpConfigured()?'Сеть пока не настроена: создателю сайта нужно добавить publishable key Metered.':'Готово к соединению.'))}</div>
@@ -331,9 +331,9 @@ function mpLobby(){
  <h3>Игроки · ${r.players.length}/${MP_CAP}</h3><ol class="mpPlayers">${users}</ol>
  <button class="secondary" id="mpReady" ${!me?'disabled':''}>${me?.ready?'✓ ГОТОВ · ОТМЕНИТЬ':'✓ Я ГОТОВ'}</button>
  <button class="secondary" id="mpRetryRtc">↻ ПЕРЕПОДКЛЮЧИТЬ WEBRTC</button>
- ${r.host?'<button class="primary" id="mpStartTraining" disabled>▶ НАЧАТЬ СЕТЕВОЙ БОЙ · MP-9</button>':'<div class="mpRule">Ведущий начнёт матч, когда все подтвердят готовность и откроются P2P-каналы.</div>'}
+ ${r.host?'<button class="primary" id="mpStartTraining" disabled>▶ НАЧАТЬ СЕТЕВОЙ БОЙ · MP-10</button>':'<div class="mpRule">Ведущий начнёт матч, когда все подтвердят готовность и откроются P2P-каналы.</div>'}
  <div class="mpRule">В сетевом бою у всех 100 HP и 30 единиц энергобарьера. Улучшения и купленные костюмы из одиночной игры не дают преимуществ. Дружественный огонь включён, за убийство союзника начисляется штраф.</div>
- <div id="mpStatus" class="mpStatus" role="status">MP-9: управление при долгой потере связи приостанавливается, есть переподключение, полёт и способности доступны всем. Победа — по очкам или времени.</div>
+ <div id="mpStatus" class="mpStatus" role="status">MP-10: управление при долгой потере связи приостанавливается, есть переподключение, полёт и способности доступны всем. Победа — по очкам или времени.</div>
  <button class="secondary mpBack" id="mpLeave">← ВЫЙТИ ИЗ КОМНАТЫ</button>`);
  $('mpCopyCode').onclick=()=>mpCopy(r.code);if(url)$('mpCopyLink').onclick=()=>mpCopy(url);
  $('mpReady').onclick=mpReady;$('mpLeave').onclick=mpLeave;

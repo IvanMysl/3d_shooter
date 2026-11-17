@@ -26,7 +26,7 @@ async function main(){
  host.run('mpMatchStartTraining()');await until(()=>active(host)&&active(guest));
  check(host.run('mpMatch.fastDrops')===0,'stage39 initializes host fast-channel drop counter');
  check(guest.run('mpMatch.fastDrops')===0,'guest fast-channel drop counter starts empty');
- check(host.run('MP_VERSION')===2,'MP-7 preserves compatible protocol v2');
+ check(host.run('MP_VERSION')===3,'MP-7 preserves compatible protocol v3');
  check(host.run('mpMatch.actors.size')===2,'host retains complete roster');
  check(guest.run('mpMatch.actors.get(0).jitter')===0,'guest starts with no jitter estimate');
  check(host.saves===0&&guest.saves===0,'MP-7 startup does not alter single-player save');

@@ -313,9 +313,10 @@ function mpMatchUpdate(dt){
  if(m.host)self.cmd=local;
  else if(!m.round?.ended){
   m.sendAcc+=dt;
-  if(m.sendAcc>=MP3_INPUT_EVERY){m.sendAcc%=MP3_INPUT_EVERY;
+  const ready=typeof mp10InputDue==='function'?mp10InputDue(m,outgoing):m.sendAcc>=MP3_INPUT_EVERY;
+  if(ready){m.sendAcc=0;
    const cmd={v:MP_VERSION,kind:'mp3-input',token:m.token,seq:++m.inputSeq,...outgoing};
-   mpRtcFastSend(mpRoom.hostPeer,cmd);
+   if(mpRtcFastSend(mpRoom.hostPeer,cmd)&&typeof mp10InputSent==='function')mp10InputSent(m,outgoing);
   }
  }
  m.acc+=dt;
@@ -339,10 +340,12 @@ function mpMatchUpdate(dt){
    mpMatchMove(self.p,local,MP3_STEP,[...m.actors.values()].filter(x=>x.p.hp>0).map(x=>x.p));}
  }
  if(m.host){m.snapAcc+=dt;
-  const period=m.round?.ended?1:MP3_SNAPSHOT_EVERY;
+  const period=m.round?.ended?1:(typeof mp10SnapshotPeriod==='function'?mp10SnapshotPeriod(m):MP3_SNAPSHOT_EVERY);
   if(m.snapAcc>=period){m.snapAcc%=period;
-  const snapshot=mpMatchState();for(const a of m.actors.values())if(!a.host)mpRtcFastSend(a.peerId,snapshot);
- }}else mpMatchInterpolate(dt);
+   const snapshot=mpMatchState();let delivered=false;
+   for(const a of m.actors.values())if(!a.host)delivered=mpRtcFastSend(a.peerId,snapshot)||delivered;
+   if(delivered&&typeof mp10SnapshotSent==='function')mp10SnapshotSent(m);
+  }}else mpMatchInterpolate(dt);
  game.t+=dt;game.sectorTime+=dt;
  if(performance.now()-m.lastHud>350){m.lastHud=performance.now();mpMatchStatus();}
  input.jumpQueued=false;
@@ -373,7 +376,7 @@ function mpMatchStatus(){
  const self=m.actors.get(m.self)?.p;
  const warning=typeof mp8UpdateHud==='function'&&mp8UpdateHud(m);
  const hostWarning=typeof mp8HostWarning==='function'&&mp8HostWarning(m);
- el.textContent='◉ MP-9 · '+(m.round?.ended?'ИТОГИ':
+ el.textContent='◉ MP-10 · '+(m.round?.ended?'ИТОГИ':
   (typeof mpRoundClock==='function'?mpRoundClock():'БОЙ'))+
   ' · '+m.actors.size+' ИГР. · '+(warning||hostWarning||(mpSignalingLost?'⚠ METERED ОТКЛЮЧЁН · P2P':m.host?'ВЕДУЩИЙ':
    Date.now()-m.lastFromHost>2200?'⚠ НЕТ СВЯЗИ':Number.isFinite(rtt)?Math.round(rtt)+' мс':'P2P'))+
@@ -387,8 +390,9 @@ function mpMatchPause(){
  if(!m.paused){$('overlay').classList.add('hidden');$('hud').classList.add('show');return;}
  pauseResumeGraceUntil=performance.now()+1100;
  if(document.pointerLockElement)document.exitPointerLock();
- panel(`<div class="eyebrow">СЕТЕВАЯ ИГРА / MP-9</div><h2>Сетевой матч</h2>
+ panel(`<div class="eyebrow">СЕТЕВАЯ ИГРА / MP-10</div><h2>Сетевой матч</h2>
  <p class="lede">${mpEscape(mpMap(mpRoom?.settings?.mapId)?.name||'КАРТА')} · ${m.actors.size} игроков.</p>
+ <p class="smalltext">${typeof mp10TrafficLabel==='function'?mp10TrafficLabel():''}</p>
  <p class="smalltext">Стрельба, попадания, полёт, рывок, импульс, щит, ремонт, убийства и возрождение рассчитываются ведущим. Всем доступны одинаковые базовые параметры полёта и способностей без переноса сохранённых улучшений. V / двойной Space — полёт, Space — вверх, Shift — вниз, E — рывок, Q — импульс, C — щит, F — ремонт. Пока открыто меню, матч продолжается.</p>
  <div class="row"><button class="primary" id="mpResume">▶ ВЕРНУТЬСЯ</button>
  <button class="secondary" id="mpRetryInGame">⟳ ПЕРЕПОДКЛЮЧИТЬ</button>
