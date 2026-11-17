@@ -74,7 +74,7 @@ function keydown(e){
  if(input.joyId!==null){try{$('joystick').releasePointerCapture(input.joyId)}catch(_){}}
  input.joyId=null;
  const stick=$('stick');if(stick)stick.style.transform='translate(0,0)';
- if(game?.state==='playing')pause();
+ if(game?.state==='playing'&&!(typeof mpMatch!=='undefined'&&mpMatch?.paused))pause();
 }
 addEventListener('blur',resetTransientInput);
 document.addEventListener('visibilitychange',()=>{if(document.hidden)resetTransientInput()});

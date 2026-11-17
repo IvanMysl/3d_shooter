@@ -69,7 +69,7 @@ function assertPurchases(snapshot,credits=fixture.credits){
  const local=storage();local.setItem(OLD,JSON.stringify(fixture));
  local.setItem(OLD_BACKUP,JSON.stringify(fixture));
  const first=app(local);
- check(first.run('GAME_BUILD')==='32','wrong build identifier');
+ check(Number(first.run('GAME_BUILD'))>=32,'build must not regress below Stage32');
  check(first.run('SAVE_KEY')!==first.run('LEGACY_SAVE_KEY'),'old versions can overwrite the new save key');
  check(!!local.getItem(NEW),'existing Stage31 progress was not migrated on first visit');
  assertPurchases(JSON.parse(local.getItem(NEW)));

@@ -242,5 +242,7 @@ for(let i=g.particles.length-1;i>=0&&renderedSparks<maxSparks;i--){
  const mesh=save.settings.quality===0?geom.octa:(geom.spark||geom.orb);
  draw(mesh,pfx.x,pfx.y,pfx.z,scale,scale,scale*(1.2+Math.min(3,speed*.38)),yaw,pfx.col||[1,.65,.32],.5+2*life,tilt);
 }
+// Draw peers with the existing detailed operator model in both camera modes.
+if(typeof mpMatchRenderOperators==='function')mpMatchRenderOperators(g);
 if(camera?.drawActor)renderOperator(g,p);else renderHeldWeapon(g,p,eye,dir);if(!camera?.drawActor&&p.shotGlow>.015){const rt=[-Math.cos(p.yaw),0,Math.sin(p.yaw)];const fx=eye[0]+dir[0]*1.55+rt[0]*.27,fy=eye[1]+dir[1]*1.55-.24,fz=eye[2]+dir[2]*1.55+rt[2]*.27;const sz=.10+Math.min(1,p.shotGlow*9)*.18;draw(geom.octa,fx,fy,fz,sz*.7,sz*.7,sz*1.8,g.t*25,weapons[p.weapon].color,1.75);}if(post)showPost(g.t);
 }

@@ -7,7 +7,7 @@ const $=x=>document.getElementById(x), TAU=Math.PI*2, clamp=(n,a,b)=>Math.max(a,
 // replace an existing protected journal.
 const SAVE_KEY='neonrift3d-save-protected-v1',SAVE_BACKUP_KEY='neonrift3d-save-protected-backup-v1',SAVE_SESSION_KEY='neonrift3d-save-protected-session-v1';
 const LEGACY_SAVE_KEY='neonrift3d-save',LEGACY_BACKUP_KEY='neonrift3d-save-backup',LEGACY_SESSION_KEY='neonrift3d-save-session';
-const GAME_BUILD='32',GAME_RELEASE='2026-11-16';
+const GAME_BUILD='42',GAME_RELEASE='2026-11-17 MP-9 / METERED';
 // Developer play is an isolated rehearsal save. It can never overwrite the
 // player's regular autosaves, backup journal or session save.
 const DEV_SAVE_KEY='neonrift3d-developer-sandbox-v1',DEV_PASSWORD_KEY='neonrift3d-developer-password-v1';
@@ -679,6 +679,7 @@ function tryMoveEntity(a,dx,dz,r=.23){
 }
 function queueJump(){if(game?.state==='playing'&&!arsenalOpened)input.jumpQueued=true;}
 function toggleFlight(){
+ if(typeof mpMatch!=='undefined'&&mpMatch?.active)return false;
  if(!game||game.state!=='playing'||arsenalOpened)return false;
  const p=game.p;
  if(!p.flightUnlocked){toast('ПОЛЁТ: КОСТЮМ №10–16 ИЛИ УЛУЧШЕНИЕ LVL 10',1.4);return false;}
@@ -3796,6 +3797,8 @@ for(let i=g.particles.length-1;i>=0&&renderedSparks<maxSparks;i--){
  const mesh=save.settings.quality===0?geom.octa:(geom.spark||geom.orb);
  draw(mesh,pfx.x,pfx.y,pfx.z,scale,scale,scale*(1.2+Math.min(3,speed*.38)),yaw,pfx.col||[1,.65,.32],.5+2*life,tilt);
 }
+// Draw peers with the existing detailed operator model in both camera modes.
+if(typeof mpMatchRenderOperators==='function')mpMatchRenderOperators(g);
 if(camera?.drawActor)renderOperator(g,p);else renderHeldWeapon(g,p,eye,dir);if(!camera?.drawActor&&p.shotGlow>.015){const rt=[-Math.cos(p.yaw),0,Math.sin(p.yaw)];const fx=eye[0]+dir[0]*1.55+rt[0]*.27,fy=eye[1]+dir[1]*1.55-.24,fz=eye[2]+dir[2]*1.55+rt[2]*.27;const sz=.10+Math.min(1,p.shotGlow*9)*.18;draw(geom.octa,fx,fy,fz,sz*.7,sz*.7,sz*1.8,g.t*25,weapons[p.weapon].color,1.75);}if(post)showPost(g.t);
 }
 
@@ -4266,6 +4269,7 @@ const items=[];for(const sh of (g.robotDebris||[]))if(sh.life>.1)items.push({typ
 for(const c of (g.mission?.caches||[]))if(!c.got)items.push({type:'archive',obj:c,x:c.x,z:c.z,y:.80+floorHeight(c.x,c.z),size:.9,dy:0});for(const d of (g.devices||[]))items.push({type:'device',obj:d,x:d.x,z:d.z,y:.91+floorHeight(d.x,d.z),size:1.05,dy:0});for(const n of g.nodes)if(!n.dead)items.push({type:'node',obj:n,x:n.x,z:n.z,y:1.3+floorHeight(n.x,n.z),size:1.75,dy:0});for(const b of g.bullets)items.push({type:'bullet',obj:b,x:b.x,z:b.z,y:b.y,size:b.radius*2,dy:0});for(const l of g.loot)items.push({type:'loot',obj:l,x:l.x,z:l.z,y:.5+floorHeight(l.x,l.z)+Math.sin(g.t*5+l.x)*.15,size:.55,dy:0});if(g.portalReady)items.push({type:'portal',obj:portal,x:portal.x,z:portal.z,y:1.45+floorHeight(portal.x,portal.z),size:2.6,dy:0});
 for(const a of g.particles)items.push({type:'particle',obj:a,x:a.x,z:a.z,y:a.y,size:.1,dy:0});
  if(pose?.drawActor)items.push({type:'operator',obj:actor,x:actor.x,z:actor.z,y:1.01+(actor.feetY||0),size:1.72,dy:0});
+ if(typeof mpMatchActors==='function')for(const peer of mpMatchActors())items.push({type:'operator',obj:peer,x:peer.x,z:peer.z,y:1.01+(peer.feetY||0),size:1.72,dy:0});
 items.sort((a,b)=>hypot(b.x-p.x,b.z-p.z)-hypot(a.x-p.x,a.z-p.z));
 for(const item of items){const dx=item.x-p.x,dz=item.z-p.z,forward=dx*Math.sin(p.yaw)+dz*Math.cos(p.yaw),right=-dx*Math.cos(p.yaw)+dz*Math.sin(p.yaw);if(forward<=.13)continue;let x=w/2+right/forward*focal;if(x< -w*.4||x>w*1.4)continue;const spriteW=item.size*focal/forward,cx=Math.round(x),depth=zbuffer[clamp(cx|0,0,w-1)]||100;if(forward>depth+.17)continue;const y=horizon-(item.y-eyeHeight)*focal/forward,sz=clamp(spriteW,2,w*4),ob=item.obj;
 C.save();C.translate(x,y);let shadow='rgba(30,244,255,.7)',core='#88ffff';if(item.type==='beacon'){
@@ -5796,6 +5800,10 @@ function fireBurstShot(w){
 }
 let ammoShots=0;
 function shoot(){
+ if(typeof mpMatch!=='undefined'&&mpMatch?.active){
+  if(typeof mpCombatTapFire==='function')mpCombatTapFire();
+  return;
+ }
  const g=game;if(!g||g.state!=='playing')return;
  const p=g.p,w=combatWeapon(p.weapon);
  if(!w||p.cooldown>0||p.heatLock>0)return;
@@ -6412,6 +6420,10 @@ function drawMinimap(){
     if(e.airborne&&e.feetY>(g.p.feetY||0)+2){m.strokeStyle='#b5fcff';m.lineWidth=1.2;m.beginPath();m.arc(x,z,miniZoom?5.0:3.9,0,TAU);m.stroke();}
     if(e.boss&&e.ultWarn>0){m.strokeStyle='#ff8748';m.lineWidth=2;m.beginPath();m.arc(x,z,5.15*scale,0,TAU);m.stroke();}
   }
+  if(typeof mpMatchActors==='function')for(const other of mpMatchActors()){
+   const [rx,rz]=plot(other.x,other.z);m.fillStyle='#67ebff';m.strokeStyle='#061a2a';m.lineWidth=1.2;
+   m.beginPath();m.arc(rx,rz,miniZoom?4.2:3.2,0,TAU);m.fill();m.stroke();
+  }
   const [x,z]=plot(g.p.x,g.p.z);
   m.save();m.translate(x,z);/* Canvas map uses +Z downward while the arrow is drawn pointing upward.
      Rotate by PI-yaw so the arrow points along the actual forward velocity:
@@ -6433,6 +6445,9 @@ function pickUpgrades(){
  return pool.slice(0,3);
 }
 function saveRun(){
+ // A network rehearsal never mutates the campaign checkpoint or save journal.
+ if((typeof mpMatch!=='undefined'&&mpMatch?.active)||
+    (typeof mpMatchStarting!=='undefined'&&mpMatchStarting))return false;
  const g=game;if(!g||g.state==='dead'||g.state==='victory')return false;
  const keys=['sectorTime','t','target','spawned','waveDelay','enemies','bullets','tracers','projectiles','burstQueue','loot','nodes','nodesDestroyed','portalReady','idCounter','combo','comboAt','helpTime','totalCredits','decals','scorch','mission','arenaEvent','devices','robotDebris'];
  const live={};for(const k of keys)live[k]=g[k];
@@ -6811,6 +6826,1824 @@ function showDeveloperPanel(){
  $('devBack').onclick=menu;
  if(devMode){$('devReset').onclick=developerResetSandbox;$('devExit').onclick=developerLeave;}
 }
+// MP-1: ephemeral multiplayer lobby. No multiplayer data ever enters `save`.
+// A publishable key (pk_live_...) may be embedded in a *published* HTML file.
+// Never embed a Metered sk_ secret or TURN admin credentials here.
+const MP_PUBLISHABLE_KEY='pk_live_3faca90fc2e0eb3f14b34a1bc453242cfe73e937';
+// MP-6 changes the actor state and control schema: older MP-5 pages must not
+// silently enter a room with incompatible flight/ability physics.
+const MP_VERSION=2,MP_CAP=8,MP_PREFIX='NR-',MP_ALPHABET='ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
+const MP_MAPS=[
+ ['citadel','ЦИТАДЕЛЬ'],['reactor','РЕАКТОРНЫЕ КОЛЬЦА'],['temple','ХРАМ ПЕРЕХОДОВ'],
+ ['sky-docks','НЕБЕСНЫЕ ДОКИ'],['archives','АРХИВ ЛАБИРИНТОВ'],['shipyards','ГРУЗОВЫЕ ВЕРФИ'],
+ ['quarantine','КАРАНТИННЫЙ КОМПЛЕКС'],['flooded','ЗАТОПЛЕННЫЙ ТРАНЗИТ'],
+ ['observatory','ЗВЁЗДНАЯ ОБСЕРВАТОРИЯ'],['metro','ПОДЗЕМНОЕ МЕТРО'],
+ ['crystal','КРИСТАЛЬНАЯ ГАВАНЬ'],['forge','ТИТАНОВАЯ КУЗНЯ'],
+ ['vertical','ВЕРТИКАЛЬНАЯ ВЕРФЬ'],['stairs','ЛЕСТНИЧНАЯ ЦИТАДЕЛЬ'],
+ ['collector','ВОЗДУШНЫЙ КОЛЛЕКТОР'],['atrium','ТИТАНОВЫЙ АТРИУМ'],
+ ['cryo','КРИОГЕННЫЙ ШПИЛЬ'],['gravity','ГРАВИТАЦИОННАЯ ФАБРИКА']
+].map(([id,name],index)=>Object.freeze({id,name,sector:index+1}));
+let mpWire=null,mpRoom=null,mpEpoch=0,mpPending=null,mpScreenError='',mpSignalingLost=false;
+function mpSignalingOnline(){return !!(mpWire?.ws?.readyState===1&&!mpSignalingLost);}
+function mpGamePeerLive(peer){return !!(typeof mpMatch!=='undefined'&&mpMatch?.active&&typeof mpRtcGameplayOpen==='function'&&mpRtcGameplayOpen(peer));}
+
+function mpEscape(value){return String(value).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+function mpNickname(value){
+ const name=String(value||'').normalize('NFKC').replace(/\s+/gu,' ').trim();
+ if(Array.from(name).length<2||Array.from(name).length>20||!(/^[\p{L}\p{M}\p{N}_ -]+$/u).test(name)||!(/[\p{L}\p{N}]/u).test(name))throw Error('Ник: 2–20 букв/цифр, пробел, дефис или подчёркивание.');
+ return name;
+}
+function mpNickKey(value){
+ return mpNickname(value).normalize('NFKC').toLocaleLowerCase('und')
+  .replace(/ς/g,'σ').replace(/ß/g,'ss').normalize('NFC');
+}
+function mpRandom(bytes=16){
+ if(!globalThis.crypto?.getRandomValues)throw Error('Браузер не поддерживает криптографически надёжные коды комнат.');
+ const a=new Uint8Array(bytes);crypto.getRandomValues(a);let out='',bits=0,acc=0;
+ for(const b of a){acc=(acc<<8)|b;bits+=8;while(bits>=5){bits-=5;out+=MP_ALPHABET[(acc>>>bits)&31];}}
+ if(bits)out+=MP_ALPHABET[(acc<<(5-bits))&31];return out;
+}
+function mpCode(value){
+ let raw=String(value||'').trim();
+ if(raw.includes('mp=')){try{raw=new URL(raw,location.href).searchParams.get('mp')||'';}catch(_){raw='';}}
+ raw=raw.toUpperCase().replace(/\s+/g,'');
+ return /^NR-[A-Z2-7]{26}$/.test(raw)?raw:null;
+}
+function mpChannel(code){return 'neonrift3d-room-'+code.slice(3).toLowerCase();}
+function mpMap(id){return MP_MAPS.find(m=>m.id===id)||null;}
+function mpSettings(input){
+ const o=input&&typeof input==='object'?input:{};
+ const scoreLimit=[5,10,15,20,30,50].includes(o.scoreLimit)?o.scoreLimit:15;
+ const timeLimitSec=[60,180,300,600,900].includes(o.timeLimitSec)?o.timeLimitSec:300;
+ return {mode:o.mode==='teams'?'teams':'ffa',equipment:o.equipment==='equal'?'equal':'owned',
+  weapon:Number.isInteger(o.weapon)&&o.weapon>=0&&o.weapon<weapons.length?o.weapon:0,
+  mapId:mpMap(o.mapId)?.id||MP_MAPS[0].id,friendlyFire:true,maxPlayers:MP_CAP,
+  scoreLimit,timeLimitSec};
+}
+function mpConfigured(){return /^pk_live_[A-Za-z0-9_-]{12,}$/.test(MP_PUBLISHABLE_KEY)&&!MP_PUBLISHABLE_KEY.includes('CONFIGURE');}
+function mpStatus(msg,bad=false){const el=$('mpStatus');if(el){el.textContent=msg;el.className='mpStatus '+(bad?'mpError':'');}}
+function mpInviteUrl(code){
+ if(!/^https?:$/.test(location.protocol))return '';
+ const u=new URL(location.href);u.hash='';u.search='';u.searchParams.set('v',GAME_BUILD);u.searchParams.set('mp',code);return u.href;
+}
+function mpShutdown(){
+ ++mpEpoch;
+ if(typeof mpMatchAbort==='function')mpMatchAbort();
+ if(typeof mpRtcCloseAll==='function')mpRtcCloseAll();
+ if(mpPending){clearTimeout(mpPending.timer);mpPending.reject(Error('Вход отменён.'));mpPending=null;}
+ const wire=mpWire;mpWire=null;mpRoom=null;mpSignalingLost=false;if(wire)wire.close();
+}
+
+// Exact Metered Realtime Messaging v1 JSON frames. Only low-frequency lobby
+// events and SDP/ICE use this quota-limited signalling route. Actual gameplay
+// data, heartbeat and state travel only through P2P WebRTC DataChannels.
+class MpWire{
+ constructor(onFrame,onLost){this.ws=null;this.peerId='';this.pending=new Map();this.seq=0;this.closed=false;this.onFrame=onFrame;this.onLost=onLost;this.presence=new Set();this.iceServers=[];}
+ connect(){return new Promise((resolve,reject)=>{
+  if(typeof WebSocket!=='function'){reject(Error('В этом браузере нет поддержки WebSocket.'));return;}
+  let settled=false;
+  const timer=setTimeout(()=>{if(!settled){settled=true;reject(Error('Таймаут соединения с Metered.'));this.close();}},10000);
+  try{this.ws=new WebSocket('wss://rms.metered.ca/v1?key='+encodeURIComponent(MP_PUBLISHABLE_KEY));}
+  catch(e){clearTimeout(timer);reject(e);return;}
+  this.ws.onmessage=e=>{
+   let f;try{f=JSON.parse(e.data);}catch(_){return;}
+   if(!f||typeof f!=='object')return;
+   if(f.type==='welcome'){
+    if(settled)return;settled=true;clearTimeout(timer);this.peerId=String(f.peerId||'');
+    this.iceServers=Array.isArray(f.metadata?.iceServers)?f.metadata.iceServers:[];
+    if(!this.peerId){reject(Error('Metered не прислал идентификатор подключения.'));this.close();return;}
+    resolve(this);return;
+   }
+   if(f.type==='ack'||f.type==='error'){
+    const p=this.pending.get(f.requestId);if(p){this.pending.delete(f.requestId);clearTimeout(p.timer);
+     f.type==='ack'?p.resolve(f):p.reject(Error('Metered: '+String(f.code||f.message||'ошибка')));}
+    else if(f.type==='error')this.onFrame(f);
+    return;
+   }
+   if(f.type==='presence'){
+    for(const x of f.joined||[])if(typeof x.peerId==='string')this.presence.add(x.peerId);
+    for(const x of f.left||[])if(typeof x.peerId==='string')this.presence.delete(x.peerId);
+   }
+   this.onFrame(f);
+  };
+  this.ws.onclose=e=>{
+   clearTimeout(timer);if(!settled){settled=true;reject(Error('Metered отключил соединение ('+e.code+').'));}
+   for(const p of this.pending.values()){clearTimeout(p.timer);p.reject(Error('Соединение закрыто.'));}this.pending.clear();
+   if(!this.closed)this.onLost(e);
+  };
+  this.ws.onerror=()=>{if(!settled){settled=true;clearTimeout(timer);reject(Error('Не удалось подключиться к Metered.'));this.close();}};
+ });}
+ request(type,fields){return new Promise((resolve,reject)=>{
+  if(!this.ws||this.ws.readyState!==1){reject(Error('Нет соединения с сервером.'));return;}
+  const requestId='nr-'+(++this.seq);const frame=JSON.stringify({type,...fields,requestId});
+  if((typeof TextEncoder==='function'?new TextEncoder().encode(frame).length:frame.length*3)>60000||this.ws.bufferedAmount>262144){reject(Error('Превышен лимит сетевых данных.'));return;}
+  const timer=setTimeout(()=>{this.pending.delete(requestId);reject(Error('Сервер не подтвердил операцию.'));},6500);
+  this.pending.set(requestId,{resolve,reject,timer});
+  try{this.ws.send(frame);}catch(e){clearTimeout(timer);this.pending.delete(requestId);reject(e);}
+ });}
+ subscribe(channel){return this.request('subscribe',{channel});}
+ publish(channel,data){return this.request('publish',{channel,data});}
+ send(to,data){return this.request('send',{to,data});}
+ close(){if(this.closed)return;this.closed=true;if(this.ws)this.ws.close();for(const p of this.pending.values()){clearTimeout(p.timer);p.reject(Error('Соединение закрыто.'));}this.pending.clear();}
+}
+
+function mpHome(message=''){
+ mpScreenError=message;
+ panel(`<div class="eyebrow">◉ СЕТЕВАЯ ИГРА · MP-9</div><h2>Комнаты до 8 игроков</h2>
+ <p class="smalltext">Бой на одной из 18 карт: полёт, рывок, импульс, щит, ремонт, стрельба, командные очки, таймер, победа и результаты. Одиночная кампания и её сохранения независимы.</p>
+ <div class="mpGrid"><button class="primary" id="mpOpenHost">＋ СОЗДАТЬ ИГРУ</button><button class="secondary" id="mpOpenJoin">↪ ПРИСОЕДИНИТЬСЯ</button></div>
+ <div class="mpStatus ${message?'mpError':''}" id="mpStatus" role="status">${mpEscape(message||(!mpConfigured()?'Сеть пока не настроена: создателю сайта нужно добавить publishable key Metered.':'Готово к соединению.'))}</div>
+ <div class="smalltext">Два режима: каждый за себя и команды. Дружественный огонь включён. Комнаты по ссылке для друзей, без регистрации и без серверной защиты от злоумышленников.</div>
+ <button class="secondary mpBack" id="mpBack">← ГЛАВНОЕ МЕНЮ</button>`);
+ $('mpOpenHost').onclick=mpHostForm;$('mpOpenJoin').onclick=()=>mpJoinForm();$('mpBack').onclick=menu;
+}
+function mpHostForm(){
+ const cards=MP_MAPS.map((m,i)=>`<label class="mpMapCard"><input type="radio" name="mpMap" value="${m.id}" ${i===0?'checked':''}><span>${String(i+1).padStart(2,'0')} · ${mpEscape(m.name)}</span></label>`).join('');
+ panel(`<div class="eyebrow">СЕТЕВАЯ ИГРА / СОЗДАТЬ</div><h2>Новая комната</h2>
+ <label class="mpField">ВАШ НИК<input id="mpHostNick" maxlength="40" autocomplete="nickname" placeholder="Например, Ivan"></label>
+ <fieldset class="mpField"><legend>КАРТА</legend><div class="mpMaps">${cards}</div></fieldset>
+ <label class="mpField">РЕЖИМ<select id="mpMode"><option value="ffa">Каждый за себя</option><option value="teams">Команды (голубая / оранжевая)</option></select></label>
+ <label class="mpField">ЭКИПИРОВКА<select id="mpEquipment"><option value="owned">Выбор из 10 базовых видов оружия</option><option value="equal">Одинаковое оружие для всех</option></select></label>
+ <label class="mpField" id="mpWeaponWrap" hidden>СТАРТОВОЕ ОРУЖИЕ<select id="mpWeapon">${weapons.map((w,i)=>`<option value="${i}">${mpEscape(w.short)}</option>`).join('')}</select></label>
+ <label class="mpField">ПОБЕДНЫЙ СЧЁТ<select id="mpScoreLimit"><option value="5">5</option><option value="10">10</option><option value="15" selected>15</option><option value="20">20</option><option value="30">30</option><option value="50">50</option></select></label>
+ <label class="mpField">ВРЕМЯ МАТЧА<select id="mpTimeLimit"><option value="60">1 минута</option><option value="180">3 минуты</option><option value="300" selected>5 минут</option><option value="600">10 минут</option><option value="900">15 минут</option></select></label>
+ <div class="mpRule">До 8 игроков · Дружественный огонь: ВКЛ · Полёт и четыре способности доступны всем с одинаковыми характеристиками · Ведущий рассчитывает бой.</div>
+ <button class="primary" id="mpCreate">СОЗДАТЬ КОМНАТУ</button><div id="mpStatus" class="mpStatus" role="status"></div>
+ <button class="secondary mpBack" id="mpBack">← НАЗАД</button>`);
+ $('mpEquipment').onchange=()=>{$('mpWeaponWrap').hidden=$('mpEquipment').value!=='equal';};
+ $('mpCreate').onclick=mpCreateRoom;$('mpBack').onclick=()=>mpHome();
+}
+function mpJoinForm(invite=''){
+ panel(`<div class="eyebrow">СЕТЕВАЯ ИГРА / ВХОД</div><h2>Присоединиться к комнате</h2>
+ <label class="mpField">КОД ИЛИ ССЫЛКА<input id="mpJoinCode" autocomplete="off" spellcheck="false" placeholder="NR-…" value="${mpEscape(invite)}"></label>
+ <label class="mpField">ВАШ НИК<input id="mpJoinNick" maxlength="40" autocomplete="nickname" placeholder="Введите уникальный ник"></label>
+ <button class="primary" id="mpJoin">ВОЙТИ В ЛОББИ</button><div id="mpStatus" class="mpStatus" role="status"></div>
+ <div class="smalltext">Для входа нужен Интернет. Регистрация на Metered не требуется.</div>
+ <button class="secondary mpBack" id="mpBack">← НАЗАД</button>`);
+ $('mpJoin').onclick=mpJoinRoom;$('mpBack').onclick=()=>mpHome();
+}
+async function mpConnect(epoch){
+ if(!mpConfigured())throw Error('Нужна настройка публичного ключа Metered в src/21b-multiplayer-lobby.js.');
+ const wire=new MpWire(f=>{if(mpWire===wire)mpFrame(f);},e=>{
+  if(mpWire!==wire)return;
+  // Realtime Messaging is signalling, NOT the gameplay transport. A lost
+  // WebSocket must not kill already-open RTCDataChannels during a match.
+  if(typeof mpMatch!=='undefined'&&mpMatch?.active&&typeof mpRtcAnyGameplayOpen==='function'&&mpRtcAnyGameplayOpen()){
+   mpSignalingLost=true;mpMatchStatus();return;
+  }
+  mpShutdown();mpHome('Сеть отключилась ('+e.code+'). Создайте комнату или войдите заново.');
+ });
+ mpWire=wire;mpSignalingLost=false;try{await wire.connect();if(epoch!==mpEpoch)throw Error('Соединение отменено.');return wire;}
+ catch(e){if(mpWire===wire){mpWire=null;wire.close();}throw e;}
+}
+async function mpCreateRoom(){
+ let nick,settings,code;try{
+  nick=mpNickname($('mpHostNick').value);
+  settings=mpSettings({mode:$('mpMode').value,equipment:$('mpEquipment').value,weapon:Number($('mpWeapon').value),
+   scoreLimit:Number($('mpScoreLimit').value),timeLimitSec:Number($('mpTimeLimit').value),
+   mapId:document.querySelector('input[name="mpMap"]:checked')?.value});
+  code=MP_PREFIX+mpRandom();
+ }catch(e){mpStatus(e.message,true);return;}
+ $('mpCreate').disabled=true;mpStatus('Подключаемся и создаём комнату…');mpShutdown();const epoch=mpEpoch;
+ try{
+  const wire=await mpConnect(epoch);
+  await wire.subscribe(mpChannel(code));if(epoch!==mpEpoch)return;
+  mpRoom={code,host:true,hostPeer:wire.peerId,settings,players:[{peerId:wire.peerId,id:0,nick,team:0,ready:false,host:true}],seq:1,nextId:1};
+  mpLobby();
+ }catch(e){if(epoch===mpEpoch){if(mpWire){const wire=mpWire;mpWire=null;wire.close();}$('mpCreate')&&($('mpCreate').disabled=false);mpStatus(e.message,true);}}
+}
+async function mpJoinRoom(){
+ const code=mpCode($('mpJoinCode').value);if(!code){mpStatus('Некорректный код или ссылка комнаты.',true);return;}
+ let nick;try{nick=mpNickname($('mpJoinNick').value);}catch(e){mpStatus(e.message,true);return;}
+ $('mpJoin').disabled=true;mpStatus('Ищем ведущего комнаты…');mpShutdown();const epoch=mpEpoch;
+ try{
+  const wire=await mpConnect(epoch);await wire.subscribe(mpChannel(code));if(epoch!==mpEpoch)return;
+  const nonce=mpRandom(8);mpRoom={code,host:false,hostPeer:null,settings:null,players:[],seq:0,nick,nonce};
+  const result=new Promise((resolve,reject)=>{
+   const timer=setTimeout(()=>{if(mpPending?.nonce===nonce){mpPending=null;reject(Error('Ведущий не ответил за 9 секунд. Проверьте код и подключение.'));}},9000);
+   mpPending={nonce,timer,resolve,reject};
+  });
+  await Promise.all([wire.publish(mpChannel(code),{app:'neonrift3d',v:MP_VERSION,kind:'join',code,nonce,nick}),result]);
+  if(epoch!==mpEpoch)return;mpLobby();
+ }catch(e){if(epoch===mpEpoch){mpShutdown();mpJoinForm(code);$('mpJoinNick').value=nick;mpStatus(e.message,true);}}
+}
+function mpPacket(kind,extra={}){return {app:'neonrift3d',v:MP_VERSION,kind,code:mpRoom?.code,...extra};}
+function mpRoster(){return mpPacket('roster',{seq:mpRoom.seq,hostPeer:mpRoom.hostPeer,settings:mpRoom.settings,players:mpRoom.players.map(p=>({...p}))});}
+function mpPublishRoster(){
+ if(!mpRoom?.host)return;
+ const room=mpRoom;
+ const publish=attempt=>{
+  if(mpRoom!==room||!mpSignalingOnline())return;
+  mpWire.publish(mpChannel(room.code),mpRoster()).catch(e=>{
+   if(mpRoom!==room)return;
+   if(!attempt&&mpSignalingOnline()){
+    setTimeout(()=>{if(mpRoom===room)publish(1);},450);return;
+   }
+   mpStatus('Не удалось передать список игроков: '+e.message,true);
+  });
+ };
+ publish(0);
+}
+function mpHostFrame(frame,data){
+ if(frame.type==='message'&&data.kind==='join'){
+  const peer=frame.from,nonce=data.nonce;
+  if(typeof peer!=='string'||peer.length>128||typeof nonce!=='string'||!/^[A-Z2-7]{13}$/.test(nonce))return;
+  let reason='',nick='';try{nick=mpNickname(data.nick);}catch(e){reason=e.message;}
+  if(!reason&&typeof mpMatch!=='undefined'&&mpMatch?.active)reason='Матч уже начался. Дождитесь следующей комнаты.';
+  if(!reason&&mpRoom.players.some(p=>p.peerId===peer))reason='Вы уже в этой комнате.';
+  if(!reason&&mpRoom.players.length>=MP_CAP)reason='Комната заполнена (8/8).';
+  if(!reason&&mpRoom.players.some(p=>mpNickKey(p.nick)===mpNickKey(nick)))reason='Такой ник уже занят. Выберите другой.';
+  if(reason){mpWire.send(peer,mpPacket('join-reject',{nonce,reason})).catch(e=>mpStatus('Отказ во входе не доставлен: '+e.message,true));return;}
+  // Atomic reservation before any async operations: simultaneous JOINs cannot
+  // obtain the same nickname or exceed capacity.
+  const p={peerId:peer,id:mpRoom.nextId++,nick,team:mpRoom.players.filter(x=>x.team===0).length<=mpRoom.players.filter(x=>x.team===1).length?0:1,ready:false,host:false};
+  mpRoom.players.push(p);mpRoom.seq++;const snapshot=mpRoster();mpLobby();
+  mpWire.send(peer,{...snapshot,kind:'join-accepted',nonce}).then(()=>{
+   if(mpRoom?.host&&mpRoom.players.includes(p)&&typeof mpRtcHostJoined==='function')mpRtcHostJoined(peer);
+  }).catch(e=>{
+   // An unacknowledged acceptance must not reserve a seat forever. Revert
+   // only this exact candidate; another JOIN may already have changed roster.
+   if(!mpRoom?.host||!mpRoom.players.includes(p))return;
+   mpRoom.players=mpRoom.players.filter(x=>x!==p);mpRoom.seq++;
+   if(typeof mpMatch==='undefined'||!mpMatch?.active)mpLobby();mpPublishRoster();
+   mpStatus('Вход '+p.nick+' не подтверждён: '+e.message,true);
+  });mpPublishRoster();return;
+ }
+ if(frame.type==='direct'&&data.kind==='ready'){
+  if(typeof mpMatch!=='undefined'&&mpMatch?.active)return;
+  const p=mpRoom.players.find(x=>x.peerId===frame.from);if(!p||typeof data.ready!=='boolean')return;
+  if(p.ready===data.ready)return;p.ready=data.ready;mpRoom.seq++;mpLobby();mpPublishRoster();
+ }
+ if(frame.type==='direct'&&typeof data.kind==='string'&&data.kind.startsWith('rtc-')&&typeof mpRtcSignal==='function')mpRtcSignal(frame.from,data);
+}
+function mpSafeRoster(data,wire){
+ if(!data||!Array.isArray(data.players)||data.players.length<1||data.players.length>MP_CAP)return null;
+ const players=[],names=new Set(),peers=new Set(),ids=new Set();let ownerCount=0;
+ for(const raw of data.players){
+  if(typeof raw.peerId!=='string'||raw.peerId.length>128||peers.has(raw.peerId)||!Number.isInteger(raw.id)||raw.id<0||raw.id>10000||ids.has(raw.id))return null;
+  let nick,key;try{nick=mpNickname(raw.nick);key=mpNickKey(nick);}catch(_){return null;}
+  if(names.has(key))return null;names.add(key);peers.add(raw.peerId);ids.add(raw.id);
+  const owner=raw.host===true;if(owner)ownerCount++;
+  players.push({peerId:raw.peerId,id:raw.id,nick,team:raw.team===1?1:0,ready:raw.ready===true,host:owner});
+ }
+ if(ownerCount!==1||!players.some(p=>p.peerId===data.hostPeer&&p.host)||!players.some(p=>p.peerId===wire.peerId))return null;
+ return players;
+}
+function mpGuestFrame(frame,data){
+ if(frame.type==='direct'&&data.kind==='join-reject'&&mpPending&&data.nonce===mpPending.nonce){
+  const p=mpPending;mpPending=null;clearTimeout(p.timer);p.reject(Error(String(data.reason||'Вход отклонён.').slice(0,130)));return;
+ }
+ if(frame.type==='direct'&&data.kind==='join-accepted'&&mpPending&&data.nonce===mpPending.nonce){
+  const roster=mpSafeRoster(data,mpWire);
+  if(!roster||frame.from!==data.hostPeer||!roster.some(p=>p.peerId===mpWire.peerId&&mpNickKey(p.nick)===mpNickKey(mpRoom.nick)))return;
+  mpRoom.players=roster;mpRoom.hostPeer=frame.from;mpRoom.settings=mpSettings(data.settings);mpRoom.seq=Number.isSafeInteger(data.seq)?data.seq:0;
+  const p=mpPending;mpPending=null;clearTimeout(p.timer);p.resolve();return;
+ }
+ if(frame.type==='message'&&data.kind==='roster'&&frame.from===mpRoom.hostPeer){
+  if(!Number.isSafeInteger(data.seq)||data.seq<=mpRoom.seq)return;
+  const roster=mpSafeRoster(data,mpWire);if(!roster)return;
+  mpRoom.players=roster;mpRoom.settings=mpSettings(data.settings);mpRoom.seq=data.seq;
+  if(typeof mpMatch!=='undefined'&&mpMatch?.active)mpMatchRosterChanged();else mpLobby();
+ }
+ if(frame.type==='message'&&data.kind==='closed'&&frame.from===mpRoom.hostPeer){mpShutdown();mpHome('Ведущий закрыл комнату.');}
+ if(frame.type==='direct'&&typeof data.kind==='string'&&data.kind.startsWith('rtc-')&&frame.from===mpRoom.hostPeer&&typeof mpRtcSignal==='function')mpRtcSignal(frame.from,data);
+}
+function mpFrame(frame){
+ if(!mpRoom||!mpWire)return;
+ if(frame.type==='presence'){
+  if(frame.channel!==mpChannel(mpRoom.code))return;
+  const left=new Set((frame.left||[]).map(x=>x.peerId));
+  if(mpRoom.host){
+   // Signalling presence can disappear while the *direct game channel* lives.
+   const departed=new Set([...left].filter(peer=>!mpGamePeerLive(peer)));
+   for(const peer of departed)if(typeof mpRtcDrop==='function')mpRtcDrop(peer);
+   const count=mpRoom.players.length;mpRoom.players=mpRoom.players.filter(p=>p.host||!departed.has(p.peerId));
+   if(count!==mpRoom.players.length){mpRoom.seq++;
+    if(typeof mpMatch!=='undefined'&&mpMatch?.active)mpMatchRosterChanged();else mpLobby();
+    mpPublishRoster();}}
+  else if(mpRoom.hostPeer&&left.has(mpRoom.hostPeer)&&!mpGamePeerLive(mpRoom.hostPeer)){mpShutdown();mpHome('Ведущий отключился. Матч не будет запущен.');}
+  return;
+ }
+ if(frame.type!=='message'&&frame.type!=='direct')return;
+ if(frame.type==='message'&&frame.channel!==mpChannel(mpRoom.code))return;
+ const data=frame.data;
+ if(!data||typeof data!=='object'||data.app!=='neonrift3d'||data.v!==MP_VERSION||data.code!==mpRoom.code)return;
+ if(mpRoom.host)mpHostFrame(frame,data);else mpGuestFrame(frame,data);
+}
+async function mpReady(){
+ if(!mpRoom||!mpWire)return;
+ const self=mpRoom.players.find(p=>p.peerId===mpWire.peerId);if(!self)return;
+ const next=!self.ready;
+ if(mpRoom.host){self.ready=next;mpRoom.seq++;mpLobby();mpPublishRoster();}
+ else{
+  $('mpReady').disabled=true;
+  try{await mpWire.send(mpRoom.hostPeer,mpPacket('ready',{ready:next}));}catch(e){mpStatus(e.message,true);$('mpReady')&&($('mpReady').disabled=false);}
+ }
+}
+async function mpCopy(value){
+ try{if(!navigator.clipboard?.writeText)throw Error('Недоступен буфер обмена');await navigator.clipboard.writeText(value);mpStatus('Скопировано.');}
+ catch(_){mpStatus('Автокопирование недоступно. Выделите и скопируйте код вручную.',true);const input=$('mpCodeValue');if(input){input.focus();input.select();}}
+}
+function mpLobby(){
+ if(typeof mpMatch!=='undefined'&&mpMatch?.active)return;
+ if(!mpRoom||!mpWire)return;
+ const r=mpRoom,me=r.players.find(p=>p.peerId===mpWire.peerId),settings=r.settings||mpSettings({}),m=mpMap(settings.mapId),url=mpInviteUrl(r.code);
+ const users=r.players.map(p=>`<li class="mpPlayer ${settings.mode==='teams'?'mpTeam'+p.team:''}"><span class="mpTeamMark" aria-hidden="true">${settings.mode==='teams'?'◉':'●'}</span><strong>${mpEscape(p.nick)}</strong><span>${p.host?'ВЕДУЩИЙ':p.ready?'✓ ГОТОВ':'ОЖИДАЕТ'}</span><small class="mpLinkBadge" id="mpPeerLink${p.id}">${typeof mpRtcStatusText==='function'?mpEscape(mpRtcStatusText(p.peerId)):'ОЖИДАНИЕ P2P'}</small></li>`).join('');
+ panel(`<div class="eyebrow">СЕТЕВАЯ ИГРА / ЛОББИ</div><h2>${r.host?'Вы ведущий':'Комната ведущего'}</h2>
+ <label class="mpField">КОД КОМНАТЫ<input id="mpCodeValue" readonly value="${mpEscape(r.code)}"></label>
+ <div class="mpGrid"><button class="secondary" id="mpCopyCode">▣ КОПИРОВАТЬ КОД</button>${url?'<button class="secondary" id="mpCopyLink">↗ КОПИРОВАТЬ ССЫЛКУ</button>':''}</div>
+ <div class="mpRoomSummary"><div>Карта: <b>${mpEscape(m?.name||'—')}</b></div><div>Режим: <b>${settings.mode==='teams'?'КОМАНДЫ':'КАЖДЫЙ ЗА СЕБЯ'}</b></div>
+ <div>Экипировка: <b>${settings.equipment==='equal'?'ОДИНАКОВАЯ · '+mpEscape(weapons[settings.weapon]?.short||''):'ВЫБОР ИЗ 10 БАЗОВЫХ ВИДОВ'}</b></div>
+ <div>Дружественный огонь: <b>ВКЛ</b></div><div>До победы: <b>${settings.scoreLimit} очков</b></div>
+ <div>Время: <b>${settings.timeLimitSec/60} мин.</b></div></div>
+ <h3>Игроки · ${r.players.length}/${MP_CAP}</h3><ol class="mpPlayers">${users}</ol>
+ <button class="secondary" id="mpReady" ${!me?'disabled':''}>${me?.ready?'✓ ГОТОВ · ОТМЕНИТЬ':'✓ Я ГОТОВ'}</button>
+ <button class="secondary" id="mpRetryRtc">↻ ПЕРЕПОДКЛЮЧИТЬ WEBRTC</button>
+ ${r.host?'<button class="primary" id="mpStartTraining" disabled>▶ НАЧАТЬ СЕТЕВОЙ БОЙ · MP-9</button>':'<div class="mpRule">Ведущий начнёт матч, когда все подтвердят готовность и откроются P2P-каналы.</div>'}
+ <div class="mpRule">В сетевом бою у всех 100 HP и 30 единиц энергобарьера. Улучшения и купленные костюмы из одиночной игры не дают преимуществ. Дружественный огонь включён, за убийство союзника начисляется штраф.</div>
+ <div id="mpStatus" class="mpStatus" role="status">MP-9: управление при долгой потере связи приостанавливается, есть переподключение, полёт и способности доступны всем. Победа — по очкам или времени.</div>
+ <button class="secondary mpBack" id="mpLeave">← ВЫЙТИ ИЗ КОМНАТЫ</button>`);
+ $('mpCopyCode').onclick=()=>mpCopy(r.code);if(url)$('mpCopyLink').onclick=()=>mpCopy(url);
+ $('mpReady').onclick=mpReady;$('mpLeave').onclick=mpLeave;
+ if(r.host&&typeof mpMatchStartTraining==='function'){$('mpStartTraining').onclick=mpMatchStartTraining;mpMatchPaintLobbyStart();}
+ if($('mpRetryRtc'))$('mpRetryRtc').onclick=()=>typeof mpRtcManualRetry==='function'&&mpRtcManualRetry();
+}
+async function mpLeave(){
+ const wire=mpWire,r=mpRoom;
+ if(r?.host&&wire){try{await Promise.race([wire.publish(mpChannel(r.code),mpPacket('closed')),new Promise(resolve=>setTimeout(resolve,1000))]);}catch(_){/* best effort */}}
+ mpShutdown();menu();
+}
+function mpInviteOnLoad(){
+ try{const code=mpCode(new URL(location.href).searchParams.get('mp'));if(code&&!game)mpJoinForm(code);}catch(_){/* file:// and restricted browsers still have the menu */}
+}
+setTimeout(mpInviteOnLoad,0);
+// MP-2: host-to-each-guest WebRTC star. Metered carries ONLY SDP/ICE; actual
+// data uses two native RTCDataChannels (reliable control + lossy game state).
+// No third-party runtime assets or changes to the single-player `game` object.
+const MP_RTC_TRIES=3,MP_RTC_MAX_ICE=64,MP_RTC_TIMEOUT=25000;
+let mpRtcLinks=new Map(),mpRtcOrphans=new Map(),mpRtcAttempts=new Map();
+let mpRtcTicker=null,mpRtcManualAt=0,mpRtcErrors=new Map();
+
+function mpRtcAllowed(peer){
+ return !!(mpRoom&&mpWire&&typeof peer==='string'&&(
+  mpRoom.host?mpRoom.players.some(p=>!p.host&&p.peerId===peer):mpRoom.hostPeer===peer));
+}
+function mpRtcAlive(link){return !!(mpWire&&mpRoom&&mpRtcLinks.get(link.peer)===link&&link.pc.signalingState!=='closed');}
+function mpRtcGameplayOpen(peer){
+ const link=mpRtcLinks.get(peer);return !!(link&&mpRtcAlive(link)&&link.fast?.readyState==='open');
+}
+function mpRtcAnyGameplayOpen(){return [...mpRtcLinks.keys()].some(mpRtcGameplayOpen);}
+function mpRtcServers(){
+ const raw=Array.isArray(mpWire?.iceServers)?mpWire.iceServers:[];
+ const valid=raw.slice(0,8).filter(x=>x&&typeof x==='object'&&(
+  typeof x.urls==='string'||Array.isArray(x.urls))&&
+  [x.urls].flat().every(u=>typeof u==='string'&&/^(stun|turn|turns):/i.test(u)&&u.length<350));
+ return valid.length?valid:[{urls:'stun:stun.relay.metered.ca:80'}];
+}
+function mpRtcStatusText(peer){
+ if(!mpRoom||!mpWire)return 'НЕ ПОДКЛЮЧЕНО';
+ if(peer===mpWire.peerId)return 'ВАШЕ УСТРОЙСТВО';
+ if(!mpRoom.host&&peer!==mpRoom.hostPeer)return 'ЧЕРЕЗ ВЕДУЩЕГО';
+ const l=mpRtcLinks.get(peer);
+ if(!l)return mpRtcErrors.has(peer)?'P2P · '+mpRtcErrors.get(peer):
+  typeof RTCPeerConnection==='function'?'P2P · ОЖИДАНИЕ':'WEBRTC НЕ ПОДДЕРЖИВАЕТСЯ';
+ if(l.error)return 'P2P · '+l.error;
+ if(l.control?.readyState==='open'&&l.fast?.readyState==='open')
+  return 'P2P ✓ '+(l.probeVerified?'2 КАНАЛА · ':'')+(Number.isFinite(l.rtt)?Math.round(l.rtt)+' МС':'СВЯЗЬ ЕСТЬ');
+ return 'P2P · '+(l.status==='retry'?'ПОВТОРНАЯ ПОПЫТКА':l.status==='disconnected'?'НЕСТАБИЛЬНА':'ПОДКЛЮЧЕНИЕ');
+}
+function mpRtcPaint(){
+ if(!mpRoom||!mpWire)return;
+ for(const p of mpRoom.players){const el=$('mpPeerLink'+p.id);if(el)el.textContent=mpRtcStatusText(p.peerId);}
+ if(typeof mpMatchPaintLobbyStart==='function')mpMatchPaintLobbyStart();
+}
+function mpRtcDrop(peer,forget=true,keepIce=false){
+ const l=mpRtcLinks.get(peer);
+ if(l){mpRtcLinks.delete(peer);clearTimeout(l.iceTimer);clearTimeout(l.retryTimer);
+  for(const dc of [l.control,l.fast])if(dc){dc.onopen=null;dc.onclose=null;dc.onmessage=null;try{dc.close();}catch(_){}}
+  const pc=l.pc;pc.onicecandidate=null;pc.onconnectionstatechange=null;pc.oniceconnectionstatechange=null;pc.ondatachannel=null;
+  try{pc.close();}catch(_){}}
+ if(forget){mpRtcAttempts.delete(peer);mpRtcErrors.delete(peer);}
+ if(!keepIce)for(const key of mpRtcOrphans.keys())if(key.startsWith(peer+'/'))mpRtcOrphans.delete(key);
+ mpRtcPaint();
+}
+function mpRtcCloseAll(){
+ for(const peer of [...mpRtcLinks.keys()])mpRtcDrop(peer);
+ mpRtcOrphans.clear();mpRtcAttempts.clear();mpRtcErrors.clear();mpRtcLastRequest.clear();
+ if(mpRtcTicker!==null){clearInterval(mpRtcTicker);mpRtcTicker=null;}
+}
+function mpRtcWatch(){if(mpRtcTicker===null)mpRtcTicker=setInterval(mpRtcTick,3000);}
+function mpRtcCandidate(value){
+ if(!value||typeof value!=='object'||typeof value.candidate!=='string'||value.candidate.length>2048)return null;
+ if(value.sdpMid!=null&&(typeof value.sdpMid!=='string'||value.sdpMid.length>80))return null;
+ if(value.sdpMLineIndex!=null&&(!Number.isInteger(value.sdpMLineIndex)||value.sdpMLineIndex<0||value.sdpMLineIndex>20))return null;
+ return {candidate:value.candidate,sdpMid:value.sdpMid??null,sdpMLineIndex:value.sdpMLineIndex??null};
+}
+function mpRtcOrphanKey(peer,sid){return peer+'/'+sid;}
+function mpRtcStoreIce(peer,sid,ice){
+ const key=mpRtcOrphanKey(peer,sid),now=Date.now();
+ let orphan=mpRtcOrphans.get(key);if(!orphan){orphan={items:[],at:now};mpRtcOrphans.set(key,orphan);}
+ for(const raw of ice){const c=mpRtcCandidate(raw);if(c&&orphan.items.length<MP_RTC_MAX_ICE)orphan.items.push(c);}
+ // Cap total orphan generations, even with a malicious member in a room.
+ while(mpRtcOrphans.size>16)mpRtcOrphans.delete(mpRtcOrphans.keys().next().value);
+}
+function mpRtcCollectIce(link){
+ const key=mpRtcOrphanKey(link.peer,link.sid),pending=mpRtcOrphans.get(key);
+ if(pending){link.pendingIce.push(...pending.items);mpRtcOrphans.delete(key);}
+}
+function mpRtcApplyIce(link){
+ if(!mpRtcAlive(link)||!link.pc.remoteDescription)return;
+ mpRtcCollectIce(link);
+ const batch=link.pendingIce.splice(0,MP_RTC_MAX_ICE);
+ link.iceChain=link.iceChain.then(async()=>{
+  for(const item of batch){if(!mpRtcAlive(link))break;
+   try{await link.pc.addIceCandidate(item);}catch(_){/* stale or unsupported route; other candidates may succeed */}}
+ }).catch(()=>{});
+}
+function mpRtcQueueLocalIce(link,candidate){
+ if(!mpRtcAlive(link))return;
+ const item=mpRtcCandidate(typeof candidate.toJSON==='function'?candidate.toJSON():candidate);
+ if(!item)return;
+ if(link.outIce.length>=MP_RTC_MAX_ICE)return;
+ link.outIce.push(item);
+ if(!link.iceTimer)link.iceTimer=setTimeout(()=>mpRtcFlushIce(link),170);
+}
+function mpRtcFlushIce(link){
+ clearTimeout(link.iceTimer);link.iceTimer=null;
+ if(!mpRtcAlive(link)){link.outIce.length=0;return;}
+ const candidates=link.outIce.splice(0,12);
+ if(candidates.length)mpWire.send(link.peer,mpPacket('rtc-ice',{sid:link.sid,candidates})).catch(()=>{});
+ if(link.outIce.length)link.iceTimer=setTimeout(()=>mpRtcFlushIce(link),170);
+}
+function mpRtcSend(link,channel,value){
+ if(!mpRtcAlive(link)||channel?.readyState!=='open'||channel.bufferedAmount>131072)return false;
+ const serialized=JSON.stringify(value);
+ if(serialized.length>4000)return false;
+ try{channel.send(serialized);return true;}catch(_){return false;}
+}
+function mpRtcFastSend(peer,value){
+ const l=mpRtcLinks.get(peer);
+ if(!l||typeof mp7BufferAllowed==='function'&&!mp7BufferAllowed(l))return false;
+ return mpRtcSend(l,l.fast,value);
+}
+function mpRtcControl(link,e){
+ if(typeof e.data!=='string'||e.data.length>4000)return;
+ let data;try{data=JSON.parse(e.data);}catch(_){return;}
+ if(data?.v!==MP_VERSION)return;
+ link.lastHeard=Date.now();
+ if(data.kind==='ping'&&Number.isSafeInteger(data.n)&&data.n>=0)
+  mpRtcSend(link,link.control,{v:MP_VERSION,kind:'pong',n:data.n});
+ else if(data.kind==='pong'&&data.n===link.pingSeq&&link.pingAt){
+  link.rtt=Math.max(0,Math.min(9999,performance.now()-link.pingAt));mpRtcPaint();
+ }
+ else if(typeof data.kind==='string'&&data.kind.startsWith('mp3-')&&typeof mpMatchControl==='function')mpMatchControl(link.peer,data);
+}
+function mpRtcFastMessage(link,e){
+ if(typeof e.data!=='string'||e.data.length>4000)return;
+ let data;try{data=JSON.parse(e.data);}catch(_){return;}
+ if(data?.v!==MP_VERSION)return;
+ if(data.kind==='probe'&&Number.isSafeInteger(data.n))mpRtcSend(link,link.fast,{v:MP_VERSION,kind:'probe-ack',n:data.n});
+ if(data.kind==='probe-ack'&&data.n===link.probeSeq){link.probeVerified=true;mpRtcPaint();}
+ if(typeof data.kind==='string'&&data.kind.startsWith('mp3-')&&typeof mpMatchFast==='function')mpMatchFast(link.peer,data);
+}
+function mpRtcAttachChannel(link,channel){
+ if(!channel||!mpRtcAlive(link))return;
+ const name=channel.label;if(name!=='neonrift-control'&&name!=='neonrift-state'){try{channel.close();}catch(_){}return;}
+ const key=name==='neonrift-control'?'control':'fast';
+ if(link[key]&&link[key]!==channel){try{channel.close();}catch(_){}return;}
+ link[key]=channel;channel.binaryType='arraybuffer';
+ channel.onopen=()=>{
+  if(!mpRtcAlive(link))return;
+  link.lastHeard=Date.now();
+  if(key==='control')mpRtcPing(link);
+  else mpRtcProbe(link);
+  if(key==='control'&&typeof mpRoundResync==='function')mpRoundResync(link.peer);
+  mpRtcPaint();
+ };
+ channel.onclose=()=>{if(mpRtcAlive(link)){link.status='disconnected';mpRtcPaint();}};
+ channel.onmessage=e=>{if(mpRtcAlive(link))(key==='control'?mpRtcControl:mpRtcFastMessage)(link,e);};
+}
+function mpRtcPing(link){
+ if(!mpRtcAlive(link)||link.control?.readyState!=='open')return;
+ link.pingAt=performance.now();link.pingSeq++;
+ mpRtcSend(link,link.control,{v:MP_VERSION,kind:'ping',n:link.pingSeq});
+ link.lastPing=Date.now();
+}
+function mpRtcProbe(link){
+ if(!mpRtcAlive(link)||link.fast?.readyState!=='open')return;
+ link.probeSeq++;
+ mpRtcSend(link,link.fast,{v:MP_VERSION,kind:'probe',n:link.probeSeq});
+ link.lastProbe=Date.now();
+}
+function mpRtcFail(link,reason){
+ if(!mpRtcAlive(link)||link.failed)return;
+ link.failed=true;link.error=reason;mpRtcPaint();
+ if(mpRoom.host&&mpSignalingOnline()&&mpRtcAttempts.get(link.peer)<MP_RTC_TRIES){
+  link.retryTimer=setTimeout(()=>{if(mpRtcAlive(link))mpRtcHostStart(link.peer,true);},2500+mpRtcAttempts.get(link.peer)*1200);
+ }else if(!mpRoom.host&&mpSignalingOnline()){
+  // If only the guest detects an ICE failure, ask the host for a fresh offer.
+  mpWire.send(link.peer,mpPacket('rtc-retry',{sid:link.sid})).catch(e=>{link.error='SIGNAL: '+e.message;mpRtcPaint();});
+ }
+}
+function mpRtcState(link){
+ if(!mpRtcAlive(link))return;
+ const state=link.pc.connectionState||link.pc.iceConnectionState;
+ if(state==='failed')mpRtcFail(link,'ICE ОШИБКА');
+ else if(state==='disconnected'){
+  link.status='disconnected';mpRtcPaint();
+  if(!link.retryTimer)link.retryTimer=setTimeout(()=>{
+   link.retryTimer=null;if(mpRtcAlive(link)&&!document.hidden&&(
+    link.pc.connectionState==='disconnected'||link.pc.iceConnectionState==='disconnected'))mpRtcFail(link,'ОБРЫВ');
+  },8500);
+ }else if(state==='connected'||state==='completed'){
+  if(link.retryTimer){clearTimeout(link.retryTimer);link.retryTimer=null;}
+  link.status='connected';link.error='';link.failed=false;mpRtcPaint();
+ }
+}
+function mpRtcCreate(peer,sid,initiator){
+ if(!mpRtcAllowed(peer)||typeof RTCPeerConnection!=='function')return null;
+ mpRtcDrop(peer,false,true);
+ let pc;try{pc=new RTCPeerConnection({iceServers:mpRtcServers()});}catch(_){mpRtcErrors.set(peer,'ОШИБКА СОЗДАНИЯ');mpRtcPaint();return null;}
+ mpRtcErrors.delete(peer);
+ const link={peer,sid,pc,initiator,status:'connecting',error:'',failed:false,
+  control:null,fast:null,started:Date.now(),lastHeard:0,lastPing:0,lastProbe:0,
+  pingAt:0,pingSeq:0,probeSeq:0,probeVerified:false,rtt:null,
+  pendingIce:[],outIce:[],iceTimer:null,retryTimer:null,iceChain:Promise.resolve()};
+ mpRtcLinks.set(peer,link);mpRtcCollectIce(link);
+ pc.onicecandidate=e=>{if(e.candidate)mpRtcQueueLocalIce(link,e.candidate);else mpRtcFlushIce(link);};
+ pc.onconnectionstatechange=()=>mpRtcState(link);
+ pc.oniceconnectionstatechange=()=>mpRtcState(link);
+ pc.ondatachannel=e=>{if(!initiator)mpRtcAttachChannel(link,e.channel);else try{e.channel.close();}catch(_){}};
+ if(initiator){
+  try{
+   mpRtcAttachChannel(link,pc.createDataChannel('neonrift-control',{ordered:true}));
+   mpRtcAttachChannel(link,pc.createDataChannel('neonrift-state',{ordered:false,maxRetransmits:0}));
+  }catch(_){mpRtcDrop(peer,false);mpRtcErrors.set(peer,'ОШИБКА КАНАЛА');mpRtcPaint();return null;}
+ }
+ mpRtcWatch();mpRtcPaint();return link;
+}
+function mpRtcHostJoined(peer){if(mpRtcAllowed(peer)&&mpRoom.host)mpRtcHostStart(peer,false);}
+async function mpRtcHostStart(peer,force=false){
+ if(!mpRoom?.host||!mpRtcAllowed(peer))return;
+ if(!force&&mpRtcLinks.has(peer))return;
+ const attempt=(mpRtcAttempts.get(peer)||0)+1;
+ if(attempt>MP_RTC_TRIES)return;
+ mpRtcAttempts.set(peer,attempt);
+ const link=mpRtcCreate(peer,mpRandom(8),true);
+ if(!link){mpRtcPaint();return;}
+ link.status=attempt>1?'retry':'connecting';mpRtcPaint();
+ try{
+  const offer=await link.pc.createOffer();if(!mpRtcAlive(link))return;
+  await link.pc.setLocalDescription(offer);if(!mpRtcAlive(link))return;
+  await mpWire.send(peer,mpPacket('rtc-offer',{sid:link.sid,sdp:link.pc.localDescription?.sdp||offer.sdp}));
+ }catch(_){mpRtcFail(link,'SDP ОШИБКА');}
+}
+async function mpRtcGuestOffer(peer,data){
+ const prior=mpRtcLinks.get(peer);
+ if(prior?.sid===data.sid)return; // repeated signalling, no second answer
+ const link=mpRtcCreate(peer,data.sid,false);if(!link)return;
+ try{
+  await link.pc.setRemoteDescription({type:'offer',sdp:data.sdp});if(!mpRtcAlive(link))return;
+  mpRtcApplyIce(link);
+  const answer=await link.pc.createAnswer();if(!mpRtcAlive(link))return;
+  await link.pc.setLocalDescription(answer);if(!mpRtcAlive(link))return;
+  await mpWire.send(peer,mpPacket('rtc-answer',{sid:link.sid,sdp:link.pc.localDescription?.sdp||answer.sdp}));
+ }catch(_){mpRtcFail(link,'SDP ОШИБКА');}
+}
+async function mpRtcHostAnswer(peer,data){
+ const link=mpRtcLinks.get(peer);
+ if(!link||!link.initiator||link.sid!==data.sid||link.pc.remoteDescription)return;
+ try{await link.pc.setRemoteDescription({type:'answer',sdp:data.sdp});mpRtcApplyIce(link);}
+ catch(_){mpRtcFail(link,'SDP ОШИБКА');}
+}
+function mpRtcSignal(peer,data){
+ if(!mpRtcAllowed(peer)||!data||typeof data.kind!=='string')return;
+ if(data.kind==='rtc-retry'){
+  if(!mpRoom.host)return;
+  const last=mpRtcLinks.get(peer);if(last&&data.sid&&data.sid!==last.sid)return;
+  const now=Date.now(),prev=mpRtcLastRequest.get(peer)||0;
+  if(now-prev<5000)return;mpRtcLastRequest.set(peer,now);
+  // An explicit user retry (empty sid) must still work after automatic ICE
+  // attempts have been exhausted; retain the 5s per-peer request throttle.
+  if(data.sid==='')mpRtcAttempts.set(peer,0);
+  if((mpRtcAttempts.get(peer)||0)<MP_RTC_TRIES)mpRtcHostStart(peer,true);
+  return;
+ }
+ if(!/^[A-Z2-7]{13}$/.test(data.sid||''))return;
+ if(data.kind==='rtc-ice'){
+  if(!Array.isArray(data.candidates)||data.candidates.length>16)return;
+  const link=mpRtcLinks.get(peer);
+  if(!link||link.sid!==data.sid){mpRtcStoreIce(peer,data.sid,data.candidates);return;}
+  for(const raw of data.candidates){const c=mpRtcCandidate(raw);
+   if(c&&link.pendingIce.length<MP_RTC_MAX_ICE)link.pendingIce.push(c);}
+  mpRtcApplyIce(link);return;
+ }
+ if(typeof data.sdp!=='string'||data.sdp.length<10||data.sdp.length>55000||!/^v=0\r?\n/.test(data.sdp))return;
+ if(data.kind==='rtc-offer'&&!mpRoom.host)mpRtcGuestOffer(peer,data);
+ else if(data.kind==='rtc-answer'&&mpRoom.host)mpRtcHostAnswer(peer,data);
+}
+let mpRtcLastRequest=new Map();
+function mpRtcTick(){
+ const now=Date.now();
+ for(const [key,o] of mpRtcOrphans)if(now-o.at>20000)mpRtcOrphans.delete(key);
+ for(const l of mpRtcLinks.values()){
+  if(!mpRtcAlive(l))continue;
+  if(l.control?.readyState==='open'){
+   if(now-l.lastPing>6000)mpRtcPing(l);
+   if(!document.hidden&&l.lastHeard&&now-l.lastHeard>22000)mpRtcFail(l,'ТАЙМАУТ P2P');
+  }else if(now-l.started>MP_RTC_TIMEOUT&&!document.hidden)mpRtcFail(l,'ТАЙМАУТ P2P');
+  if(!l.probeVerified&&l.fast?.readyState==='open'&&now-l.lastProbe>6000)mpRtcProbe(l);
+ }
+}
+function mpRtcManualRetry(onFailed){
+ const now=Date.now();if(now-mpRtcManualAt<5000)return false;
+ if(!mpRoom||!mpSignalingOnline())return false;
+ if(typeof RTCPeerConnection!=='function'){mpStatus('Этот браузер не поддерживает WebRTC.',true);return false;}
+ mpRtcManualAt=now;
+ if(mpRoom.host){
+  for(const p of mpRoom.players)if(!p.host){mpRtcAttempts.set(p.peerId,0);mpRtcHostStart(p.peerId,true);}
+  mpStatus('Повторно устанавливаем прямые соединения…');
+ }else{
+  // Explicit manual request is allowed even if the guest's old generation
+  // differs from the one currently held by the host.
+  mpWire.send(mpRoom.hostPeer,mpPacket('rtc-retry',{sid:''})).then(()=>mpStatus('Запрос ведущему отправлен.')).catch(e=>{mpStatus(e.message,true);if(typeof onFailed==='function')onFailed(e);});
+ }
+ return true;
+}
+// MP-3 movement, MP-4 combat, MP-6 abilities and MP-9 link recovery. No campaign writes.
+// The host alone integrates all actors against the same seeded level geometry.
+// Guests send controls, predict locally and interpolate the other operators.
+const MP3_STEP=1/30,MP3_INPUT_EVERY=.05,MP3_SNAPSHOT_EVERY=.10;
+let mpMatch=null,mpMatchStarting=false;
+
+function mpMatchReady(){
+ if(!mpRoom?.host||!mpWire||mpMatch?.active||mpRoom.players.length<2)return false;
+ return mpRoom.players.every(p=>p.ready&&(p.host||(
+  mpRtcLinks.get(p.peerId)?.control?.readyState==='open'&&
+  mpRtcLinks.get(p.peerId)?.fast?.readyState==='open')));
+}
+function mpMatchPaintLobbyStart(){
+ const btn=$('mpStartTraining');if(!btn)return;
+ btn.disabled=!mpMatchReady();
+ btn.title=btn.disabled?'Нужно минимум два готовых игрока и два работающих P2P-канала для каждого гостя.':'';
+}
+function mpMatchEntry(roomPlayers){
+ const ids=new Set(),peers=new Set();
+ if(!Array.isArray(roomPlayers)||roomPlayers.length<2||roomPlayers.length>MP_CAP)return null;
+ const result=[];
+ for(const x of roomPlayers){
+  if(!Number.isInteger(x.id)||x.id<0||x.id>10000||typeof x.peerId!=='string'||x.peerId.length>128||ids.has(x.id)||peers.has(x.peerId))return null;
+  let nick;try{nick=mpNickname(x.nick);}catch(_){return null;}
+  ids.add(x.id);peers.add(x.peerId);
+  result.push({id:x.id,peerId:x.peerId,nick,team:x.team===1?1:0,host:!!x.host});
+ }
+ if(result.filter(p=>p.host).length!==1||!result.some(p=>p.peerId===mpWire?.peerId))return null;
+ return result;
+}
+function mpMatchSpawnPositions(roster,settings={}){
+ const result=new Map(),candidates=[{x:spawnX,z:spawnZ}];
+ for(const radius of [1.9,3.45,4.95,6.2,8.0])for(let i=0;i<24;i++){
+  const angle=i*TAU/24+(radius%2)*.1;
+  candidates.push({x:spawnX+Math.sin(angle)*radius,z:spawnZ+Math.cos(angle)*radius});
+ }
+ const viable=candidates.filter(q=>!collide(q.x,q.z,.35)&&
+  !worldSolidBodyCollision(q.x,q.z,.35,supportHeight(q,q.x,q.z),PLAYER_SOLID_HEIGHT));
+ if(!viable.length)throw Error('На карте нет безопасной стартовой точки.');
+ const teams=settings.mode==='teams';
+ const blueAnchor=viable.find(q=>hypot(q.x-spawnX,q.z-spawnZ)>2)||viable[0];
+ const orangeAnchor=viable.reduce((best,q)=>
+  hypot(q.x-blueAnchor.x,q.z-blueAnchor.z)>hypot(best.x-blueAnchor.x,best.z-blueAnchor.z)?q:best,viable[0]);
+ const order=[...roster].sort((a,b)=>teams?(a.team-b.team||a.id-b.id):a.id-b.id);
+ for(const member of order){
+  const available=viable.filter(q=>[...result.values()].every(other=>hypot(other.x-q.x,other.z-q.z)>1.12));
+  const anchor=member.team===1?orangeAnchor:blueAnchor;
+  const found=teams?available.sort((a,b)=>
+   hypot(a.x-anchor.x,a.z-anchor.z)-hypot(b.x-anchor.x,b.z-anchor.z))[0]:available[0];
+  if(!found)throw Error('Недостаточно безопасных мест появления на этой карте.');
+  result.set(member.id,found);
+ }
+ return result;
+}
+function mpMatchActor(spawn){
+ return {x:spawn.x,z:spawn.z,feetY:supportHeight(spawn,spawn.x,spawn.z),vy:0,grounded:true,
+  yaw:0,pitch:0,walk:0,energy:100,maxEnergy:100,speed:3.05,
+  flightUnlocked:true,flying:false,shield:0,abilityCooldowns:{dash:0,pulse:0,shield:0,heal:0},
+  weapon:0,bodyArmorType:-1,bodyArmor:0,bodyArmorMax:0,shotGlow:0,
+  hp:100,maxhp:100,armor:30,maxArmor:30,cooldown:0,heat:0,heatLock:0};
+}
+function mpMatchOpen(token,roster,settings){
+ if(mpMatch?.active||!mpRoom||!mpWire||!mpMap(settings.mapId))return false;
+ // Build the same deterministic map on every device; no startGame(), runs or checkpoint.
+ mpMatchStarting=true;
+ const oldGame=game;
+ try{
+  game=freshGame();game.sector=mpMap(settings.mapId).sector;
+  legacyResumeSector=-1;enterSector(game.sector);
+  game.enemies=[];game.bullets=[];game.particles=[];game.projectiles=[];
+  game.nodes=[];game.devices=[];game.mission=null;game.arenaEvent=null;
+  game.portalReady=false;game.target=0;game.spawned=0;
+  const placements=mpMatchSpawnPositions(roster,settings),me=roster.find(p=>p.peerId===mpWire.peerId);
+  if(!me)throw Error('Игрок отсутствует в составе матча.');
+  const actors=new Map();
+  for(const r of roster){
+   const p=r.id===me.id?game.p:mpMatchActor(placements.get(r.id));
+   const start=placements.get(r.id);p.x=start.x;p.z=start.z;p.feetY=supportHeight(p,p.x,p.z);
+   p.vy=0;p.grounded=true;p.flying=false;p.flightUnlocked=true;
+   p.shield=0;p.abilityCooldowns={dash:0,pulse:0,shield:0,heal:0};
+   p.walk=0;p.yaw=(r.id%8)*TAU/8;
+   p.energy=100;p.maxEnergy=100;p.speed=3.05;
+   // Competitive stats are independent of solo permanent upgrades and unverified saves.
+   p.hp=100;p.maxhp=100;p.armor=30;p.maxArmor=30;p.armorTier=0;
+   p.bodyArmor=0;p.bodyArmorType=-1;p.bodyArmorMax=0;p.bodyArmorReduction=0;
+   p.damage=1;p.rate=1;p.heatMod=1;p.cooldown=0;p.heat=0;p.heatLock=0;
+   p.weapon=settings.equipment==='equal'?settings.weapon:0;p.shotGlow=0;
+   actors.set(r.id,{...r,p,cmd:{mx:0,mz:0,j:false,s:false,yaw:p.yaw,pitch:0},seq:-1,
+    lastInputAt:0,samples:[]});
+  }
+  mpMatch={active:true,token,host:mpRoom.host,self:me.id,actors,roster,
+   tick:0,acc:0,sendAcc:0,snapAcc:0,inputSeq:0,lastSnapshot:-1,
+   paused:false,lastHud:0,jumpUntil:0,startedAt:Date.now(),lastFromHost:Date.now(),
+   settings:mpSettings(settings),projectiles:[],fireUntil:0};
+  if(typeof mpCombatInit==='function')mpCombatInit();
+  if(typeof mpRoundInit==='function')mpRoundInit();
+  if(typeof mp6Init==='function')mp6Init();
+  if(typeof mp7Init==='function')mp7Init();
+  if(typeof mp8Init==='function')mp8Init();
+  const gunEl=$('gun');if(gunEl?.dataset){gunEl.dataset.gun=String(game.p.weapon);
+   gunEl.style?.setProperty?.('--weapon-glow',`rgb(${weapons[game.p.weapon].color.map(v=>Math.round(v*255)).join(',')})`);}
+  input.fire=false;input.jumpQueued=false;
+  closeArsenal();$('overlay').classList.add('hidden');$('hud').classList.add('show');
+  document.body.classList.add('mpTraining');
+  const hud=document.createElement('div');hud.id='mpTrainingBadge';hud.setAttribute('role','status');
+  document.body.appendChild(hud);mpMatchStatus();refreshFlightButtons();
+  lastFrame=performance.now();mpMatchStarting=false;return true;
+ }catch(e){game=oldGame;mpMatch=null;document.body.classList.remove('mpTraining');
+  $('mpCombatScore')?.remove();$('mpTrainingBadge')?.remove();$('mpReconnectNow')?.remove();
+  mpMatchStarting=false;console.error('MP-3 map initialization:',e);return false;}
+}
+function mpMatchStartTraining(){
+ if(!mpMatchReady()){mpStatus('Ожидайте готовности игроков и установления прямых каналов.',true);return;}
+ const token=mpRandom(8),roster=mpMatchEntry(mpRoom.players);
+ if(!roster)return;
+ const message={v:MP_VERSION,kind:'mp3-start',token,mapId:mpRoom.settings.mapId,roster};
+ const informed=[];
+ for(const r of roster)if(!r.host){const link=mpRtcLinks.get(r.peerId);
+  if(!link||!mpRtcSend(link,link.control,message)){
+   for(const prior of informed)mpRtcSend(prior,prior.control,{v:MP_VERSION,kind:'mp3-stop',token});
+   mpStatus('Не удалось известить всех гостей. Проверьте соединение.',true);return;
+  }
+  informed.push(link);
+ }
+ if(!mpMatchOpen(token,roster,mpRoom.settings)){
+  for(const prior of informed)mpRtcSend(prior,prior.control,{v:MP_VERSION,kind:'mp3-stop',token});
+  mpHome('Невозможно загрузить карту.');
+ }
+}
+function mpMatchInput(){
+ if(mpMatch?.paused||mpMatch?.round?.ended||document.hidden||arsenalOpened)
+  return {mx:0,mz:0,j:false,s:false,yaw:game.p.yaw,pitch:game.p.pitch,f:false,w:game.p.weapon,
+   ...(typeof mp6Input==='function'?mp6Input(false):{})};
+ if(input.jumpQueued&&mpMatch)mpMatch.jumpUntil=Date.now()+140;
+ let mx=Number(!!input.keys.KeyD)-Number(!!input.keys.KeyA)+input.mx;
+ let mz=Number(!!input.keys.KeyW)-Number(!!input.keys.KeyS)+input.mz;
+ mx=Number.isFinite(mx)?clamp(mx,-1,1):0;mz=Number.isFinite(mz)?clamp(mz,-1,1):0;
+ const len=hypot(mx,mz);if(len>1){mx/=len;mz/=len;}
+ return {mx,mz,j:!!(input.jumpHeld||input.jumpQueued||input.keys.Space||Date.now()<(mpMatch?.jumpUntil||0)),
+  s:!!(input.sprint||input.mobileSprint||input.keys.ShiftLeft||input.keys.ShiftRight)&&!game.p.flying,
+  yaw:game.p.yaw,pitch:game.p.pitch,
+  f:!!(input.fire||Date.now()<(mpMatch?.fireUntil||0)),w:game.p.weapon,
+  ...(typeof mp6Input==='function'?mp6Input(true):{})};
+}
+function mpMatchSafeInput(data){
+ if(!data||!Number.isSafeInteger(data.seq)||data.seq<0||data.seq>1e9)return null;
+ for(const field of ['mx','mz','yaw','pitch'])if(!Number.isFinite(data[field]))return null;
+ if(Math.abs(data.mx)>1||Math.abs(data.mz)>1||hypot(data.mx,data.mz)>1.02||
+   Math.abs(data.yaw)>1e8||Math.abs(data.pitch)>1.11||typeof data.j!=='boolean'||typeof data.s!=='boolean')return null;
+ if(data.f!==undefined&&typeof data.f!=='boolean')return null;
+ if(data.w!==undefined&&(!Number.isInteger(data.w)||data.w<0||data.w>=weapons.length))return null;
+ const special=typeof mp6SafeInput==='function'?mp6SafeInput(data):{};
+ if(special===null)return null;
+ return {mx:data.mx,mz:data.mz,j:data.j,s:data.s,yaw:data.yaw,pitch:data.pitch,
+  f:data.f===true,w:data.w,...special};
+}
+function mpMatchMove(p,cmd,dt,others=[]){
+ if(!Number.isFinite(dt)||dt<=0||dt>MP3_STEP+.00001)return;
+ p.yaw=cmd.yaw;p.pitch=clamp(cmd.pitch,-1.1,1.04);
+ let mx=cmd.mx,mz=cmd.mz,mag=hypot(mx,mz);if(mag>1){mx/=mag;mz/=mag;mag=1;}
+ p.energy=Math.min(100,p.energy+16*dt);
+ const running=!!cmd.s&&mag>.1&&p.energy>2;
+ if(running)p.energy=Math.max(0,p.energy-SPRINT_ENERGY_DRAIN*dt);
+ const speed=(p.flying&&typeof MP6_FLIGHT_HORIZONTAL!=='undefined'?MP6_FLIGHT_HORIZONTAL:3.05)*(running?1.48:1)*dt;
+ const dx=(Math.sin(p.yaw)*mz-Math.cos(p.yaw)*mx)*speed;
+ const dz=(Math.cos(p.yaw)*mz+Math.sin(p.yaw)*mx)*speed;
+ const length=hypot(dx,dz),count=Math.max(1,Math.ceil(length/.12));
+ for(let i=0;i<count;i++){
+  for(const [ax,az] of [[dx/count,0],[0,dz/count]]){
+   const x=p.x+ax,z=p.z+az,floor=supportHeight(p,x,z);
+   if(collide(x,z,.25)||floor>p.feetY+.245||
+      worldSolidBodyCollision(x,z,.25,Math.max(p.feetY,floor),PLAYER_SOLID_HEIGHT)||
+      others.some(o=>o!==p&&Math.abs(o.feetY-p.feetY)<1.65&&hypot(o.x-x,o.z-z)<.67))continue;
+   p.x=x;p.z=z;if(p.grounded&&Math.abs(floor-p.feetY)<.246)p.feetY=floor;
+  }
+ }
+ p.walk=mag>.1?1:0;
+ const ground=supportHeight(p,p.x,p.z),deck=deckHeight(p.x,p.z);
+ const beam=worldSolidStandingSupport(p.x,p.z,.23,p.feetY);
+ const floor=Math.max(ground,beam===null?ground:beam);
+ if(p.flying&&typeof mp6FlyVertical==='function'){
+  mp6FlyVertical(p,cmd,dt,floor,deck);return;
+ }
+ if(p.grounded){if(p.feetY>floor+.245){p.grounded=false;p.vy=0;}
+  else if(floor<=p.feetY+.24)p.feetY=floor;else p.feetY=Math.max(p.feetY,floor);}
+ if(cmd.j&&p.grounded){p.grounded=false;p.vy=JUMP_VELOCITY;p.feetY+=.008;}
+ if(!p.grounded){
+  p.vy-=JUMP_GRAVITY*dt;const from=p.feetY;p.feetY+=p.vy*dt;
+  const low=deck-.17-PLAYER_SOLID_HEIGHT;
+  if(deck>0&&from<=low+.001&&p.vy>0&&p.feetY>low){p.feetY=Math.max(0,low-.004);p.vy=0;}
+  if(p.vy>0&&glReady){const bar=worldSolidHeadBarrier(p.x,p.z,.23,from+PLAYER_SOLID_HEIGHT,p.feetY+PLAYER_SOLID_HEIGHT);
+   if(bar!==null){p.feetY=Math.max(from,bar-PLAYER_SOLID_HEIGHT-.004);p.vy=0;}}
+  if(p.vy<0&&glReady){const beamFloor=worldSolidFeetBarrier(p.x,p.z,.23,from,p.feetY);
+   if(beamFloor!==null){p.feetY=Math.max(p.feetY,beamFloor+.004);p.vy=0;p.grounded=true;}}
+  if(p.feetY<=floor){p.feetY=floor;p.vy=0;p.grounded=true;}
+ }
+ const ceiling=Math.max(floor,ceilingHeight()-PLAYER_SOLID_HEIGHT-.2);
+ if(p.feetY>ceiling){p.feetY=ceiling;p.vy=Math.min(0,p.vy);}
+}
+function mpMatchState(){
+ return {v:MP_VERSION,kind:'mp3-state',token:mpMatch.token,tick:mpMatch.tick,
+  actors:[...mpMatch.actors.values()].map(({id,p,kills=0,deaths=0,respawnAt=0,invulnUntil=0})=>({id,
+   x:+p.x.toFixed(3),z:+p.z.toFixed(3),h:+p.feetY.toFixed(3),
+   yaw:+p.yaw.toFixed(3),pitch:+p.pitch.toFixed(3),vy:+p.vy.toFixed(3),
+   e:+p.energy.toFixed(2),w:p.walk?1:0,g:p.grounded?1:0,
+   ...(typeof mp6ActorState==='function'?mp6ActorState(p):{}),
+   hp:+p.hp.toFixed(1),ar:+p.armor.toFixed(1),gun:p.weapon,
+   k:kills,d:deaths,rs:Math.max(0,respawnAt-mpMatch.tick),
+   iv:Math.max(0,invulnUntil-mpMatch.tick)})),
+  ordnance:mpMatch.host&&typeof mpCombatOrdnance==='function'?mpCombatOrdnance():[],
+  round:mpMatch.host&&typeof mpRoundState==='function'?mpRoundState():null};
+}
+function mpMatchSafeState(data){
+ if(!mpMatch||!Number.isSafeInteger(data.tick)||data.tick<=mpMatch.lastSnapshot||
+  !Array.isArray(data.actors)||data.actors.length!==mpMatch.actors.size)return null;
+ const seen=new Set(),out=[];
+ for(const p of data.actors){
+  if(!p||typeof p!=='object'||!mpMatch.actors.has(p.id)||seen.has(p.id)||![p.x,p.z,p.h,p.yaw,p.pitch,p.vy,p.e].every(Number.isFinite)||
+   p.x<0||p.z<0||p.x>=mapSize||p.z>=mapSize||p.h<-.5||p.h>24||p.e<0||p.e>100.01||
+   Math.abs(p.yaw)>1e8||Math.abs(p.pitch)>1.11||Math.abs(p.vy)>30||![0,1].includes(p.w)||![0,1].includes(p.g)||
+   !Number.isFinite(p.hp)||p.hp<0||p.hp>100||!Number.isFinite(p.ar)||p.ar<0||p.ar>30||
+   !Number.isInteger(p.gun)||p.gun<0||p.gun>=weapons.length||
+   !Number.isSafeInteger(p.k)||Math.abs(p.k)>1e7||
+   ![p.d,p.rs,p.iv].every(n=>Number.isSafeInteger(n)&&n>=0&&n<=1e7)||
+   (typeof mp6SafeState==='function'&&!mp6SafeState(p)))return null;
+  seen.add(p.id);out.push(p);
+ }
+ return out;
+}
+function mpMatchFast(peer,data){
+ const m=mpMatch;if(!m?.active||data.token!==m.token)return;
+ if(m.host&&data.kind==='mp3-input'){
+  if(m.round?.ended)return;
+  const actor=[...m.actors.values()].find(a=>a.peerId===peer);
+  if(!actor||actor.host)return;
+  const cmd=mpMatchSafeInput(data);if(!cmd||data.seq<=actor.seq)return;
+  actor.cmd=typeof mp7LateCommand==='function'?mp7LateCommand(actor,cmd):cmd;
+  actor.seq=data.seq;actor.lastInputAt=Date.now();return;
+ }
+ if(!m.host&&peer===mpRoom?.hostPeer&&data.kind==='mp3-state'){
+  const list=mpMatchSafeState(data);if(!list)return;
+  if(typeof mp8OnSnapshot==='function')mp8OnSnapshot(m);
+  m.lastSnapshot=data.tick;m.lastFromHost=Date.now();
+  for(const next of list){const actor=m.actors.get(next.id),p=actor.p;
+   p.hp=next.hp;p.armor=next.ar;p.weapon=next.gun;
+   if(typeof mp6ApplyActorState==='function')mp6ApplyActorState(p,next,actor.id===m.self);
+   actor.kills=next.k;actor.deaths=next.d;actor.respawnAt=next.rs?m.tick+next.rs:0;
+   actor.invulnUntil=next.iv?m.tick+next.iv:0;
+   if(actor.id===m.self){
+    if(typeof mp8ReconcileRecovered==='function'&&mp8ReconcileRecovered(m,p,next)){}
+    else if(typeof mp7ReconcileSelf==='function')mp7ReconcileSelf(p,next);
+    else{
+     const err=hypot(next.x-p.x,next.z-p.z);
+     if(err>1.3){p.x=next.x;p.z=next.z;p.feetY=next.h;p.vy=next.vy;p.grounded=!!next.g;}
+     else {p.x+=(next.x-p.x)*.22;p.z+=(next.z-p.z)*.22;
+      if(Math.abs(next.h-p.feetY)>.5){p.feetY=next.h;p.vy=next.vy;p.grounded=!!next.g;}}
+     p.energy+=(next.e-p.energy)*.22;
+    }
+   }else{
+    if(typeof mp7ReceiveSample==='function')mp7ReceiveSample(actor,next,data.tick);
+    else {actor.samples.push({at:performance.now(),...next});
+     if(actor.samples.length>3)actor.samples.shift();}
+   }
+  }
+  if(typeof mpCombatSyncHud==='function')mpCombatSyncHud();
+  if(typeof mpCombatApplyOrdnance==='function')mpCombatApplyOrdnance(data.ordnance);
+  if(typeof mpRoundApplySnapshot==='function')mpRoundApplySnapshot(data);
+ }
+ if(!m.host&&peer===mpRoom?.hostPeer&&data.kind==='mp3-effect'&&typeof mpCombatReceiveEffect==='function')
+  mpCombatReceiveEffect(data);
+}
+function mpMatchControl(peer,data){
+ if(data.kind==='mp3-start'){
+  if(mpMatch?.active||mpRoom?.host||peer!==mpRoom?.hostPeer||!mpWire||
+   !/^[A-Z2-7]{13}$/.test(data.token||'')||data.mapId!==mpRoom.settings?.mapId)return;
+  const roster=mpMatchEntry(data.roster);
+  if(!roster||roster.length!==mpRoom.players.length||!roster.every(p=>mpRoom.players.some(x=>x.id===p.id&&x.peerId===p.peerId)))return;
+  if(!mpMatchOpen(data.token,roster,mpRoom.settings))mpHome('Не удалось подготовить карту для совместного матча.');
+ }else if(data.kind==='mp3-stop'&&mpMatch?.active&&!mpRoom?.host&&peer===mpRoom.hostPeer&&data.token===mpMatch.token){
+  mpMatchAbort();mpLobby();mpStatus('Ведущий завершил матч.');
+ }else if(data.kind==='mp3-result'&&mpMatch?.active&&!mpRoom?.host&&peer===mpRoom?.hostPeer&&
+  data.token===mpMatch.token&&typeof mpRoundAccept==='function'){
+  mpRoundAccept(data.result);
+ }
+}
+function mpMatchInterpolate(dt=MP3_STEP){
+ if(!mpMatch?.active||mpMatch.host)return;
+ if(typeof mp7RenderRemote==='function'){
+  for(const a of mpMatch.actors.values())if(a.id!==mpMatch.self&&a.samples.length)
+   mp7RenderRemote(a,dt);
+  return;
+ }
+ const now=performance.now()-110;
+ for(const a of mpMatch.actors.values())if(a.id!==mpMatch.self&&a.samples.length){
+  const samples=a.samples;
+  while(samples.length>2&&samples[1].at<now)samples.shift();
+  const newest=samples[samples.length-1],prev=samples.length>=2?samples[samples.length-2]:newest;
+  const t=prev===newest?1:clamp((now-prev.at)/Math.max(1,newest.at-prev.at),0,1);
+  for(const [key,remoteKey] of [['x','x'],['z','z'],['feetY','h'],['yaw','yaw'],['pitch','pitch']]){
+   const a0=prev[remoteKey],a1=newest[remoteKey];
+   a.p[key]=a0+(key==='yaw'?Math.atan2(Math.sin(a1-a0),Math.cos(a1-a0)):(a1-a0))*t;
+  }
+  a.p.walk=newest.w;a.p.grounded=!!newest.g;
+  if(typeof mp6ApplyActorState==='function')mp6ApplyActorState(a.p,newest,false);
+ }
+}
+function mpMatchUpdate(dt){
+ const m=mpMatch;if(!m?.active||!game)return;
+ const local=mpMatchInput(),self=m.actors.get(m.self);
+ const guestFrozen=typeof mp8GuestFrozen==='function'&&mp8GuestFrozen();
+ const outgoing=guestFrozen&&typeof mp8NeutralInput==='function'?mp8NeutralInput(local):local;
+ if(typeof mp8Update==='function')mp8Update(m);
+ if(m.host)self.cmd=local;
+ else if(!m.round?.ended){
+  m.sendAcc+=dt;
+  if(m.sendAcc>=MP3_INPUT_EVERY){m.sendAcc%=MP3_INPUT_EVERY;
+   const cmd={v:MP_VERSION,kind:'mp3-input',token:m.token,seq:++m.inputSeq,...outgoing};
+   mpRtcFastSend(mpRoom.hostPeer,cmd);
+  }
+ }
+ m.acc+=dt;
+ let loops=0;
+ while(m.acc>=MP3_STEP&&loops++<4){
+  m.acc-=MP3_STEP;m.tick++;
+  if(m.host&&!m.round?.ended){
+   for(const a of m.actors.values()){
+    const cmd=typeof mp7SafeStale==='function'?mp7SafeStale(a,a.cmd):
+     (!a.host&&Date.now()-a.lastInputAt>350?
+      {...a.cmd,mx:0,mz:0,j:false,s:false,f:false,u:false,dn:false}:a.cmd);
+    // Combat must use exactly the same sanitized command as movement.
+    a.liveCmd=cmd;
+    if(typeof mp6Step==='function')mp6Step(a,cmd,MP3_STEP);
+    if(!(a.respawnAt>m.tick))mpMatchMove(a.p,cmd,MP3_STEP,[...m.actors.values()].filter(x=>x.p.hp>0).map(x=>x.p));
+   }
+   if(typeof mpCombatStep==='function')mpCombatStep(MP3_STEP);
+   if(typeof mpRoundCheck==='function')mpRoundCheck();
+ }else if(!m.host&&!m.round?.ended&&!guestFrozen&&!(self.respawnAt>m.tick))
+  {if(typeof mp6GuestStep==='function')mp6GuestStep(self.p,MP3_STEP);
+   mpMatchMove(self.p,local,MP3_STEP,[...m.actors.values()].filter(x=>x.p.hp>0).map(x=>x.p));}
+ }
+ if(m.host){m.snapAcc+=dt;
+  const period=m.round?.ended?1:MP3_SNAPSHOT_EVERY;
+  if(m.snapAcc>=period){m.snapAcc%=period;
+  const snapshot=mpMatchState();for(const a of m.actors.values())if(!a.host)mpRtcFastSend(a.peerId,snapshot);
+ }}else mpMatchInterpolate(dt);
+ game.t+=dt;game.sectorTime+=dt;
+ if(performance.now()-m.lastHud>350){m.lastHud=performance.now();mpMatchStatus();}
+ input.jumpQueued=false;
+ if(game?.tracers)game.tracers=game.tracers.filter(x=>(x.life-=dt)>0);
+ if(game?.impactFx)game.impactFx=game.impactFx.filter(x=>(x.life-=dt)>0);
+ for(const a of m.actors.values())a.p.shotGlow=Math.max(0,(a.p.shotGlow||0)-dt);
+}
+function mpMatchActors(){return mpMatch?.active?[...mpMatch.actors.values()].filter(a=>a.id!==mpMatch.self&&a.p.hp>0).map(a=>a.p):[];}
+function mpMatchRosterChanged(){
+ const m=mpMatch;if(!m?.active||!mpRoom)return;
+ const remaining=new Set(mpRoom.players.map(p=>p.peerId));
+ if(!remaining.has(mpWire?.peerId)){mpMatchAbort();mpHome('Вас больше нет в составе комнаты.');return;}
+ for(const [id,a] of m.actors)if(!remaining.has(a.peerId))m.actors.delete(id);
+ if(m.actors.size<2){
+  if(m.host){
+   if(m.round&&!m.round.ended&&typeof mpRoundFinish==='function')mpRoundFinish('forfeit');
+   else if(!m.round)mpMatchStop();
+   return;
+  }
+  mpMatchAbort();mpLobby();mpStatus('Второй участник вышел. Матч завершён.');return;
+ }
+ mpMatchStatus();
+}
+function mpMatchRenderOperators(g){if(glReady)for(const a of mpMatchActors())if(hypot(a.x-g.p.x,a.z-g.p.z)<40)renderOperator(g,a);}
+function mpMatchStatus(){
+ const m=mpMatch,el=$('mpTrainingBadge');if(!m?.active||!el)return;
+ const rtt=mpRtcLinks.get(mpRoom?.hostPeer)?.rtt;
+ const self=m.actors.get(m.self)?.p;
+ const warning=typeof mp8UpdateHud==='function'&&mp8UpdateHud(m);
+ const hostWarning=typeof mp8HostWarning==='function'&&mp8HostWarning(m);
+ el.textContent='◉ MP-9 · '+(m.round?.ended?'ИТОГИ':
+  (typeof mpRoundClock==='function'?mpRoundClock():'БОЙ'))+
+  ' · '+m.actors.size+' ИГР. · '+(warning||hostWarning||(mpSignalingLost?'⚠ METERED ОТКЛЮЧЁН · P2P':m.host?'ВЕДУЩИЙ':
+   Date.now()-m.lastFromHost>2200?'⚠ НЕТ СВЯЗИ':Number.isFinite(rtt)?Math.round(rtt)+' мс':'P2P'))+
+  ' · '+(self?.flying?'✈ ЛЕЧУ':'✈ ГОТОВ')+' · ЦЕЛЬ '+m.settings.scoreLimit;
+ if(typeof mpCombatSyncHud==='function')mpCombatSyncHud();
+}
+function mpMatchPause(){
+ const m=mpMatch;if(!m?.active)return;
+ if(m.round?.ended){if(typeof mpRoundShowResults==='function')mpRoundShowResults();return;}
+ m.paused=!m.paused;input.fire=false;
+ if(!m.paused){$('overlay').classList.add('hidden');$('hud').classList.add('show');return;}
+ pauseResumeGraceUntil=performance.now()+1100;
+ if(document.pointerLockElement)document.exitPointerLock();
+ panel(`<div class="eyebrow">СЕТЕВАЯ ИГРА / MP-9</div><h2>Сетевой матч</h2>
+ <p class="lede">${mpEscape(mpMap(mpRoom?.settings?.mapId)?.name||'КАРТА')} · ${m.actors.size} игроков.</p>
+ <p class="smalltext">Стрельба, попадания, полёт, рывок, импульс, щит, ремонт, убийства и возрождение рассчитываются ведущим. Всем доступны одинаковые базовые параметры полёта и способностей без переноса сохранённых улучшений. V / двойной Space — полёт, Space — вверх, Shift — вниз, E — рывок, Q — импульс, C — щит, F — ремонт. Пока открыто меню, матч продолжается.</p>
+ <div class="row"><button class="primary" id="mpResume">▶ ВЕРНУТЬСЯ</button>
+ <button class="secondary" id="mpRetryInGame">⟳ ПЕРЕПОДКЛЮЧИТЬ</button>
+ ${m.host?'<button class="secondary" id="mpStop">■ ЗАВЕРШИТЬ МАТЧ ДЛЯ ВСЕХ</button>':''}
+ <button class="secondary" id="mpExit">← ВЫЙТИ ИЗ КОМНАТЫ</button></div>`);
+ $('mpResume').onclick=mpMatchPause;
+ $('mpRetryInGame').onclick=()=>mpRtcManualRetry();
+ if(m.host)$('mpStop').onclick=mpMatchStop;
+ $('mpExit').onclick=mpLeave;
+}
+function mpMatchAbort(){
+ if(!mpMatch&&!mpMatchStarting)return;
+ mpMatchStarting=false;
+ mpMatch=null;game=null;document.body.classList.remove('mpTraining');
+ $('mpTrainingBadge')?.remove();$('mpReconnectNow')?.remove();$('mpCombatScore')?.remove();$('hud').classList.remove('show');
+ input.fire=false;input.jumpHeld=false;input.jumpQueued=false;input.keys={};
+ document.body.classList.remove('flightUnlocked','flying');
+ if(document.pointerLockElement)document.exitPointerLock();
+}
+function mpMatchStop(){
+ const m=mpMatch;if(!m?.active||!m.host)return;
+ for(const a of m.actors.values())if(!a.host){const link=mpRtcLinks.get(a.peerId);
+  if(link)mpRtcSend(link,link.control,{v:MP_VERSION,kind:'mp3-stop',token:m.token});
+ }
+ mpMatchAbort();for(const p of mpRoom.players)p.ready=false;mpRoom.seq++;
+ mpPublishRoster();mpLobby();mpStatus('Матч завершён. Подтвердите готовность для следующего боя.');
+}
+// Restrict combat-only controls without changing the solo input handlers.
+addEventListener('keydown',e=>{
+ if(!mpMatch?.active||e.target?.matches?.('input,textarea,select'))return;
+ if(/^(Key[EQFCV]|BracketLeft|BracketRight)$/.test(e.code)){
+  if(!e.repeat&&typeof mp6Request==='function'){
+   const action={KeyE:'dash',KeyQ:'pulse',KeyC:'shield',KeyF:'heal',KeyV:'flight'}[e.code];
+   if(action)mp6Request(action);
+  }
+  e.preventDefault();e.stopImmediatePropagation();
+ }
+},true);
+// Keep solo gameplay untouched: multiplayer owns weapon authorization.
+const mpSoloAbility=useAbility,mpSoloFlight=toggleFlight,
+ mpSoloArsenal=toggleArsenal,mpSoloWeapon=switchWeapon;
+useAbility=function(...args){if(mpMatch?.active)return typeof mp6Request==='function'?mp6Request(args[0]):false;return mpSoloAbility(...args);};
+toggleFlight=function(...args){if(mpMatch?.active)return typeof mp6Request==='function'?mp6Request('flight'):false;return mpSoloFlight(...args);};
+toggleArsenal=function(...args){if(mpMatch?.active&&mpMatch.settings.equipment==='equal')return;return mpSoloArsenal(...args);};
+switchWeapon=function(...args){
+ if(mpMatch?.active){
+  if(mpMatch.settings.equipment==='equal')return;
+  const n=args[0]===undefined?(game.p.weapon+1)%weapons.length:args[0];
+  if(!Number.isInteger(n)||n<0||n>=weapons.length)return;
+  game.p.weapon=n;
+ }
+ return mpSoloWeapon(...args);
+};
+// MP-4: small-room authoritative combat. The host alone decides shots, damage,
+// scoring, deaths, respawn and weapon cooldowns; peers send controls only.
+// Solo upgrades/purchased suits are deliberately NOT used in PvP: a browser
+// cannot prove ownership of an offline save. No ranked anti-cheat is claimed.
+const MP4_RESPAWN_TICKS=90,MP4_SPAWN_SHIELD_TICKS=45;
+
+function mpCombatInit(){
+ const m=mpMatch;if(!m)return;
+ for(const a of m.actors.values()){
+  a.kills=0;a.deaths=0;a.respawnAt=0;a.invulnUntil=m.tick+MP4_SPAWN_SHIELD_TICKS;
+  a.bursts=[];a.spawn={x:a.p.x,z:a.p.z};
+ }
+ const el=document.createElement('div');el.id='mpCombatScore';el.setAttribute('role','status');
+ document.body.appendChild(el);
+ mpCombatSyncHud();
+}
+function mpCombatSyncHud(){
+ const m=mpMatch,el=$('mpCombatScore');if(!m?.active||!el)return;
+ const team=m.settings.mode==='teams';
+ const rows=[...m.actors.values()].sort((a,b)=>(b.kills||0)-(a.kills||0)||a.id-b.id);
+ const scores=rows.map(a=>`${a.id===m.self?'▶ ':''}${a.nick}: ${a.kills||0}/${a.deaths||0}`+
+  `${a.respawnAt>m.tick?' ⏳':a.invulnUntil>m.tick?' 🛡':''}`);
+ const teamScore=team?'🔵 '+rows.filter(a=>a.team===0).reduce((v,a)=>v+(a.kills||0),0)+
+  ' : '+rows.filter(a=>a.team===1).reduce((v,a)=>v+(a.kills||0),0)+' 🟠 · ':'';
+ const p=m.actors.get(m.self)?.p;
+ el.textContent=teamScore+scores.join(' · ')+(p?' · ♥ '+Math.ceil(p.hp)+' / ◇ '+Math.ceil(p.armor):'');
+}
+function mpCombatSelect(a,requested){
+ const m=mpMatch,p=a.p;
+ const next=m.settings.equipment==='equal'?m.settings.weapon:requested;
+ if(Number.isInteger(next)&&next>=0&&next<weapons.length&&p.weapon!==next){
+  p.weapon=next;p.cooldown=Math.max(p.cooldown,.15);a.bursts.length=0;
+ }
+}
+function mpCombatOrigin(p){return {x:p.x,y:p.feetY+1.47,z:p.z};}
+function mpCombatDirection(p,spread=0){
+ const yaw=p.yaw+(Math.random()-.5)*spread*2;
+ const pitch=clamp(p.pitch+(Math.random()-.5)*spread*2,-1.1,1.04);
+ return {x:Math.sin(yaw)*Math.cos(pitch),y:Math.sin(pitch),z:Math.cos(yaw)*Math.cos(pitch)};
+}
+function mpCombatPoint(o,d,t){return {x:o.x+d.x*t,y:o.y+d.y*t,z:o.z+d.z*t};}
+function mpCombatTarget(shooter,o,d,limit){
+ let best=null;
+ for(const a of mpMatch.actors.values()){
+  if(a===shooter||a.p.hp<=0||a.respawnAt>mpMatch.tick)continue;
+  const p=a.p,head={x:p.x,y:p.feetY+1.58,z:p.z},
+   chest={x:p.x,y:p.feetY+.89,z:p.z};
+  const h=rayEllipsoid(o,d,head,.245,.255,.245,limit);
+  const b=rayEllipsoid(o,d,chest,.36,.70,.34,limit);
+  const t=h===null?b:b===null?h:Math.min(h,b);
+  if(t!==null&&(!best||t<best.t))best={actor:a,t,head:h!==null&&h<=t+.0001};
+ }
+ return best;
+}
+function mpCombatHit(shooter,target,raw,head=false){
+ const m=mpMatch;if(!m?.host||target.p.hp<=0||target.respawnAt>m.tick||target.invulnUntil>m.tick)return false;
+ if((target.p.shield||0)>0)return false;
+ const p=target.p,amount=Math.max(0,Math.min(350,raw*(head?1.42:1)));
+ const shield=Math.min(p.armor,amount*.72);
+ p.armor=Math.max(0,p.armor-shield);
+ p.hp=Math.max(0,p.hp-(amount-shield));
+ if(p.hp<=0){
+  target.deaths++;target.respawnAt=m.tick+MP4_RESPAWN_TICKS;
+  if(shooter===target)shooter.kills--;
+  else if(m.settings.mode==='teams'&&shooter.team===target.team)
+   shooter.kills--; // Friendly fire damages; team kills penalize even at zero.
+  else shooter.kills++;
+  mpCombatEmit('down',mpCombatOrigin(p),mpCombatOrigin(p),shooter.p.weapon,target.id);
+ }
+ return true;
+}
+function mpCombatVisible(from,to){
+ const dx=to.x-from.x,dy=to.y-from.y,dz=to.z-from.z,dist=Math.hypot(dx,dy,dz);
+ if(dist<.001)return true;
+ const d={x:dx/dist,y:dy/dist,z:dz/dist};
+ const hit=rayWall(from,d,Math.max(0,dist-.16));
+ return !hit||hit.t>=dist-.17;
+}
+function mpCombatBlast(shooter,point,w,direct=null){
+ const r=w.blast||1.15;
+ for(const a of mpMatch.actors.values()){
+  if(a.p.hp<=0||a.respawnAt>mpMatch.tick)continue;
+  const center={x:a.p.x,y:a.p.feetY+1.02,z:a.p.z};
+  const distance=Math.max(0,Math.hypot(center.x-point.x,center.y-point.y,center.z-point.z)-.33);
+  if(distance>r||(a!==direct&&!mpCombatVisible(point,center)))continue;
+  const factor=a===direct?1:.24+.60*Math.pow(1-distance/r,1.3);
+  mpCombatHit(shooter,a,w.damage*factor);
+ }
+ mpCombatEmit('blast',point,point,shooter.p.weapon,direct?.id??-1);
+}
+function mpCombatEmit(type,start,end,weapon,targetId=-1){
+ const m=mpMatch;if(!m?.host)return;
+ const event={v:MP_VERSION,kind:'mp3-effect',token:m.token,
+  type,gun:weapon,id:targetId,
+  a:[+start.x.toFixed(2),+start.y.toFixed(2),+start.z.toFixed(2)],
+  b:[+end.x.toFixed(2),+end.y.toFixed(2),+end.z.toFixed(2)]};
+ mpCombatReceiveEffect(event);
+ for(const a of m.actors.values())if(!a.host)mpRtcFastSend(a.peerId,event);
+}
+function mpCombatReceiveEffect(data){
+ if(!mpMatch?.active||data.token!==mpMatch.token||!['shot','blast','down','spawn','dash','pulse','shield','heal'].includes(data.type)||
+  !Number.isInteger(data.gun)||data.gun<0||data.gun>=weapons.length||
+  !Array.isArray(data.a)||!Array.isArray(data.b)||
+  ![...data.a,...data.b].every(n=>Number.isFinite(n)&&Math.abs(n)<1000))return;
+ const a={x:data.a[0],y:data.a[1],z:data.a[2]},b={x:data.b[0],y:data.b[1],z:data.b[2]};
+ if(data.type==='shot'||data.type==='dash')game.tracers.push({a,b,
+  life:data.type==='dash'?.24:.14,maxLife:data.type==='dash'?.24:.14,
+  r:data.type==='dash'?.10:.018,col:data.type==='dash'?[.3,1,.97]:weapons[data.gun].color});
+ else game.impactFx.push({x:b.x,y:b.y,z:b.z,
+  life:data.type==='pulse'?.55:.35,maxLife:data.type==='pulse'?.55:.35,
+  r:data.type==='pulse'?1.1:data.type==='blast'?.50:.27,
+  col:data.type==='shield'?[.60,.58,1]:data.type==='heal'?[.3,1,.55]:weapons[data.gun].color});
+ if(game.tracers.length>60)game.tracers.splice(0,game.tracers.length-60);
+ if(game.impactFx.length>35)game.impactFx.splice(0,game.impactFx.length-35);
+}
+function mpCombatOrdnance(){
+ return mpMatch.projectiles.slice(0,24).map(s=>({x:+s.pos.x.toFixed(2),y:+s.pos.y.toFixed(2),
+  z:+s.pos.z.toFixed(2),vx:+s.v.x.toFixed(1),vy:+s.v.y.toFixed(1),vz:+s.v.z.toFixed(1),
+  gun:weapons.indexOf(s.w)}));
+}
+function mpCombatApplyOrdnance(list){
+ if(!Array.isArray(list)||list.length>24)return;
+ const display=[];
+ for(const obj of list){
+  if(!obj||![obj.x,obj.y,obj.z,obj.vx,obj.vy,obj.vz].every(n=>Number.isFinite(n)&&Math.abs(n)<1000)||
+   !Number.isInteger(obj.gun)||weapons[obj.gun]?.mode!=='projectile')return;
+  display.push({x:obj.x,y:obj.y,z:obj.z,vx:obj.vx,vy:obj.vy,vz:obj.vz,
+   w:weapons[obj.gun],rad:obj.gun===8?.13:.10});
+ }
+ game.projectiles=display;
+}
+function mpCombatShot(shooter,w){
+ const o=mpCombatOrigin(shooter.p),d=mpCombatDirection(shooter.p,w.spread||0);
+ if(w.mode==='projectile'){
+  const m=mpMatch;
+  if(m.projectiles.length<72)m.projectiles.push({shooter:shooter.id,w,
+   pos:o,v:{x:d.x*w.speed,y:d.y*w.speed,z:d.z*w.speed},life:w.range/w.speed});
+  mpCombatEmit('shot',o,mpCombatPoint(o,d,Math.min(1.5,w.range)),shooter.p.weapon);
+  return;
+ }
+ const wall=rayWall(o,d,w.range),stop=wall?Math.min(w.range,wall.t):w.range;
+ let limit=stop,penetrations=Math.max(1,Math.min(4,w.pierce||1));
+ const struck=new Set();
+ while(penetrations-->0){
+  let target=null;
+  for(const a of mpMatch.actors.values()){
+   if(a===shooter||struck.has(a.id)||a.p.hp<=0||a.respawnAt>mpMatch.tick)continue;
+   const p=a.p,head=rayEllipsoid(o,d,{x:p.x,y:p.feetY+1.58,z:p.z},.245,.255,.245,limit);
+   const chest=rayEllipsoid(o,d,{x:p.x,y:p.feetY+.89,z:p.z},.36,.70,.34,limit);
+   const t=head===null?chest:chest===null?head:Math.min(head,chest);
+   if(t!==null&&(!target||t<target.t))target={a,t,head:head!==null&&head<=t+.0001};
+  }
+  if(!target)break;
+  struck.add(target.a.id);mpCombatHit(shooter,target.a,w.damage,target.head);
+  if(!w.pierce)break;
+ }
+ mpCombatEmit('shot',o,mpCombatPoint(o,d,stop),shooter.p.weapon);
+}
+function mpCombatProjectileStep(dt){
+ const m=mpMatch;
+ for(const s of m.projectiles){
+  const shooter=m.actors.get(s.shooter);
+  if(!shooter){s.life=0;continue;}
+  const old=s.pos,travel=Math.hypot(s.v.x,s.v.y,s.v.z)*dt;
+  if(travel<=.00001){s.life=0;continue;}
+  const dir={x:s.v.x*dt/travel,y:s.v.y*dt/travel,z:s.v.z*dt/travel};
+  const wall=rayWall(old,dir,travel),limit=wall?Math.min(travel,wall.t):travel;
+  const impact=mpCombatTarget(shooter,old,dir,limit);
+  if(impact){s.pos=mpCombatPoint(old,dir,impact.t);mpCombatBlast(shooter,s.pos,s.w,impact.actor);s.life=0;}
+  else if(wall){s.pos=mpCombatPoint(old,dir,wall.t);mpCombatBlast(shooter,s.pos,s.w);s.life=0;}
+  else{s.pos=mpCombatPoint(old,dir,travel);s.v.y-=(s.w.gravity||0)*dt;s.life-=dt;
+   if(s.life<=0)mpCombatBlast(shooter,s.pos,s.w);}
+ }
+ m.projectiles=m.projectiles.filter(s=>s.life>0);
+}
+function mpCombatRespawn(a){
+ const m=mpMatch,others=[...m.actors.values()].filter(x=>x!==a&&x.p.hp>0);
+ const center=a.spawn,candidates=[center];
+ for(let ring=2;ring<=8;ring+=2)for(let j=0;j<24;j++){
+  const angle=j*TAU/24;candidates.push({x:center.x+Math.sin(angle)*ring,z:center.z+Math.cos(angle)*ring});
+ }
+ let best=null,bestScore=-Infinity;
+ for(const q of candidates){
+  const y=supportHeight(a.p,q.x,q.z);
+  if(collide(q.x,q.z,.35)||worldSolidBodyCollision(q.x,q.z,.35,y,PLAYER_SOLID_HEIGHT))continue;
+  const distance=o=>Math.hypot(q.x-o.p.x,q.z-o.p.z);
+  const separation=Math.min(99,...others.map(distance));
+  if(separation<1.35)continue;
+  const enemies=m.settings.mode==='teams'?others.filter(o=>o.team!==a.team):others;
+  const allies=m.settings.mode==='teams'?others.filter(o=>o.team===a.team):[];
+  const enemyDistance=Math.min(99,...enemies.map(distance));
+  const allyDistance=Math.min(99,...allies.map(distance));
+  // Prefer distance from enemies, nearby cover, and (in teams) a rally point
+  // within support range of an ally without spawning on top of anyone.
+  let score=Math.min(30,enemyDistance);
+  if(allies.length)score+=Math.max(0,4-Math.abs(allyDistance-4))*.45;
+  if(enemies.length&&enemyDistance<15){
+   const from={x:q.x,y:y+1.2,z:q.z};
+   if(enemies.every(o=>!mpCombatVisible(from,{x:o.p.x,y:o.p.feetY+1.2,z:o.p.z})))score+=2;
+  }
+  if(score>bestScore){best=q;bestScore=score;}
+ }
+ if(!best){a.respawnAt=m.tick+15;return;}
+ const p=a.p;p.x=best.x;p.z=best.z;p.feetY=supportHeight(p,p.x,p.z);
+ p.vy=0;p.grounded=true;p.flying=false;p.shield=0;p.energy=100;
+ p.hp=100;p.armor=30;p.heat=0;p.heatLock=0;p.cooldown=.5;
+ if(a.id===m.self)refreshFlightButtons();
+ a.respawnAt=0;a.invulnUntil=m.tick+MP4_SPAWN_SHIELD_TICKS;
+ a.cmd.f=false;a.bursts.length=0;
+ mpCombatEmit('spawn',mpCombatOrigin(p),mpCombatOrigin(p),p.weapon,a.id);
+}
+function mpCombatStep(dt){
+ const m=mpMatch;if(!m?.host)return;
+ for(const a of m.actors.values()){
+  const p=a.p;
+  const command=a.liveCmd||a.cmd;
+  // A burst queued before link loss must not keep shooting offline.
+  if(typeof mp7InputTimeout==='function'&&!a.host&&
+   Date.now()-a.lastInputAt>mp7InputTimeout(a))a.bursts.length=0;
+  if(a.respawnAt){if(m.tick>=a.respawnAt)mpCombatRespawn(a);else continue;}
+  p.cooldown=Math.max(0,(p.cooldown||0)-dt);
+  p.heatLock=Math.max(0,(p.heatLock||0)-dt);
+  p.heat=Math.max(0,(p.heat||0)-dt*(p.heatLock>0?22:25));
+  // Reject client-provided equipment changes to equal-loadout matches.
+  mpCombatSelect(a,command.w);
+  for(const burst of a.bursts){burst.delay-=dt;if(burst.delay<=0){
+   mpCombatShot(a,burst.w);burst.done=true;
+  }}
+  a.bursts=a.bursts.filter(x=>!x.done);
+  if(!command.f||a.paused||p.cooldown>0||p.heatLock>0||p.hp<=0)continue;
+  const w=weapons[p.weapon];if(p.heat>=97){p.heatLock=.9;continue;}
+  p.cooldown=Math.max(.035,w.rate);p.heat=Math.min(105,p.heat+w.heat);
+  p.shotGlow=.14;p.shots=(p.shots||0)+1;
+  const pellets=Math.min(12,w.shots||1);
+  for(let i=0;i<pellets;i++)mpCombatShot(a,w);
+  if(w.burst)for(let i=1;i<w.burst;i++)a.bursts.push({w,delay:i*w.burstGap});
+ }
+ mpCombatProjectileStep(dt);
+ mpCombatApplyOrdnance(mpCombatOrdnance());
+}
+function mpCombatTapFire(){
+ if(!mpMatch?.active||mpMatch.paused||!game||arsenalOpened)return;
+ mpMatch.fireUntil=Date.now()+160;
+}
+// MP-5: host-owned round limits, final standings and reliable result handoff.
+// No personal save data or remote player claims are used for standings.
+const MP5_RESULT_REASONS=['score','time','forfeit'];
+
+function mpRoundInit(){
+ const m=mpMatch;if(!m?.active)return;
+ const now=Date.now(),settings=mpSettings(m.settings);
+ m.round={ended:false,settings,startedAt:now,endsAt:now+settings.timeLimitSec*1000,
+  remoteLeft:settings.timeLimitSec,remoteAt:now,result:null};
+}
+function mpRoundRemaining(){
+ const m=mpMatch,r=m?.round;if(!r)return 0;
+ if(r.ended)return 0;
+ if(m.host)return Math.max(0,(r.endsAt-Date.now())/1000);
+ return Math.max(0,Math.min(r.settings.timeLimitSec,
+  r.remoteLeft-(Date.now()-r.remoteAt)/1000));
+}
+function mpRoundClock(){
+ const seconds=Math.ceil(mpRoundRemaining());
+ return String(Math.floor(seconds/60)).padStart(2,'0')+':'+String(seconds%60).padStart(2,'0');
+}
+function mpRoundState(){
+ const r=mpMatch?.round;
+ if(!r)return null;
+ return {left:+mpRoundRemaining().toFixed(1),result:r.ended?r.result:null};
+}
+function mpRoundLeader(reason){
+ const m=mpMatch,players=[...m.actors.values()];
+ const scores=[0,0];for(const a of players)scores[a.team]+=a.kills||0;
+ let winnerId=-1,winnerTeam=-1;
+ if(reason==='forfeit'&&players.length===1){
+  if(m.settings.mode==='teams')winnerTeam=players[0].team;
+  else winnerId=players[0].id;
+ }else if(m.settings.mode==='teams'){
+  if(scores[0]!==scores[1])winnerTeam=scores[0]>scores[1]?0:1;
+ }else{
+  const ordered=[...players].sort((a,b)=>(b.kills||0)-(a.kills||0)||a.id-b.id);
+  if(ordered.length&&(!ordered[1]||ordered[0].kills>ordered[1].kills))winnerId=ordered[0].id;
+ }
+ return {winnerId,winnerTeam,scores};
+}
+function mpRoundFinish(reason){
+ const m=mpMatch,r=m?.round;if(!m?.active||!m.host||!r||r.ended||!MP5_RESULT_REASONS.includes(reason))return false;
+ const leaders=mpRoundLeader(reason),result={reason,mode:m.settings.mode,tick:m.tick,
+  winnerId:leaders.winnerId,winnerTeam:leaders.winnerTeam,scores:leaders.scores,
+  players:[...m.actors.values()].map(a=>({id:a.id,k:a.kills||0,d:a.deaths||0,team:a.team}))};
+ r.ended=true;r.result=result;m.paused=true;
+ input.fire=false;m.fireUntil=0;
+ m.projectiles.length=0;game.projectiles=[];
+ for(const a of m.actors.values()){a.cmd.f=false;a.bursts.length=0;}
+ for(const a of m.actors.values())if(!a.host){
+  const link=mpRtcLinks.get(a.peerId);
+  if(link)mpRtcSend(link,link.control,{v:MP_VERSION,kind:'mp3-result',token:m.token,result});
+ }
+ mpRoundShowResults();mpMatchStatus();
+ return true;
+}
+function mpRoundCheck(){
+ const m=mpMatch,r=m?.round;
+ if(!m?.active||!m.host||!r||r.ended)return;
+ const limit=r.settings.scoreLimit;
+ const leaders=mpRoundLeader('score');
+ const points=m.settings.mode==='teams'?Math.max(...leaders.scores):
+  Math.max(-1e7,...[...m.actors.values()].map(a=>a.kills||0));
+ if(points>=limit)mpRoundFinish('score');
+ else if(Date.now()>=r.endsAt)mpRoundFinish('time');
+}
+function mpRoundSafeResult(data){
+ const m=mpMatch;
+ if(!m?.active||!data||typeof data!=='object'||!MP5_RESULT_REASONS.includes(data.reason)||
+  data.mode!==m.settings.mode||!Number.isSafeInteger(data.tick)||data.tick<0||data.tick>1e9||
+  !Number.isInteger(data.winnerId)||!Number.isInteger(data.winnerTeam)||
+  (data.winnerId!==-1&&!m.roster.some(p=>p.id===data.winnerId))||
+  ![-1,0,1].includes(data.winnerTeam)||
+  (data.mode==='teams'&&data.winnerId!==-1)||
+  (data.mode==='ffa'&&data.winnerTeam!==-1)||
+  !Array.isArray(data.scores)||data.scores.length!==2||
+  !data.scores.every(x=>Number.isSafeInteger(x)&&Math.abs(x)<=1e7)||
+  !Array.isArray(data.players)||data.players.length<1||data.players.length>MP_CAP)return null;
+ const seen=new Set(),players=[];
+ for(const raw of data.players){
+  const member=m.roster.find(p=>p.id===raw?.id);
+  if(!member||seen.has(raw.id)||!Number.isSafeInteger(raw.k)||Math.abs(raw.k)>1e7||
+   !Number.isSafeInteger(raw.d)||raw.d<0||raw.d>1e7||raw.team!==member.team)return null;
+  seen.add(raw.id);players.push({id:raw.id,k:raw.k,d:raw.d,team:raw.team});
+ }
+ const scores=[0,0];for(const p of players)scores[p.team]+=p.k;
+ if(scores.some((x,i)=>x!==data.scores[i]))return null;
+ if(data.winnerId!==-1&&!seen.has(data.winnerId))return null;
+ if(data.winnerTeam!==-1&&!players.some(p=>p.team===data.winnerTeam))return null;
+ return {reason:data.reason,mode:data.mode,tick:data.tick,winnerId:data.winnerId,
+  winnerTeam:data.winnerTeam,scores,players};
+}
+function mpRoundAccept(data){
+ const m=mpMatch,r=m?.round;
+ if(!m?.active||m.host||!r||r.ended)return false;
+ const result=mpRoundSafeResult(data);if(!result)return false;
+ r.ended=true;r.result=result;m.paused=true;
+ input.fire=false;m.fireUntil=0;game.projectiles=[];
+ for(const row of result.players){const actor=m.actors.get(row.id);
+  if(actor){actor.kills=row.k;actor.deaths=row.d;actor.cmd.f=false;}}
+ mpRoundShowResults();mpMatchStatus();return true;
+}
+function mpRoundApplySnapshot(state){
+ const m=mpMatch,r=m?.round,payload=state?.round;
+ if(!m?.active||m.host||!r||!payload||typeof payload!=='object')return;
+ if(!Number.isFinite(payload.left)||payload.left<0||payload.left>r.settings.timeLimitSec+.5)return;
+ r.remoteLeft=payload.left;r.remoteAt=Date.now();
+ if(payload.result)mpRoundAccept(payload.result);
+}
+function mpRoundResync(peer){
+ const m=mpMatch,r=m?.round;if(!m?.active||!m.host||!r?.ended)return;
+ const link=mpRtcLinks.get(peer);
+ if(link)mpRtcSend(link,link.control,{v:MP_VERSION,kind:'mp3-result',token:m.token,result:r.result});
+}
+function mpRoundShowResults(){
+ const m=mpMatch,result=m?.round?.result;if(!m?.active||!result)return;
+ if(document.pointerLockElement)document.exitPointerLock();
+ pauseResumeGraceUntil=performance.now()+1100;
+ const reason=result.reason==='score'?'Достигнут победный счёт':
+  result.reason==='time'?'Время вышло':'Соперник покинул матч';
+ const winner=result.mode==='teams'?
+  (result.winnerTeam===0?'Победила голубая команда':result.winnerTeam===1?'Победила оранжевая команда':'Ничья'):
+  result.winnerId===-1?'Ничья':'Победитель: '+(m.roster.find(p=>p.id===result.winnerId)?.nick||'Оператор');
+ const ordered=[...result.players].sort((a,b)=>b.k-a.k||a.d-b.d||a.id-b.id);
+ const rows=ordered.map((p,i)=>{
+  const name=m.roster.find(r=>r.id===p.id)?.nick||'Игрок';
+  return `<li class="mpResultRow ${p.id===m.self?'mpResultSelf':''}"><span>${i+1}. ${mpEscape(name)}`+
+   `${result.mode==='teams'?(p.team===0?' 🔵':' 🟠'):''}</span><b>${p.k} / ${p.d}</b></li>`;
+ }).join('');
+ panel(`<div class="eyebrow">СЕТЕВАЯ ИГРА / MP-9 · РЕЗУЛЬТАТЫ</div>
+  <h2>${mpEscape(winner)}</h2><p class="lede">${mpEscape(reason)} · ${mpEscape(mpMap(m.settings.mapId)?.name||'Карта')}</p>
+  <p class="smalltext">Очки / смерти · ${m.settings.scoreLimit} очков для победы · ${m.settings.timeLimitSec/60} мин. максимум</p>
+  ${result.mode==='teams'?`<div class="mpResultTeams">🔵 ${result.scores[0]} : ${result.scores[1]} 🟠</div>`:''}
+  <ol class="mpResultList">${rows}</ol>
+  <div class="row">${m.host?'<button class="primary" id="mpReturnLobby">↻ В ЛОББИ / СЛЕДУЮЩИЙ МАТЧ</button>':
+   '<span class="mpRule">Ожидаем ведущего, чтобы вернуться в лобби.</span>'}
+   <button class="secondary" id="mpResultExit">← ВЫЙТИ ИЗ КОМНАТЫ</button></div>`);
+ if(m.host)$('mpReturnLobby').onclick=mpMatchStop;
+ $('mpResultExit').onclick=mpLeave;
+}
+// MP-6: symmetrical baseline flight and four energy-based PvP abilities.
+// The host accepts intent counters, never remote coordinates/damage/energy.
+// Guest prediction covers ordinary motion; authoritative snapshots repair it.
+const MP6_FLIGHT_HORIZONTAL=4.0,MP6_FLIGHT_VERTICAL=4.4;
+const MP6_EVENTS=['ft','ad','aq','ac','ah'];
+const MP6_SKILLS={dash:{key:'ad',cost:30,cooldown:1.15},
+ pulse:{key:'aq',cost:52,cooldown:2.2},
+ shield:{key:'ac',cost:50,cooldown:8.5},
+ heal:{key:'ah',cost:45,cooldown:1.6}};
+
+function mp6Init(){
+ const m=mpMatch;if(!m?.active)return;
+ m.special={ft:0,ad:0,aq:0,ac:0,ah:0};
+ for(const a of m.actors.values()){
+  a.lastSpecial={ft:0,ad:0,aq:0,ac:0,ah:0};
+  a.p.flightUnlocked=true;a.p.flying=false;a.p.shield=0;
+  a.p.abilityCooldowns={dash:0,pulse:0,shield:0,heal:0};
+ }
+}
+function mp6Request(type){
+ const m=mpMatch;
+ if(!m?.active||!m.special||m.round?.ended||m.paused||document.hidden||arsenalOpened||
+  m.actors.get(m.self)?.p.hp<=0||
+  (typeof mp8GuestFrozen==='function'&&mp8GuestFrozen()))return false;
+ const key=type==='flight'?'ft':MP6_SKILLS[type]?.key;
+ if(!key||m.special[key]>=1e9)return false;
+ m.special[key]++;
+ // Give guests immediate flight feedback. The host may still refuse a
+ // spoofed/stale command; snapshots always establish the real flight state.
+ if(type==='flight'&&!m.host){
+  const p=game.p;p.flying=!p.flying;p.vy=0;
+  if(p.flying){p.grounded=false;input.jumpQueued=false;}
+  refreshFlightButtons();
+ }
+ return true;
+}
+function mp6Input(enabled){
+ const m=mpMatch,p=game?.p,keys=input.keys||{};
+ return {...(m?.special||{ft:0,ad:0,aq:0,ac:0,ah:0}),
+  u:!!(enabled&&p?.flying&&(input.flyUp||input.jumpHeld||keys.Space)),
+  dn:!!(enabled&&p?.flying&&(input.flyDown||keys.ShiftLeft||keys.ShiftRight||
+   keys.ControlLeft||keys.ControlRight))};
+}
+function mp6SafeInput(data){
+ const result={};
+ for(const key of MP6_EVENTS){
+  const value=data[key]===undefined?0:data[key];
+  if(!Number.isSafeInteger(value)||value<0||value>1e9)return null;
+  result[key]=value;
+ }
+ for(const key of ['u','dn']){
+  if(data[key]!==undefined&&typeof data[key]!=='boolean')return null;
+  result[key]=data[key]===true;
+ }
+ return result;
+}
+function mp6ActorState(p){
+ const cds=p.abilityCooldowns||{};
+ return {fl:p.flying?1:0,sh:+(p.shield||0).toFixed(2),
+  cd:['dash','pulse','shield','heal'].map(k=>+(cds[k]||0).toFixed(2))};
+}
+function mp6SafeState(p){
+ return [0,1].includes(p.fl)&&Number.isFinite(p.sh)&&p.sh>=0&&p.sh<=3.01&&
+  Array.isArray(p.cd)&&p.cd.length===4&&p.cd.every(n=>Number.isFinite(n)&&n>=0&&n<=8.51);
+}
+function mp6ApplyActorState(p,next,local){
+ const changed=!!p.flying!==!!next.fl;
+ p.flying=!!next.fl;p.shield=next.sh;
+ const cds=p.abilityCooldowns||(p.abilityCooldowns={});
+ for(const [i,name] of ['dash','pulse','shield','heal'].entries())cds[name]=next.cd[i];
+ if(local&&changed)refreshFlightButtons();
+}
+function mp6FlyVertical(p,cmd,dt,floor,deck){
+ const before=p.feetY,maxFeet=Math.max(floor,ceilingHeight()-PLAYER_SOLID_HEIGHT-.2);
+ const direction=Number(!!cmd.u)-Number(!!cmd.dn);
+ let after=clamp(before+direction*MP6_FLIGHT_VERTICAL*dt,floor,maxFeet);
+ if(after>before){
+  const low=deck-.17-PLAYER_SOLID_HEIGHT;
+  if(deck>0&&before+PLAYER_SOLID_HEIGHT<=deck-.17+.001&&after>low)
+   after=Math.min(after,low-.004);
+  if(glReady){const roof=worldSolidHeadBarrier(p.x,p.z,.23,before+PLAYER_SOLID_HEIGHT,after+PLAYER_SOLID_HEIGHT);
+   if(roof!==null)after=Math.min(after,roof-PLAYER_SOLID_HEIGHT-.004);}
+ }else if(after<before&&glReady){
+  const landing=worldSolidFeetBarrier(p.x,p.z,.23,before,after);
+  if(landing!==null)after=Math.max(after,landing+.004);
+ }
+ p.feetY=clamp(after,floor,maxFeet);p.vy=0;p.grounded=p.feetY<=floor+.003;
+}
+function mp6Dash(a,cmd){
+ const p=a.p,angle=p.yaw-(Math.hypot(cmd.mx,cmd.mz)>.12?Math.atan2(cmd.mx,cmd.mz):0);
+ const others=[...mpMatch.actors.values()].filter(b=>b!==a&&b.p.hp>0).map(b=>b.p);
+ const step=.15,range=4.5;
+ const start={x:p.x,y:p.feetY+1,z:p.z};
+ for(let d=0;d<range-1e-6;d+=step){
+  const length=Math.min(step,range-d),x=p.x+Math.sin(angle)*length,z=p.z+Math.cos(angle)*length;
+  const floor=supportHeight(p,x,z);
+  if(collide(x,z,.26)||floor>p.feetY+.245||
+   worldSolidBodyCollision(x,z,.26,Math.max(p.feetY,floor),PLAYER_SOLID_HEIGHT)||
+   others.some(o=>Math.abs(o.feetY-p.feetY)<1.65&&hypot(o.x-x,o.z-z)<.69))break;
+  p.x=x;p.z=z;
+  if(p.grounded&&Math.abs(floor-p.feetY)<.245)p.feetY=floor;
+ }
+ mpCombatEmit('dash',start,{x:p.x,y:p.feetY+1,z:p.z},p.weapon,a.id);
+}
+function mp6Pulse(a){
+ const p=a.p,o={x:p.x,y:p.feetY+1.03,z:p.z},radius=5.8;
+ for(const target of mpMatch.actors.values()){
+  if(target===a||target.p.hp<=0||target.respawnAt>mpMatch.tick)continue;
+  const q=target.p,to={x:q.x,y:q.feetY+1.02,z:q.z};
+  const distance=Math.hypot(o.x-to.x,o.y-to.y,o.z-to.z);
+  if(distance>radius+.30||!mpCombatVisible(o,to))continue;
+  mpCombatHit(a,target,32*(.28+.72*Math.max(0,1-distance/(radius+.3))));
+ }
+ mpCombatEmit('pulse',o,o,p.weapon,a.id);
+}
+function mp6Skill(a,name){
+ const p=a.p,rule=MP6_SKILLS[name];if(!rule||p.hp<=0||a.respawnAt>mpMatch.tick)return false;
+ const cds=p.abilityCooldowns;
+ if(cds[name]>.001||p.energy+1e-6<rule.cost)return false;
+ if(name==='heal'&&p.hp>=100&&p.armor>=30)return false;
+ if(name==='shield'&&p.shield>.001)return false;
+ p.energy=Math.max(0,p.energy-rule.cost);cds[name]=rule.cooldown;
+ if(name==='dash')mp6Dash(a,a.cmd);
+ else if(name==='pulse')mp6Pulse(a);
+ else if(name==='shield'){
+  p.shield=3;const o={x:p.x,y:p.feetY+1,z:p.z};mpCombatEmit('shield',o,o,p.weapon,a.id);
+ }else if(name==='heal'){
+  if(p.hp<100)p.hp=Math.min(100,p.hp+38);
+  else p.armor=Math.min(30,p.armor+22);
+  const o={x:p.x,y:p.feetY+1,z:p.z};mpCombatEmit('heal',o,o,p.weapon,a.id);
+ }
+ return true;
+}
+function mp6Step(a,cmd,dt){
+ const p=a.p,seen=a.lastSpecial;if(!seen)return;
+ if(cmd.ft>seen.ft){
+  const toggled=(cmd.ft-seen.ft)%2===1;
+  seen.ft=cmd.ft;
+  if(toggled&&p.hp>0&&!(a.respawnAt>mpMatch.tick)){
+   p.flying=!p.flying;p.vy=0;
+   if(p.flying)p.grounded=false;
+   if(a.id===mpMatch.self)refreshFlightButtons();
+  }
+ }
+ for(const name of ['dash','pulse','shield','heal']){
+  const key=MP6_SKILLS[name].key;
+  if(cmd[key]>seen[key]){seen[key]=cmd[key];mp6Skill(a,name);}
+ }
+ p.shield=Math.max(0,p.shield-dt);
+ for(const name of Object.keys(MP6_SKILLS))p.abilityCooldowns[name]=Math.max(0,p.abilityCooldowns[name]-dt);
+}
+function mp6GuestStep(p,dt){
+ p.shield=Math.max(0,(p.shield||0)-dt);
+ for(const name of Object.keys(MP6_SKILLS))
+  p.abilityCooldowns[name]=Math.max(0,(p.abilityCooldowns[name]||0)-dt);
+}
+// MP-7: tolerate jitter, packet loss and reconnection without trusting peers.
+// Only rendering may extrapolate, for at most 130ms and with collision checks.
+const MP7_FAST_PENDING=8192,MP7_GAP_RESET_MS=650;
+const MP7_INTERP_MS=105,MP7_MAX_EXTRAP_MS=130;
+
+function mp7Init(){
+ const m=mpMatch;if(!m?.active)return;
+ m.fastDrops=0;
+ for(const a of m.actors.values()){a.jitter=0;a.samples=[];}
+}
+function mp7BufferAllowed(link){
+ if(!link?.fast||link.fast.readyState!=='open')return false;
+ const buffer=Number(link.fast.bufferedAmount);
+ if(!Number.isFinite(buffer)||buffer<0||buffer>MP7_FAST_PENDING){
+  if(mpMatch?.active)mpMatch.fastDrops++;
+  return false;
+ }
+ return true;
+}
+function mp7InputTimeout(a){
+ const rtt=Number(mpRtcLinks.get(a.peerId)?.rtt);
+ return Math.max(350,Math.min(750,300+(Number.isFinite(rtt)&&rtt>=0?rtt*.85:0)));
+}
+function mp7LateCommand(a,cmd,now=Date.now()){
+ // First input of a new match is not considered a reconnect. On a long gap,
+ // a queued input may describe a button pressed seconds ago. Rebase action
+ // counters and accept only a neutral first packet; fresh input resumes next.
+ if(a.seq<0||now-a.lastInputAt<=MP7_GAP_RESET_MS)return cmd;
+ if(a.lastSpecial)for(const key of ['ft','ad','aq','ac','ah'])
+  a.lastSpecial[key]=Math.max(a.lastSpecial[key]||0,cmd[key]||0);
+ return {...cmd,mx:0,mz:0,j:false,s:false,f:false,u:false,dn:false};
+}
+function mp7SafeStale(a,cmd,now=Date.now()){
+ if(a.host||now-a.lastInputAt<=mp7InputTimeout(a))return cmd;
+ // Clear vertical controls too: without this, a disconnected flyer ascends
+ // indefinitely even after the host has frozen horizontal movement.
+ return {...cmd,mx:0,mz:0,j:false,s:false,f:false,u:false,dn:false};
+}
+function mp7ReceiveSample(a,next,tick){
+ const now=performance.now(),samples=a.samples;
+ const prev=samples[samples.length-1];
+ if(prev&&tick>prev.tick){
+  const expected=(tick-prev.tick)*(1000/30),observed=Math.max(0,now-prev.at);
+  const delta=Math.min(200,Math.abs(observed-expected));
+  a.jitter=clamp((a.jitter||0)*.82+delta*.18,0,200);
+ }
+ samples.push({at:now,tick,...next});
+ if(samples.length>6)samples.splice(0,samples.length-6);
+}
+function mp7PositionAllowed(x,z,h){
+ if(!Number.isFinite(x)||!Number.isFinite(z)||!Number.isFinite(h)||
+  x<.3||z<.3||x>=mapSize-.3||z>=mapSize-.3||h<-.01||
+  h>ceilingHeight()-PLAYER_SOLID_HEIGHT+.03||collide(x,z,.24))return false;
+ const floor=supportHeight({feetY:h,grounded:false},x,z);
+ return floor<=h+.25&&!worldSolidBodyCollision(x,z,.24,Math.max(h,floor),PLAYER_SOLID_HEIGHT);
+}
+function mp7RenderRemote(a,dt){
+ const samples=a.samples;if(!samples.length)return;
+ const now=performance.now(),delay=clamp(MP7_INTERP_MS+(a.jitter||0)*.9,MP7_INTERP_MS,195);
+ const time=now-delay,last=samples[samples.length-1];
+ while(samples.length>3&&samples[1].at<time)samples.shift();
+ let prev=samples[0],next=samples[0];
+ for(let i=1;i<samples.length;i++){
+  if(samples[i].at>=time){next=samples[i];break;}
+  prev=samples[i];next=samples[i];
+ }
+ let x=next.x,z=next.z,h=next.h,yaw=next.yaw,pitch=next.pitch;
+ const delta=prev===next?0:Math.max(0,Math.min(1,(time-prev.at)/Math.max(1,next.at-prev.at)));
+ const span=Math.hypot(next.x-prev.x,next.z-prev.z);
+ const teleport=span>1.45;
+ if(prev!==next&&!teleport){
+  x=prev.x+(next.x-prev.x)*delta;z=prev.z+(next.z-prev.z)*delta;
+  h=prev.h+(next.h-prev.h)*delta;
+  yaw=prev.yaw+Math.atan2(Math.sin(next.yaw-prev.yaw),Math.cos(next.yaw-prev.yaw))*delta;
+  pitch=prev.pitch+(next.pitch-prev.pitch)*delta;
+ }
+ if(time>last.at&&samples.length>=2){
+  const older=samples[samples.length-2],gap=(last.tick-older.tick)/30;
+  const distance=Math.hypot(last.x-older.x,last.z-older.z);
+  if(gap>=.02&&gap<=.35&&distance<=1.45){
+   const seconds=Math.min(MP7_MAX_EXTRAP_MS/1000,(time-last.at)/1000);
+   const dx=(last.x-older.x)/gap*seconds,dz=(last.z-older.z)/gap*seconds;
+   const dy=(last.h-older.h)/gap*seconds;
+   const ratio=Math.min(1,.57/Math.max(1e-9,Math.hypot(dx,dz)),.58/Math.max(1e-9,Math.abs(dy)));
+   const X=last.x+dx*ratio,Z=last.z+dz*ratio,H=last.h+dy*ratio;
+   // The extrapolated actor is only a drawing prediction, never a hit target.
+   // Do not extrapolate through a barrier or raised platform.
+   if(mp7PositionAllowed(X,Z,H)&&mp7PositionAllowed((X+last.x)/2,(Z+last.z)/2,(H+last.h)/2)){
+    x=X;z=Z;h=H;
+   }
+  }
+ }
+ if(!mp7PositionAllowed(x,z,h)){x=last.x;z=last.z;h=last.h;}
+ const p=a.p,displacement=Math.hypot(x-p.x,z-p.z),heightError=Math.abs(h-p.feetY);
+ const alpha=displacement>2||heightError>1.8||teleport?1:
+  1-Math.exp(-Math.min(.09,Math.max(0,dt))*28);
+ p.x+=(x-p.x)*alpha;p.z+=(z-p.z)*alpha;p.feetY+=(h-p.feetY)*alpha;
+ p.yaw+=Math.atan2(Math.sin(yaw-p.yaw),Math.cos(yaw-p.yaw))*alpha;
+ p.pitch+=(pitch-p.pitch)*alpha;
+ p.walk=last.w;p.grounded=!!last.g;
+ if(typeof mp6ApplyActorState==='function')mp6ApplyActorState(p,last,false);
+}
+function mp7ReconcileSelf(p,next){
+ const dx=next.x-p.x,dz=next.z-p.z,dy=next.h-p.feetY;
+ const distance=Math.hypot(dx,dz),height=Math.abs(dy);
+ const hard=distance>3||height>1.65;
+ const alpha=clamp(.2+distance*.12,.2,.58);
+ const x=hard?next.x:p.x+dx*alpha,z=hard?next.z:p.z+dz*alpha;
+ const h=hard?next.h:p.feetY+dy*.33;
+ if(hard||mp7PositionAllowed(x,z,h)){
+  p.x=x;p.z=z;p.feetY=h;
+ }else{
+  p.x=next.x;p.z=next.z;p.feetY=next.h;
+ }
+ if(hard||height>.25||!!p.grounded!==!!next.g){
+  p.vy=next.vy;p.grounded=!!next.g;
+ }
+ p.energy+=(next.e-p.energy)*.3;
+}
+// MP-8: bounded guest prediction and graceful recovery from missing host state.
+// Never synthesize a hit, position, ability or round outcome on the guest.
+const MP8_WARN_MS=600,MP8_FREEZE_MS=1050,MP8_AUTO_RETRY_MS=4800;
+
+function mp8Init(){
+ const m=mpMatch;if(!m?.active)return;
+ m.recoveryAttempts=0;m.recoveryNextAt=0;m.recoveredAfterSilence=false;
+ if(m.host)return;
+ const btn=document.createElement('button');btn.id='mpReconnectNow';btn.type='button';
+ btn.textContent='⟳ ВОССТАНОВИТЬ СВЯЗЬ';btn.hidden=true;
+ btn.setAttribute('aria-label','Переподключить сетевую игру к ведущему');
+ btn.onclick=()=>mpRtcManualRetry();document.body.appendChild(btn);
+}
+function mp8GuestState(now=Date.now()){
+ const m=mpMatch;
+ if(!m?.active||m.host||m.round?.ended)return 'ok';
+ const age=now-m.lastFromHost;
+ if(age>=MP8_FREEZE_MS)return 'frozen';
+ if(age>=MP8_WARN_MS)return 'lag';
+ return 'ok';
+}
+function mp8GuestFrozen(){return mp8GuestState()==='frozen';}
+function mp8NeutralInput(command){
+ // Keep the authentic counter values but never apply or transmit a held
+ // movement/firing/flight control during a prolonged snapshot blackout.
+ return {...command,mx:0,mz:0,j:false,s:false,f:false,u:false,dn:false};
+}
+function mp8OnSnapshot(m,now=Date.now()){
+ if(m.host)return;
+ const gap=now-m.lastFromHost;
+ if(gap>=MP8_FREEZE_MS&&!m.round?.ended){
+  m.recoveredAfterSilence=true;
+  for(const a of m.actors.values())if(a.id!==m.self){a.samples=[];a.jitter=0;}
+ }
+}
+function mp8ReconcileRecovered(m,p,next){
+ if(!m.recoveredAfterSilence)return false;
+ // The local predicted position is not reliable after an outage; use the
+ // authenticated host snapshot exactly once before resuming soft correction.
+ p.x=next.x;p.z=next.z;p.feetY=next.h;p.vy=next.vy;
+ p.grounded=!!next.g;p.energy=next.e;
+ m.recoveredAfterSilence=false;return true;
+}
+function mp8Update(m,now=Date.now()){
+ if(!m?.active||m.host||m.round?.ended||document.hidden)return;
+ if(now-m.lastFromHost<MP8_AUTO_RETRY_MS||m.recoveryAttempts>=1||!mpRoom||
+  !mpSignalingOnline()||now<(m.recoveryNextAt||0))return;
+ // A failed/undelivered retry is not a successful network attempt. Allow
+ // another one only after a backoff, to avoid rapid metered signalling spam.
+ if(mpRtcManualRetry(()=>{
+  if(mpMatch!==m)return;
+  m.recoveryAttempts=Math.max(0,m.recoveryAttempts-1);
+  m.recoveryNextAt=Date.now()+8000;
+ }))m.recoveryAttempts++;
+}
+function mp8UpdateHud(m){
+ if(!m?.active||m.host)return '';
+ const state=mp8GuestState(),btn=$('mpReconnectNow');
+ if(btn)btn.hidden=state!=='frozen';
+ if(state==='frozen')return '⚠ НЕТ СНИМКОВ · УПРАВЛЕНИЕ ПРИОСТАНОВЛЕНО';
+ if(state==='lag')return '⚠ ЗАДЕРЖКА СЕТИ';
+ return '';
+}
+function mp8HostWarning(m){
+ if(!m?.active||!m.host||m.round?.ended)return '';
+ const now=Date.now();
+ const count=[...m.actors.values()].filter(a=>!a.host&&a.seq>=0&&
+  now-a.lastInputAt>1200).length;
+ return count?'⚠ НЕТ ВВОДА: '+count:'';
+}
 
 
 
@@ -6849,6 +8682,15 @@ function unpauseGame(){
 function menu(){closeArsenal();game=null;input.fire=false;if(document.pointerLockElement)document.exitPointerLock();const cp=save.checkpoint;panel(`<div class="eyebrow">▣ ROBOT FOUNDRY VI · РАЗРУШАЕМАЯ БРОНЯ</div><div class="logo">NEON <em>RIFT</em><small>ECLIPSE PROTOCOL</small></div>${devMode?'<div class="devFlag">🛠 DEV · ТЕСТОВЫЙ ПРОГРЕСС · ∞ КРЕДИТЫ</div>':''}<div class="scenehint">FOUNDRY VI · БРОНЕПЛАСТИНЫ · ОСКОЛКИ · 18 КАРТ · 7 МИССИЙ</div><div class="lede">Портал разлома разрушает миры. Пройди <b>100 уровней в пяти главах</b>, переживи волны машин, уничтожь владык разлома и усили свой боевой костюм. Каждый пятый сектор — особый босс.</div><div class="quickstats"><div><b>${save.campaign.completedThrough}</b><span>ПРОЙДЕНО УРОВНЕЙ</span></div><div><b>${developerCredits()}</b><span>КРЕДИТЫ</span></div><div><b>${save.kills}</b><span>ВСЕГО ПОБЕД</span></div></div><div class="row"><button id="campaignMap" class="primary">◈ КАРТА УРОВНЕЙ</button>${cp?`<button id="resume" class="secondary">↪ ПРОДОЛЖИТЬ · ${cp.sector}</button>`:''}<button id="newRun" class="secondary">▶ НОВЫЙ ЗАБЕГ · УРОВЕНЬ ${save.campaign.highestUnlocked}</button><button id="hangar" class="secondary">⚙ АНГАР / УСИЛЕНИЯ</button><button id="devToggle" class="secondary">${devMode?'⚙ ВЫЙТИ ИЗ DEV':'⌘ РЕЖИМ РАЗРАБОТЧИКА'}</button>${devMode?'<button id="devSettings" class="secondary">⚿ ПАРОЛЬ / СБРОС DEV</button>':''}</div>
 ${fpsSettingsHTML('menuFpsLimit')}
 <div class="backupActions"><button class="secondary" data-export-save>⬇ ЭКСПОРТ ПРОГРЕССА</button><button class="secondary" data-import-save>⬆ ИМПОРТ ПРОГРЕССА</button></div><div class="smalltext">${storageAvailable?'✓ Автосохранение: каждые 2,6 секунды, при паузе и закрытии страницы.':'⚠ Браузер запрещает запись. Экспортируй копию.'} Для переноса сохранения между файлами HTML и браузерами используй экспорт/импорт.</div><div class="line"></div><div class="smalltext"><b class="accent">ПК:</b> WASD — движение, пробел — прыжок, V/двойной пробел — полёт (если есть лётный костюм), удерживать Space/Shift — набор/снижение высоты; мышь — осмотр, ЛКМ — стрельба, 1–9/0 — оружие. <b>E — фазовый рывок без перезарядки</b>, ↑/↓ — его дальность; <b>F — восстановление по очереди: корпус → бронекостюм → энергобарьер (без ожидания, пока хватает энергии).</b> <b>Q — ЭМИ-импульс без перезарядки</b> (52 энергии); <b>C — временная защитная сфера</b> (50 энергии, перезарядка 5 секунд после окончания действия, но без заряда энергобарьера). Радиус и урон Q улучшаются в ангаре сложными процентами. F5 — камера, G — полный экран, M — масштаб карты, Esc — пауза (в ангаре — в меню). При полёте [ / ] меняют горизонтальную, , / . — вертикальную скорость; также есть ползунки прямо на игровом экране.<br><b class="accent">Телефон:</b> левый джойстик — движение, касание поля — выстрел, свайп — обзор; значки ➤ (рывок), ✚ (восстановление), ◈ (защитная сфера), ✺ (импульс), ⤒ (прыжок). Для лётных костюмов появляются ✈ / ↑ / ↓. Скорости полёта, дальность рывка и режим камеры настраиваются в паузе. <b>«Арсенал»</b> открывает список оружия; мини-карта меняет масштаб по касанию.</div><div class="note">Десять видов оружия, разные классы роботов, разрушаемые энергоядра, элитные противники и следы на стенах. Третья степень графики наиболее требовательна. В меню и на паузе отрисовка 3D отключается для экономии GPU. Игра работает без Интернета, внешних библиотек, регистрации и оплаты. Автосохранение текущего боя и экспорт резервной копии в JSON. ${glReady?'Аппаратный WebGL-движок активен.':'Работает программный 3D-режим, если WebGL недоступен.'}</div>`);$('campaignMap').onclick=()=>showCampaignMap();$('newRun').onclick=()=>startGame(false,save.campaign.highestUnlocked);if(cp)$('resume').onclick=()=>startGame(true);$('hangar').onclick=hangar;$('devToggle').onclick=()=>devMode?developerLeave():showDeveloperPanel();if(devMode)$('devSettings').onclick=showDeveloperPanel;wireBackupButtons();wireFpsSettings()}
+// Keep Stage32's complete single-player menu intact; add only the MP entry.
+const originalSinglePlayerMenu=menu;
+menu=function(){
+ mpShutdown();originalSinglePlayerMenu();
+ const hangarButton=$('hangar');if(!hangarButton)return;
+ const button=document.createElement('button');button.type='button';button.id='multiplayerMenu';
+ button.className='secondary';button.textContent='◉ СЕТЕВАЯ ИГРА · ЛОББИ';button.onclick=()=>mpHome();
+ hangarButton.parentElement.insertBefore(button,hangarButton);
+};
 const hangarData=[
  {name:'ПРОЧНОСТЬ КОРПУСА',desc:'Максимальная прочность +8% за уровень.'},
  {name:'УРОН ВСЕГО ОРУЖИЯ',desc:'Урон любого оружия +4% за уровень.'},
@@ -7027,6 +8869,7 @@ function flightPauseSettingsHTML(){
 }
 function pause(){
  if(!game||game.state!=='playing')return;
+ if(typeof mpMatch!=='undefined'&&mpMatch?.active){mpMatchPause();return;}
  closeArsenal();game.state='paused';saveRun();input.fire=false;
  if(document.pointerLockElement)document.exitPointerLock();
  panel(`<div class="eyebrow">ПРИОСТАНОВЛЕНО</div><h1>ПАУЗА <span class="accent">Ⅱ</span></h1><p class="lede">Сектор ${game.sector}. Уничтожено ${game.kills} противников. Очки: ${game.score.toLocaleString('ru')}.</p><div class="row"><button class="primary" id="unpause">▶ ПРОДОЛЖИТЬ</button><button id="toMenu" class="secondary">⌂ В МЕНЮ</button><button id="pauseCampaign" class="secondary">◈ КАРТА УРОВНЕЙ</button></div><div class="backupActions"><button class="secondary" data-export-save>⬇ РЕЗЕРВНАЯ КОПИЯ</button><button class="secondary" data-import-save>⬆ ИМПОРТ</button></div><div class="note">${storageAvailable?'✓ Прогресс сохранён на этом устройстве':'⚠ Хранилище браузера недоступно — экспортируй сохранение!'}. При переходе в другой браузер или открытии HTML по другому пути используй экспорт/импорт.</div>${fpsSettingsHTML('pauseFpsLimit')}${dashDistanceSettingsHTML()}${flightPauseSettingsHTML()}<div class="line"></div><div class="row"><button class="secondary" id="cameraToggle">◫ КАМЕРА: ${cameraModeLabel()} (F5)</button><button class="secondary" id="mute">${save.settings.audio?'🔊 ЗВУК ВКЛ':'🔈 ЗВУК ВЫКЛ'}</button><button class="secondary" id="aim">${save.settings.aim?'⊕ АВТОНАВЕДЕНИЕ ВКЛ':'⊙ АВТОНАВЕДЕНИЕ ВЫКЛ'}</button><button class="secondary" id="quality">${['◈ ГРАФИКА: ЭКОНОМНАЯ','✧ ГРАФИКА: ВЫСОКАЯ','✦ ГРАФИКА: КИНО'][clamp(save.settings.quality|0,0,2)]}</button></div>`);
@@ -7352,7 +9195,7 @@ function keydown(e){
  if(input.joyId!==null){try{$('joystick').releasePointerCapture(input.joyId)}catch(_){}}
  input.joyId=null;
  const stick=$('stick');if(stick)stick.style.transform='translate(0,0)';
- if(game?.state==='playing')pause();
+ if(game?.state==='playing'&&!(typeof mpMatch!=='undefined'&&mpMatch?.paused))pause();
 }
 addEventListener('blur',resetTransientInput);
 document.addEventListener('visibilitychange',()=>{if(document.hidden)resetTransientInput()});
@@ -7482,7 +9325,10 @@ function frame(now){
  }
  // Update movement, collisions, enemy AI, and gun cooldowns every browser tick.
  // Rendering is capped independently, so lowering FPS does not slow gameplay.
- if(state==='playing')update(dt);
+ if(state==='playing'){
+  if(typeof mpMatch!=='undefined'&&mpMatch?.active)mpMatchUpdate(dt);
+  else update(dt);
+ }
  // No WebGL draw calls outside actual combat. Menus, pause, victory and the
  // campaign map keep the last frozen frame; the GPU is never fed a new one.
  const willDraw=state==='playing'&&shouldRenderFpsFrame(elapsedMs,cap);

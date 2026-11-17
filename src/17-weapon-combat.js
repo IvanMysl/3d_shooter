@@ -190,6 +190,10 @@ function fireBurstShot(w){
 }
 let ammoShots=0;
 function shoot(){
+ if(typeof mpMatch!=='undefined'&&mpMatch?.active){
+  if(typeof mpCombatTapFire==='function')mpCombatTapFire();
+  return;
+ }
  const g=game;if(!g||g.state!=='playing')return;
  const p=g.p,w=combatWeapon(p.weapon);
  if(!w||p.cooldown>0||p.heatLock>0)return;

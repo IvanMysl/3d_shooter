@@ -17,8 +17,8 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 INCLUDE_ROOT = (
-    'index.html', 'dev.html', 'README_RU.md', 'ARCHITECTURE_RU.md',
-    'SOURCE_NAVIGATION_RU.md', 'FINAL_TEST_GUIDE_RU.md', 'GITHUB_PAGES_UPDATE_RU.md', 'BALANCE_LEVEL_BY_LEVEL_RU.md', 'WEAPON_VALUE_AUDIT_RU.md', 'QUALITY_STAGE3_RU.md', 'QUALITY_STAGE4_RU.md', 'QUALITY_STAGE5_RU.md', 'QUALITY_STAGE6_RU.md', 'QUALITY_STAGE7_RU.md', 'QUALITY_STAGE8_RU.md', 'QUALITY_STAGE9_RU.md', 'QUALITY_STAGE10_RU.md', 'QUALITY_STAGE11_RU.md', 'QUALITY_STAGE12_RU.md', 'QUALITY_STAGE13_RU.md', 'QUALITY_STAGE14_RU.md', 'QUALITY_STAGE15_RU.md', 'QUALITY_STAGE16_RU.md', 'QUALITY_STAGE17_RU.md', 'QUALITY_STAGE18_RU.md', 'QUALITY_STAGE19_RU.md', 'QUALITY_STAGE20_RU.md', 'QUALITY_STAGE21_RU.md', 'QUALITY_STAGE22_RU.md', 'QUALITY_STAGE23_RU.md', 'QUALITY_STAGE24_RU.md', 'QUALITY_STAGE25_RU.md', 'QUALITY_STAGE26_RU.md', 'QUALITY_STAGE27_RU.md', 'QUALITY_STAGE28_RU.md', 'QUALITY_STAGE29_RU.md', 'QUALITY_STAGE30_RU.md', 'QUALITY_STAGE31_RU.md', 'QUALITY_STAGE32_RU.md', 'ROADMAP_EXPANSION_RU.md', 'REBUILD.bat', 'PACKAGE.bat',
+    'index.html', 'dev.html', 'README_RU.md', 'ARCHITECTURE_RU.md', 'QUALITY_STAGE36_MP4_RU.md', 'QUALITY_STAGE37_MP5_RU.md', 'QUALITY_STAGE38_MP6_RU.md', 'QUALITY_STAGE39_MP7_RU.md', 'QUALITY_STAGE40_MP8_RU.md', 'QUALITY_STAGE41_MP9_RU.md', 'QUALITY_STAGE42_METERED_RU.md',
+    'SOURCE_NAVIGATION_RU.md', 'FINAL_TEST_GUIDE_RU.md', 'GITHUB_PAGES_UPDATE_RU.md', 'BALANCE_LEVEL_BY_LEVEL_RU.md', 'WEAPON_VALUE_AUDIT_RU.md', 'QUALITY_STAGE3_RU.md', 'QUALITY_STAGE4_RU.md', 'QUALITY_STAGE5_RU.md', 'QUALITY_STAGE6_RU.md', 'QUALITY_STAGE7_RU.md', 'QUALITY_STAGE8_RU.md', 'QUALITY_STAGE9_RU.md', 'QUALITY_STAGE10_RU.md', 'QUALITY_STAGE11_RU.md', 'QUALITY_STAGE12_RU.md', 'QUALITY_STAGE13_RU.md', 'QUALITY_STAGE14_RU.md', 'QUALITY_STAGE15_RU.md', 'QUALITY_STAGE16_RU.md', 'QUALITY_STAGE17_RU.md', 'QUALITY_STAGE18_RU.md', 'QUALITY_STAGE19_RU.md', 'QUALITY_STAGE20_RU.md', 'QUALITY_STAGE21_RU.md', 'QUALITY_STAGE22_RU.md', 'QUALITY_STAGE23_RU.md', 'QUALITY_STAGE24_RU.md', 'QUALITY_STAGE25_RU.md', 'QUALITY_STAGE26_RU.md', 'QUALITY_STAGE27_RU.md', 'QUALITY_STAGE28_RU.md', 'QUALITY_STAGE29_RU.md', 'QUALITY_STAGE30_RU.md', 'QUALITY_STAGE31_RU.md', 'QUALITY_STAGE32_RU.md', 'QUALITY_STAGE33_MP1_RU.md', 'QUALITY_STAGE34_MP2_RU.md', 'QUALITY_STAGE35_MP3_RU.md', 'MULTIPLAYER_SETUP_RU.md', 'ROADMAP_EXPANSION_RU.md', 'REBUILD.bat', 'PACKAGE.bat',
 )
 INCLUDE_DIRS = ('dist', 'src', 'styles', 'tools', 'tests', 'reference')
 
@@ -130,6 +130,16 @@ def main():
         subprocess.run(['node', 'tests/test_stage30_mobile_pause_settings.cjs'], cwd=ROOT, check=True)
         subprocess.run(['node', 'tests/test_stage31_pending_reward_navigation.cjs'], cwd=ROOT, check=True)
         subprocess.run(['node', 'tests/test_stage32_update_save_guard.cjs'], cwd=ROOT, check=True)
+        subprocess.run(['node', 'tests/test_stage33_mp1_lobby.cjs'], cwd=ROOT, check=True)
+        subprocess.run(['node', 'tests/test_stage34_mp2_peer.cjs'], cwd=ROOT, check=True)
+        subprocess.run(['node', 'tests/test_stage35_mp3_movement.cjs'], cwd=ROOT, check=True)
+        subprocess.run(['node', 'tests/test_stage36_mp4_combat.cjs'], cwd=ROOT, check=True)
+        subprocess.run(['node', 'tests/test_stage37_mp5_rounds.cjs'], cwd=ROOT, check=True)
+        subprocess.run(['node', 'tests/test_stage38_mp6_abilities.cjs'], cwd=ROOT, check=True)
+        subprocess.run(['node', 'tests/test_stage39_mp7_smoothing.cjs'], cwd=ROOT, check=True)
+        subprocess.run(['node', 'tests/test_stage40_mp8_recovery.cjs'], cwd=ROOT, check=True)
+        subprocess.run(['node', 'tests/test_stage41_mp9_signal_mobile.cjs'], cwd=ROOT, check=True)
+        subprocess.run(['node', 'tests/test_stage42_metered_config.cjs'], cwd=ROOT, check=True)
         subprocess.run(['node', 'tools/continuous_campaign_audit.cjs'], cwd=ROOT, check=True)
         subprocess.run(['node', 'tests/test_world_scenes.cjs'], cwd=ROOT, check=True)
     if args.browser_tests:

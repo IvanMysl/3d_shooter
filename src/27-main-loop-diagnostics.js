@@ -33,7 +33,10 @@ function frame(now){
  }
  // Update movement, collisions, enemy AI, and gun cooldowns every browser tick.
  // Rendering is capped independently, so lowering FPS does not slow gameplay.
- if(state==='playing')update(dt);
+ if(state==='playing'){
+  if(typeof mpMatch!=='undefined'&&mpMatch?.active)mpMatchUpdate(dt);
+  else update(dt);
+ }
  // No WebGL draw calls outside actual combat. Menus, pause, victory and the
  // campaign map keep the last frozen frame; the GPU is never fed a new one.
  const willDraw=state==='playing'&&shouldRenderFpsFrame(elapsedMs,cap);

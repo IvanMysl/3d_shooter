@@ -1,0 +1,58 @@
+/* Network lobby is a menu overlay, never an extra in-combat control. */
+.mpGrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:9px;margin:12px 0}
+.mpGrid button{min-width:0;white-space:normal}
+.mpField{display:flex;flex-direction:column;gap:7px;margin:15px 0;color:#b8e5f4;font-size:12px;letter-spacing:.06em;min-width:0}
+.mpField input,.mpField select{box-sizing:border-box;width:100%;min-height:44px;border:1px solid rgba(80,191,236,.38);border-radius:9px;background:#071623;color:#edfaff;padding:10px 11px;font:inherit;font-size:15px;letter-spacing:normal}
+.mpField input:focus-visible,.mpField select:focus-visible{outline:2px solid #43d9ff;outline-offset:1px}
+.mpField input[readonly]{user-select:all;font-family:monospace;letter-spacing:.04em}
+fieldset.mpField{border:1px solid rgba(80,191,236,.3);border-radius:10px;padding:11px}
+.mpMaps{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:7px;max-height:265px;overflow-y:auto;overscroll-behavior:contain}
+.mpMapCard{display:flex;align-items:center;gap:6px;min-height:39px;padding:6px;border:1px solid rgba(70,183,227,.25);border-radius:7px;background:rgba(6,20,34,.76);font-size:12px;line-height:1.3;cursor:pointer;letter-spacing:normal}
+.mpMapCard:has(input:checked){border-color:#52d3ff;background:rgba(41,125,164,.22)}
+.mpMapCard input{width:16px;height:16px;min-height:0;flex:none;accent-color:#4ee5ff}
+.mpRule,.mpRoomSummary{padding:11px 12px;margin:12px 0;border:1px solid rgba(76,177,222,.25);border-radius:9px;background:rgba(11,40,58,.52);font-size:13px;line-height:1.7}
+.mpRoomSummary b{color:#e8fbff}
+.mpStatus{min-height:24px;margin:12px 0;font-size:13px;line-height:1.45;color:#7cebd4;overflow-wrap:anywhere}
+.mpStatus.mpError{color:#ffaf99}
+.mpPlayers{list-style:none;display:grid;gap:6px;padding:0;margin:9px 0 16px}
+.mpPlayer{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:9px 10px;border:1px solid rgba(70,183,227,.27);border-radius:9px;background:rgba(10,26,45,.76);font-size:12px;min-width:0}
+.mpPlayer strong{font-size:14px;min-width:0;overflow-wrap:anywhere;flex:1}
+.mpPlayer>span:last-child{font-size:10px;opacity:.85;white-space:nowrap}
+.mpTeamMark{color:#b8d9e9;font-size:18px}
+.mpTeam0 .mpTeamMark,.mpTeam0 strong{color:#57d7ff}
+.mpTeam1 .mpTeamMark,.mpTeam1 strong{color:#ffb65b}
+.mpLinkBadge{flex-basis:100%;padding-left:25px;font-size:10px;letter-spacing:.03em;color:#83e2d6;white-space:normal;overflow-wrap:anywhere}
+.mpBack{margin-top:10px}
+.mpField[hidden]{display:none}
+#mpTrainingBadge{position:fixed;left:50%;top:max(5px,env(safe-area-inset-top));transform:translateX(-50%);z-index:21;
+ max-width:min(94vw,900px);background:rgba(1,15,28,.79);border:1px solid rgba(58,218,249,.55);
+ border-radius:8px;padding:6px 10px;text-align:center;color:#b7f8ff;
+ font:600 10px/1.4 system-ui,sans-serif;letter-spacing:.025em;pointer-events:none;text-shadow:0 1px 3px #000;
+ white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#mpReconnectNow{position:fixed;z-index:24;top:max(79px,calc(env(safe-area-inset-top) + 79px));
+ right:max(8px,env(safe-area-inset-right));max-width:min(57vw,235px);
+ min-height:40px;padding:7px 11px;border:1px solid rgba(255,185,91,.83);border-radius:9px;
+ background:rgba(65,26,13,.94);color:#fff0cb;font:700 11px/1.4 system-ui,sans-serif;
+ box-shadow:0 3px 15px #0009;cursor:pointer;touch-action:manipulation}
+#mpReconnectNow[hidden]{display:none!important}
+#mpReconnectNow:focus-visible{outline:3px solid #87e5ff;outline-offset:3px}
+/* MP-6 enables the native touch controls. MP-3 deliberately disabled them,
+   but leaving that rule in place would make the new skills unusable on Android. */
+body.mpTraining #dashTouch,body.mpTraining #pulseTouch,body.mpTraining #shieldTouch,
+body.mpTraining #healTouch,body.mpTraining #flightToggle,body.mpTraining #flightUp,
+body.mpTraining #flightDown{pointer-events:auto;opacity:1}
+body.mpTraining #missionHUD,body.mpTraining #deviceHint{display:none!important}
+#mpCombatScore{position:fixed;z-index:21;left:50%;top:max(43px,calc(env(safe-area-inset-top) + 39px));
+ transform:translateX(-50%);max-width:94vw;padding:5px 10px;background:rgba(1,13,27,.76);
+ border:1px solid rgba(100,223,250,.35);border-radius:7px;color:#d7fdff;
+ font:600 11px/1.35 system-ui,sans-serif;text-align:center;pointer-events:none;
+ text-shadow:0 1px 3px #000;max-height:55px;overflow:hidden}
+.mpResultList{list-style:none;margin:14px 0 18px;padding:0;display:grid;gap:5px;max-height:min(44vh,375px);overflow-y:auto}
+.mpResultRow{display:flex;align-items:center;justify-content:space-between;gap:18px;
+ border:1px solid rgba(92,198,228,.2);border-radius:8px;padding:9px 12px;
+ background:rgba(7,27,42,.64);font:600 13px/1.4 system-ui,sans-serif}
+.mpResultRow b{font-variant-numeric:tabular-nums;white-space:nowrap;color:#b6efff}
+.mpResultSelf{border-color:rgba(80,234,250,.8);background:rgba(4,72,96,.45)}
+.mpResultTeams{font:700 21px/1.5 system-ui,sans-serif;text-align:center;color:#e5faff}
+@media(max-width:560px){.mpMaps{grid-template-columns:1fr 1fr;max-height:235px}.mpMapCard{font-size:11px}.mpGrid{grid-template-columns:1fr}.mpPlayer>span:last-child{font-size:9px}}
+@media(max-width:360px){.mpMaps{grid-template-columns:1fr}.mpPlayer{padding:8px 6px}}

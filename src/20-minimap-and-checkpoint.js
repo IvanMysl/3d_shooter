@@ -49,6 +49,10 @@ function drawMinimap(){
     if(e.airborne&&e.feetY>(g.p.feetY||0)+2){m.strokeStyle='#b5fcff';m.lineWidth=1.2;m.beginPath();m.arc(x,z,miniZoom?5.0:3.9,0,TAU);m.stroke();}
     if(e.boss&&e.ultWarn>0){m.strokeStyle='#ff8748';m.lineWidth=2;m.beginPath();m.arc(x,z,5.15*scale,0,TAU);m.stroke();}
   }
+  if(typeof mpMatchActors==='function')for(const other of mpMatchActors()){
+   const [rx,rz]=plot(other.x,other.z);m.fillStyle='#67ebff';m.strokeStyle='#061a2a';m.lineWidth=1.2;
+   m.beginPath();m.arc(rx,rz,miniZoom?4.2:3.2,0,TAU);m.fill();m.stroke();
+  }
   const [x,z]=plot(g.p.x,g.p.z);
   m.save();m.translate(x,z);/* Canvas map uses +Z downward while the arrow is drawn pointing upward.
      Rotate by PI-yaw so the arrow points along the actual forward velocity:
@@ -70,6 +74,9 @@ function pickUpgrades(){
  return pool.slice(0,3);
 }
 function saveRun(){
+ // A network rehearsal never mutates the campaign checkpoint or save journal.
+ if((typeof mpMatch!=='undefined'&&mpMatch?.active)||
+    (typeof mpMatchStarting!=='undefined'&&mpMatchStarting))return false;
  const g=game;if(!g||g.state==='dead'||g.state==='victory')return false;
  const keys=['sectorTime','t','target','spawned','waveDelay','enemies','bullets','tracers','projectiles','burstQueue','loot','nodes','nodesDestroyed','portalReady','idCounter','combo','comboAt','helpTime','totalCredits','decals','scorch','mission','arenaEvent','devices','robotDebris'];
  const live={};for(const k of keys)live[k]=g[k];

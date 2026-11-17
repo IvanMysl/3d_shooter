@@ -105,7 +105,8 @@ class ModularGameIntegrity(unittest.TestCase):
         original_css = re.findall(rb'<style\b[^>]*>(.*?)</style\s*>', original, flags=re.I | re.S)
         self.assertEqual(len(original_css), 2)
         fns = MANIFEST['styleOrder']
-        self.assertEqual(len(fns), 8)
+        self.assertGreaterEqual(len(fns), 8)  # New features may add stylesheets.
+        self.assertEqual(len(set(fns)), len(fns))
         for fn in fns:
             css = (ROOT / 'styles' / fn).read_text(encoding='utf-8')
             self.assertTrue(css_balanced(css), f'CSS nesting crosses module boundary: {fn}')

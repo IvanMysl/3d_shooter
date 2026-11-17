@@ -1,3 +1,27 @@
+# Stage40 / MP-8 — длительный обрыв связи
+
+`src/21i-multiplayer-recovery.js` — три состояния получения снимков от ведущего, кнопка восстановления, безопасное отключение локального прогноза, ограниченная автоматическая попытка, точное возвращение к авторитетному состоянию. `src/21d-multiplayer-movement.js` — связь с циклом боя и HUD. `src/21c-multiplayer-webrtc.js` — ручной запрос нового P2P после исчерпания авто-попыток. `src/21g-multiplayer-flight-abilities.js` — запрет применения способностей при потере синхронизации. `styles/55-multiplayer.css` — доступная на телефонах кнопка. Проверка: `tests/test_stage40_mp8_recovery.cjs`.
+
+---
+
+# Stage39 / MP-7 — сетевые задержки и восстановление (история)
+
+`src/21h-multiplayer-smoothing.js` — ограниченная очередь быстрых пакетов, адаптация по RTT и джиттеру, безопасный прогноз, коррекция собственного положения, нейтрализация старого ввода. `src/21c-multiplayer-webrtc.js` — отбрасывание пакетов при заполнении `bufferedAmount`. `src/21d-multiplayer-movement.js` — применение новых правил при приёме команд/снимков и в фиксированном цикле. `tests/test_stage39_mp7_smoothing.cjs` — имитация двух клиентов, потерь, обрыва и повторного соединения. Подробный отчёт: `QUALITY_STAGE39_MP7_RU.md`.
+
+---
+
+# Stage38 / MP-6 — полёт и энергетические способности (история)
+
+`src/21g-multiplayer-flight-abilities.js` — сетевой полёт, строгая проверка команд и результатов, рывок, импульс, щит, ремонт, энергия и время восстановления. `src/21d-multiplayer-movement.js` — передача кнопок ↑/↓ и счётчиков нажатия, обновление воздушной физики и HUD. `src/21e-multiplayer-combat.js` — невосприимчивость к урону под щитом и эффектные вспышки. `src/21b-multiplayer-lobby.js` — несовместимость старых клиентов через `MP_VERSION=2`. Проверка: `tests/test_stage38_mp6_abilities.cjs`; отчёт: `QUALITY_STAGE38_MP6_RU.md`.
+
+---
+
+# Stage37 / MP-5A — победа и результаты
+
+`src/21f-multiplayer-round.js`: таймер матча, лимит очков, итоговые таблицы и повтор результатов. `src/21b-multiplayer-lobby.js`: настройка времени/очков. `src/21d-multiplayer-movement.js`: командный старт, остановка раунда, синхронизация итога. `src/21e-multiplayer-combat.js`: выбор командной точки респавна. `src/21c-multiplayer-webrtc.js`: повтор итога при восстановлении DataChannel. Тест: `tests/test_stage37_mp5_rounds.cjs`. Отчёт: `QUALITY_STAGE37_MP5_RU.md`.
+
+---
+
 ## Быстрая навигация — этапы 16–17: модели и визуальные эффекты
 
 - `src/02-geometry.js`: `makeRoundedBox`, `makeEnergyBeam`, `makeSparkOrb` — скруглённый корпус, энергетический луч, искра с плавными нормалями.
@@ -383,6 +407,34 @@ Director’s Cut: визуальные эффекты и обёртки базо
 - `src/18-ai-and-abilities.js`: фактическая дистанция горизонтального Shift/сенсорного рывка.
 - `styles/40-hud.css`, `tools/index-template.html`, `dev.html`: оформление шкалы и сенсорного ползунка.
 - `tests/test_stage18_dash_distance.cjs`, `QUALITY_STAGE18_RU.md`: динамические проверки и сценарии ручной приёмки.
+
+---
+
+## Stage33 / MP-1 — куда идти для сетевых комнат
+
+- `src/21b-multiplayer-lobby.js`: `MP_MAPS`, `mpNickname`, `mpCode`, `mpSettings`, `MpWire`, `mpCreateRoom`, `mpJoinRoom`, `mpHostFrame`, `mpGuestFrame`, `mpLobby`, `mpLeave` — весь временный контур сетевого лобби.
+- `src/22-menus-and-upgrades.js`: добавленная кнопка `multiplayerMenu`; исходное одиночное меню сохранено.
+- `styles/55-multiplayer.css`: адаптивные карточки карт, игроков и статусов команд.
+- `tests/test_stage33_mp1_lobby.cjs`: имитация Metered и 2–8 подключений с проверкой конкурентного протокола.
+- `MULTIPLAYER_SETUP_RU.md`: настройка публичного ключа и ручные сетевые проверки.
+
+## Stage34 / MP-2 — прямые соединения
+
+- `src/21c-multiplayer-webrtc.js`: `mpRtcServers`, `mpRtcCreate`, `mpRtcHostStart`, `mpRtcGuestOffer`, `mpRtcHostAnswer`, `mpRtcSignal` — ICE/SDP/RTCPeerConnection.
+- Там же: `mpRtcAttachChannel`, `mpRtcControl`, `mpRtcFastMessage`, `mpRtcFastSend`, `mpRtcTick`, `mpRtcFail`, `mpRtcManualRetry`, `mpRtcDrop`, `mpRtcCloseAll` — каналы, RTT, таймауты и очистка.
+- `src/21b-multiplayer-lobby.js`: небольшие точки интеграции при join, leave, получении direct-сообщений, отображение состояния сети в карточках участников.
+- `tests/test_stage34_mp2_peer.cjs`, `QUALITY_STAGE34_MP2_RU.md`: имитация сети и спецификация проверки на ПК/Android.
+
+## Сетевая тренировка Stage35
+
+- `src/21b-multiplayer-lobby.js` — создание/вход в комнаты, выбор одной из 18 карт, статусы готовности и запуск.
+- `src/21c-multiplayer-webrtc.js` — два P2P-канала, управление SDP/ICE, замеры задержки.
+- `src/21d-multiplayer-movement.js` — физика ведущего, входы гостей, синхронизация координат, удалённые аватары, завершение без записи одиночной кампании.
+- `tests/test_stage35_mp3_movement.cjs` — имитация двух браузеров с настоящими обработчиками приложения, тесты перемещения, валидации, коллизии, возвращения в комнату.
+
+# Stage36 / MP-4 — быстрый указатель
+
+Новый сетевой бой: `src/21e-multiplayer-combat.js`. Передача команд движения/огня, серверных снимков, очков, здоровья и респавнов: `src/21d-multiplayer-movement.js`. Сетевая кнопка старта и настройки команд: `src/21b-multiplayer-lobby.js`. WebRTC-каналы: `src/21c-multiplayer-webrtc.js`. Тест: `tests/test_stage36_mp4_combat.cjs`. Ручная проверка и ограничения: `QUALITY_STAGE36_MP4_RU.md`.
 
 ---
 

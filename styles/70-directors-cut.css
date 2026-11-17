@@ -202,3 +202,25 @@ body.flightUnlocked #hud.show #flightTuning{display:grid;gap:7px}
 @media (max-height:480px) and (orientation:landscape){#viewTouch{right:130px;bottom:112px}}
 
 body:not(.webgl).thirdPersonCameraClose #gun{display:block!important}
+
+/* Stage41 — the three outlined flight targets move together into the free
+   strip directly ABOVE dash/pulse/jump on short landscape phones. Position
+   is anchored to the action pad, not the minimap or device cutout. */
+@media (pointer:coarse) and (orientation:landscape) and (max-height:570px),
+       (hover:none) and (orientation:landscape) and (max-height:570px){
+ #flightControls{top:auto;bottom:calc(max(7px, env(safe-area-inset-bottom)) + 117px);
+  right:max(8px, env(safe-area-inset-right));gap:6px;z-index:9;
+  max-width:calc(100vw - 18px);}
+ #flightControls button{box-sizing:border-box;min-height:42px;touch-action:none;}
+ #flightControls #flightToggle{min-width:70px;}
+ #flightControls #flightUp,#flightControls #flightDown{min-width:40px;padding:8px 9px;}
+}
+/* On extremely short landscape screens reduce the row rather than allowing
+   overlap with jump/actions or placing controls beneath Android navigation. */
+@media (pointer:coarse) and (orientation:landscape) and (max-height:340px),
+       (hover:none) and (orientation:landscape) and (max-height:340px){
+ #flightControls{bottom:calc(max(5px, env(safe-area-inset-bottom)) + 109px);gap:4px;}
+ #flightControls button{min-height:36px;font-size:10px;padding:5px;}
+ #flightControls #flightToggle{min-width:61px;}
+ #flightControls #flightUp,#flightControls #flightDown{min-width:35px;}
+}

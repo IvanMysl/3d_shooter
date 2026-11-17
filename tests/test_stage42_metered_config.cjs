@@ -1,0 +1,23 @@
+'use strict';
+const assert=require('node:assert/strict');
+const fs=require('node:fs');
+const path=require('node:path');
+const base=path.join(__dirname,'..');
+const lobby=fs.readFileSync(path.join(base,'src/21b-multiplayer-lobby.js'),'utf8');
+const dist=fs.readFileSync(path.join(base,'dist/game.js'),'utf8');
+const html=fs.readFileSync(path.join(base,'index.html'),'utf8');
+const core=fs.readFileSync(path.join(base,'src/00-core-save.js'),'utf8');
+let checks=0;
+function ok(value,message){assert.ok(value,message);checks++;}
+const match=lobby.match(/const MP_PUBLISHABLE_KEY='([^']+)'/);
+ok(!!match,'public key is defined');
+const key=match?.[1]||'';
+ok(/^pk_live_[a-zA-Z0-9_-]{12,}$/.test(key),'valid publishable key syntax');
+ok(!key.includes('CONFIGURE'),'placeholder removed');
+ok(!/sk_live_|sk_test_/.test(lobby),'no Metered secret embedded');
+ok(html.includes("const MP_PUBLISHABLE_KEY='"+key+"'"),'standalone page has the same public key');
+ok(dist.includes("const MP_PUBLISHABLE_KEY='"+key+"'"),'built JS has the same public key');
+ok(core.includes("GAME_BUILD='42'"),'release uses fresh cache-busting version');
+ok(html.includes("GAME_BUILD='42'"),'standalone page labels the new version');
+ok(lobby.includes('wss://rms.metered.ca/v1?key='),'Metered WebSocket endpoint preserved');
+console.log('STAGE42 METERED CONFIG: '+checks+' assertions passed (key redacted)');

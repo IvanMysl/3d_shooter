@@ -324,6 +324,38 @@
       "description": "Изолированный режим разработчика, пароль, бесконечные тестовые кредиты и доступ ко всем уровням"
     },
     {
+      "file": "21b-multiplayer-lobby.js",
+      "description": "MP-1: карты, создание и подключение к комнатам, никнеймы, команды, лобби Metered WebSocket"
+    },
+    {
+      "file": "21c-multiplayer-webrtc.js",
+      "description": "MP-2: host-authoritative topology, P2P WebRTC, SDP/ICE, два DataChannel, ping/pong, восстановление"
+    },
+    {
+      "file": "21d-multiplayer-movement.js",
+      "description": "MP-3/MP-4: авторитетная физика передвижения игроков, команды управления, снимки позиций и состояния здоровья"
+    },
+    {
+      "file": "21e-multiplayer-combat.js",
+      "description": "MP-4: бой под управлением ведущего, щит, оружие, ракеты, гранаты, хитбоксы, очки, возрождение"
+    },
+    {
+      "file": "21f-multiplayer-round.js",
+      "description": "MP-5: лимит очков и времени, победитель, результаты и надёжное восстановление финала после переподключения"
+    },
+    {
+      "file": "21g-multiplayer-flight-abilities.js",
+      "description": "MP-6: симметричный полёт и способности в сетевом бою, проверка команд ведущим, энергия, защита, ремонт, импульс и рывок"
+    },
+    {
+      "file": "21h-multiplayer-smoothing.js",
+      "description": "MP-7: ограниченный интерполяционный буфер, безопасная экстраполяция, корректировка локального прогноза и отказ от старых команд после обрыва"
+    },
+    {
+      "file": "21i-multiplayer-recovery.js",
+      "description": "MP-8: заморозка локального прогноза при потере снимков ведущего, безопасное восстановление, одно автоматическое переподключение и предупреждение в HUD"
+    },
+    {
       "file": "22-menus-and-upgrades.js",
       "description": "Настройки FPS, меню, ангар, улучшения, пауза",
       "statements": [
@@ -409,6 +441,7 @@
     "30-weapons.css",
     "40-hud.css",
     "50-campaign.css",
+    "55-multiplayer.css",
     "60-fps.css",
     "70-directors-cut.css"
   ],

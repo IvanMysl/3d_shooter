@@ -129,6 +129,7 @@ function tryMoveEntity(a,dx,dz,r=.23){
 }
 function queueJump(){if(game?.state==='playing'&&!arsenalOpened)input.jumpQueued=true;}
 function toggleFlight(){
+ if(typeof mpMatch!=='undefined'&&mpMatch?.active)return false;
  if(!game||game.state!=='playing'||arsenalOpened)return false;
  const p=game.p;
  if(!p.flightUnlocked){toast('ПОЛЁТ: КОСТЮМ №10–16 ИЛИ УЛУЧШЕНИЕ LVL 10',1.4);return false;}
