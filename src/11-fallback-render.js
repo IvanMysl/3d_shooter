@@ -426,8 +426,23 @@ for(const d of (g.decals||[])){
  if(d.energy){C.strokeStyle=`rgb(${d.col.map(c=>Math.round(c*255)).join(',')})`;C.lineWidth=1.35;C.globalAlpha=alpha*.38;C.beginPath();C.arc(0,0,r*1.25,0,TAU);C.stroke()}
  C.restore();
 }
+let canvasGunMuzzle;
+function fallbackGunTip(){
+ if(canvasGunMuzzle!==undefined)return canvasGunMuzzle;
+ const barrel=$('gunbarrel')?.getBoundingClientRect?.();
+ canvasGunMuzzle=barrel&&barrel.width>0?{
+  x:(barrel.left+barrel.width*.5)*w/Math.max(1,innerWidth),
+  y:(barrel.top+Math.min(6,barrel.height*.035))*h/Math.max(1,innerHeight)
+ }:null;
+ return canvasGunMuzzle;
+}
 for(const tr of (g.tracers||[])){
- const a=proj(tr.a),b=proj(tr.b);if(!a||!b)continue;
+ // The Canvas fallback uses a centered DOM gun, not the WebGL viewmodel.
+ // Projecting either 3D gun barrel would start the beam away from its tip.
+ // The DOM muzzle's actual bounding box also handles narrow phone screens.
+ const tip=tr.localView&&!pose?.drawActor?fallbackGunTip():null;
+ const a=tip||proj(tr.a);
+ const b=proj(tr.b);if(!a||!b)continue;
  C.save();let fade=clamp(tr.life/tr.maxLife,0,1);
  C.shadowColor=`rgb(${tr.col.map(c=>Math.round(c*255)).join(',')})`;
  // Soft colored halo plus a thin white-hot core, like the tapered WebGL beam.
@@ -437,7 +452,12 @@ for(const tr of (g.tracers||[])){
  C.beginPath();C.moveTo(a.x,a.y);C.lineTo(b.x,b.y);C.stroke();C.restore();
 }
 for(const b of (g.projectiles||[])){
- const q=proj(b);if(!q||q.d>(zbuffer[clamp(q.x|0,0,w-1)]||Infinity)+.12)continue;
+ const q=proj(b.visualPoint||b);if(!q||q.d>(zbuffer[clamp(q.x|0,0,w-1)]||Infinity)+.12)continue;
+ if(b.localView&&!pose?.drawActor){
+  const fade=b.localLaunchFade===undefined?Math.max(0,1-(b.launchAge||0)/.22):b.localLaunchFade;
+  const tip=fade>0?fallbackGunTip():null;
+  if(tip){q.x=q.x*(1-fade)+tip.x*fade;q.y=q.y*(1-fade)+tip.y*fade;}
+ }
  let rr=clamp(b.rad*focal/q.d,2,22);C.save();C.shadowBlur=22;C.shadowColor=`rgb(${b.w.color.map(c=>Math.round(c*255)).join(',')})`;
  C.fillStyle='#f4ffff';C.beginPath();C.arc(q.x,q.y,rr,0,TAU);C.fill();C.restore();
 }

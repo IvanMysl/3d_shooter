@@ -6,7 +6,31 @@ function refreshFlightButtons(){
  const toggle=$('flightToggle');
  if(toggle){toggle.setAttribute('aria-pressed',String(active));toggle.textContent=active?'✈ ЛЕЧУ':'✈ ПОЛЁТ';}
  refreshFlightTuning();
+ requestAnimationFrame(positionMobileFlightControls);
 }
+// Keep the flight button (and the hold-to-ascend/descend buttons) directly
+// above ARSENAL, even when phone rotation, safe areas or browser UI change.
+// Both elements are absolutely positioned inside the same HUD coordinate space.
+function flightLayoutAboveArsenal(hudBounds,arsenalBounds){
+ const gap=7;
+ return {
+  bottom:Math.max(0,Math.round(hudBounds.bottom-arsenalBounds.top+gap)),
+  right:Math.max(0,Math.round(hudBounds.right-arsenalBounds.right))
+ };
+}
+function positionMobileFlightControls(){
+ const hud=$('hud'),arsenal=$('mobileSwitch'),controls=$('flightControls');
+ if(!hud||!arsenal||!controls)return;
+ const a=arsenal.getBoundingClientRect(),h=hud.getBoundingClientRect();
+ if(a.width<=0||a.height<=0||h.width<=0||h.height<=0)return;
+ const placement=flightLayoutAboveArsenal(h,a);
+ controls.style.top='auto';
+ controls.style.bottom=placement.bottom+'px';
+ controls.style.right=placement.right+'px';
+}
+addEventListener('resize',positionMobileFlightControls);
+addEventListener('orientationchange',()=>requestAnimationFrame(positionMobileFlightControls));
+if(typeof window!=='undefined'&&window.visualViewport)window.visualViewport.addEventListener('resize',positionMobileFlightControls);
 function setFlightThrottle(axis,value,commit=false){
  if(!['horizontal','vertical'].includes(axis))return;
  const key=axis==='horizontal'?'flightHorizontal':'flightVertical';

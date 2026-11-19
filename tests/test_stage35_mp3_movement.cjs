@@ -25,7 +25,7 @@ function createBrowser(server,combat=false,rounds=false,special=false,smoothing=
   clamp:(n,a,b)=>Math.max(a,Math.min(b,n)),hypot:Math.hypot,
   mapSize:30,spawnX:15,spawnZ:15,PLAYER_SOLID_HEIGHT:1.8,
   JUMP_VELOCITY:5.2,JUMP_GRAVITY:15.0,SPRINT_ENERGY_DRAIN:1.8,
-  glReady:true,legacyResumeSector:-1,arsenalOpened:false,
+  glReady:true,externalCameraEnabled:()=>false,legacyResumeSector:-1,arsenalOpened:false,
   input:{keys:{},mx:0,mz:0,fire:false,jumpQueued:false,jumpHeld:false,sprint:false,mobileSprint:false},
   game:null,closeArsenal(){},refreshFlightButtons(){},useAbility(){},toggleFlight(){},toggleArsenal(){},switchWeapon(){},console,
   addEventListener(){},
@@ -50,12 +50,19 @@ function createBrowser(server,combat=false,rounds=false,special=false,smoothing=
   pauseResumeGraceUntil:0,lastFrame:0,
  };
  const combatSource=combat?fs.readFileSync(path.join(folder,'21e-multiplayer-combat.js'),'utf8'):'';
+ // PvP combat shares the real third-person muzzle placement with the game.
+ // Load that small pure helper section into this simulated browser too.
+ const operatorFile=fs.readFileSync(path.join(folder,'09a-player-third-person.js'),'utf8');
+ const muzzleSource=combat?operatorFile.slice(operatorFile.indexOf('function operatorMuzzleLocal('),
+  operatorFile.indexOf('// A third-person weapon uses')):'';
+ const viewFile=fs.readFileSync(path.join(folder,'10-first-person-render.js'),'utf8');
+ const viewMuzzleSource=combat?viewFile.slice(0,viewFile.indexOf('function renderHeldWeapon(')):'';
  const roundSource=rounds?fs.readFileSync(path.join(folder,'21f-multiplayer-round.js'),'utf8'):'';
  const specialSource=special?fs.readFileSync(path.join(folder,'21g-multiplayer-flight-abilities.js'),'utf8'):'';
  const smoothingSource=smoothing?fs.readFileSync(path.join(folder,'21h-multiplayer-smoothing.js'),'utf8'):'';
  const recoverySource=recovery?fs.readFileSync(path.join(folder,'21i-multiplayer-recovery.js'),'utf8'):'';
  const trafficSource=fs.readFileSync(path.join(folder,'21j-multiplayer-traffic.js'),'utf8');
- const a=app(server,source+'\n'+combatSource+'\n'+roundSource+'\n'+specialSource+'\n'+smoothingSource+'\n'+recoverySource+'\n'+trafficSource,extra);
+ const a=app(server,source+'\n'+muzzleSource+'\n'+viewMuzzleSource+'\n'+combatSource+'\n'+roundSource+'\n'+specialSource+'\n'+smoothingSource+'\n'+recoverySource+'\n'+trafficSource,extra);
  const decorate=el=>{
   if(!el.classList){const values=new Set();el.classList={add(...xs){xs.forEach(x=>values.add(x));},remove(...xs){xs.forEach(x=>values.delete(x));},contains(x){return values.has(x);}};}
   if(!el.style)el.style={};if(!el.setAttribute)el.setAttribute=()=>{};

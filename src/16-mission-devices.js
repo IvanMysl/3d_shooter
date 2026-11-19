@@ -62,7 +62,7 @@ function updateDevices(dt){
    d.active=active;
    d.cooldown=Math.max(0,(d.cooldown||0)-dt);
    if(active && d.cooldown<=0 && dist<2.15 && sameFloor && p.grounded && p.shield<=0){
-    damagePlayer(7+Math.min(14,g.sector*.28));d.cooldown=1.35;
+    damagePlayer(7+Math.min(14,g.sector*.28),d);d.cooldown=1.35;
    }
    // Safely disarm at the emitter by remaining next to it briefly.
    d.charge=dist<1.12&&sameFloor?Math.min(1.2,d.charge+dt):Math.max(0,d.charge-dt*.75);

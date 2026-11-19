@@ -83,8 +83,13 @@ function mp10Encode(value,peer){
  if(value.kind==='mp3-effect'){
   const code=MP10_EFFECTS.indexOf(value.type);
   if(code<0)return value;
-  return {v:value.v,kind:'mp3-effect',token:value.token,c:1,
+  const packed={v:value.v,kind:'mp3-effect',token:value.token,c:1,
    i:[code,value.gun,value.id,...value.a,...value.b]};
+  // Stage47: compact hit flags are optional and sent only after a real hit.
+  // They MUST survive MP10 compression; otherwise remote players see no FX.
+  if(value.h?.length)packed.h=value.h;
+  if(value.s!==undefined)packed.s=value.s;
+  return packed;
  }
  if(value.kind!=='mp3-state')return value;
  const out={v:value.v,kind:'mp3-state',token:value.token,c:1,t:value.tick,
@@ -112,9 +117,13 @@ function mp10Decode(data){
  }
  if(data.kind==='mp3-effect'){
   const a=data.i;
-  if(!Array.isArray(a)||a.length!==9||!Number.isInteger(a[0])||a[0]<0||a[0]>=MP10_EFFECTS.length)return null;
+  if(!Array.isArray(a)||a.length!==9||!Number.isInteger(a[0])||a[0]<0||a[0]>=MP10_EFFECTS.length||
+   (data.h!==undefined&&(!Array.isArray(data.h)||data.h.length>MP_CAP||
+    !data.h.every(n=>Number.isInteger(n)&&n>=0&&n<MP_CAP*4)))||
+   (data.s!==undefined&&(!Number.isInteger(data.s)||data.s<0||data.s>=MP_CAP)))return null;
   return {v:data.v,kind:'mp3-effect',token:data.token,
-   type:MP10_EFFECTS[a[0]],gun:a[1],id:a[2],a:a.slice(3,6),b:a.slice(6)};
+   type:MP10_EFFECTS[a[0]],gun:a[1],id:a[2],a:a.slice(3,6),b:a.slice(6),
+   ...(data.h!==undefined?{h:data.h}:{}),...(data.s!==undefined?{s:data.s}:{})};
  }
  if(!Array.isArray(data.a)||data.a.length<1||data.a.length>MP_CAP||
   !data.a.every(a=>Array.isArray(a)&&a.length===23)||

@@ -17,7 +17,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 INCLUDE_ROOT = (
-    'index.html', 'dev.html', 'README_RU.md', 'ARCHITECTURE_RU.md', 'QUALITY_STAGE36_MP4_RU.md', 'QUALITY_STAGE37_MP5_RU.md', 'QUALITY_STAGE38_MP6_RU.md', 'QUALITY_STAGE39_MP7_RU.md', 'QUALITY_STAGE40_MP8_RU.md', 'QUALITY_STAGE41_MP9_RU.md', 'QUALITY_STAGE42_METERED_RU.md', 'QUALITY_STAGE43_MP10_RU.md', 'QUALITY_STAGE44_REPAIR_BARRIER_RU.md',
+    'index.html', 'dev.html', 'README_RU.md', 'ARCHITECTURE_RU.md', 'QUALITY_STAGE36_MP4_RU.md', 'QUALITY_STAGE37_MP5_RU.md', 'QUALITY_STAGE38_MP6_RU.md', 'QUALITY_STAGE39_MP7_RU.md', 'QUALITY_STAGE40_MP8_RU.md', 'QUALITY_STAGE41_MP9_RU.md', 'QUALITY_STAGE42_METERED_RU.md', 'QUALITY_STAGE43_MP10_RU.md', 'QUALITY_STAGE44_REPAIR_BARRIER_RU.md', 'QUALITY_STAGE45_MUZZLE_FX_RU.md', 'QUALITY_STAGE46_FPS_MOBILE_RU.md', 'QUALITY_STAGE47_MP_HIT_FX_RU.md', 'QUALITY_STAGE48_ALL_MODES_HIT_FX_RU.md', 'QUALITY_STAGE49_FLIGHT_HUD_RU.md',
     'SOURCE_NAVIGATION_RU.md', 'FINAL_TEST_GUIDE_RU.md', 'GITHUB_PAGES_UPDATE_RU.md', 'BALANCE_LEVEL_BY_LEVEL_RU.md', 'WEAPON_VALUE_AUDIT_RU.md', 'QUALITY_STAGE3_RU.md', 'QUALITY_STAGE4_RU.md', 'QUALITY_STAGE5_RU.md', 'QUALITY_STAGE6_RU.md', 'QUALITY_STAGE7_RU.md', 'QUALITY_STAGE8_RU.md', 'QUALITY_STAGE9_RU.md', 'QUALITY_STAGE10_RU.md', 'QUALITY_STAGE11_RU.md', 'QUALITY_STAGE12_RU.md', 'QUALITY_STAGE13_RU.md', 'QUALITY_STAGE14_RU.md', 'QUALITY_STAGE15_RU.md', 'QUALITY_STAGE16_RU.md', 'QUALITY_STAGE17_RU.md', 'QUALITY_STAGE18_RU.md', 'QUALITY_STAGE19_RU.md', 'QUALITY_STAGE20_RU.md', 'QUALITY_STAGE21_RU.md', 'QUALITY_STAGE22_RU.md', 'QUALITY_STAGE23_RU.md', 'QUALITY_STAGE24_RU.md', 'QUALITY_STAGE25_RU.md', 'QUALITY_STAGE26_RU.md', 'QUALITY_STAGE27_RU.md', 'QUALITY_STAGE28_RU.md', 'QUALITY_STAGE29_RU.md', 'QUALITY_STAGE30_RU.md', 'QUALITY_STAGE31_RU.md', 'QUALITY_STAGE32_RU.md', 'QUALITY_STAGE33_MP1_RU.md', 'QUALITY_STAGE34_MP2_RU.md', 'QUALITY_STAGE35_MP3_RU.md', 'MULTIPLAYER_SETUP_RU.md', 'ROADMAP_EXPANSION_RU.md', 'REBUILD.bat', 'PACKAGE.bat',
 )
 INCLUDE_DIRS = ('dist', 'src', 'styles', 'tools', 'tests', 'reference')
@@ -142,6 +142,11 @@ def main():
         subprocess.run(['node', 'tests/test_stage42_metered_config.cjs'], cwd=ROOT, check=True)
         subprocess.run(['node', 'tests/test_stage43_mp10_traffic_repair.cjs'], cwd=ROOT, check=True)
         subprocess.run(['node', 'tests/test_stage44_atomic_repair_barrier.cjs'], cwd=ROOT, check=True)
+        subprocess.run(['node', 'tests/test_stage45_muzzle_fx.cjs'], cwd=ROOT, check=True)
+        subprocess.run(['node', 'tests/test_stage46_fps_muzzle_mobile.cjs'], cwd=ROOT, check=True)
+        subprocess.run(['node', 'tests/test_stage47_pvp_hit_fx.cjs'], cwd=ROOT, check=True)
+        subprocess.run(['node', 'tests/test_stage48_all_modes_hit_reaction.cjs'], cwd=ROOT, check=True)
+        subprocess.run(['node', 'tests/test_stage49_mobile_flight_arsenal.cjs'], cwd=ROOT, check=True)
         subprocess.run(['node', 'tools/continuous_campaign_audit.cjs'], cwd=ROOT, check=True)
         subprocess.run(['node', 'tests/test_world_scenes.cjs'], cwd=ROOT, check=True)
     if args.browser_tests:
@@ -161,6 +166,7 @@ def main():
         command('tests/browser_stage13.py')
         command('tests/browser_stage14.py')
         command('tests/browser_stage15.py')
+        command('tests/browser_stage48.py')
     refresh_combat_reports()
     files = included()
     make_sums(files)

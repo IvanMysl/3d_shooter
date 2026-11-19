@@ -84,7 +84,7 @@ function updateMission(dt){
    a.warning-=dt;
    if(a.warning<=0){
     const hit=hypot(g.p.x-a.x,g.p.z-a.z)<a.r && Math.abs((g.p.feetY||0)-floorHeight(a.x,a.z))<2.0;
-    if(hit){m&&(m.hazardsHit++);if(a.kind==='thermal')damagePlayer(12+Math.min(35,g.sector*.7));else {g.p.energy=Math.max(0,g.p.energy-38);g.p.shield=0;toast('ϟ ЭМИ · ЭНЕРГИЯ -38',1.1)}}
+    if(hit){m&&(m.hazardsHit++);if(a.kind==='thermal')damagePlayer(12+Math.min(35,g.sector*.7),a);else {g.p.energy=Math.max(0,g.p.energy-38);g.p.shield=0;toast('ϟ ЭМИ · ЭНЕРГИЯ -38',1.1)}}
     else if(m)m.hazardsEvaded++;
     burst(a.x,.15+floorHeight(a.x,a.z),a.z,a.kind==='thermal'?[1,.42,.18]:[.23,.86,1],25);
     sound(a.kind==='thermal'?86:260,.26,'sawtooth',.10);

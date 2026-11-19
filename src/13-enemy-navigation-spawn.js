@@ -185,7 +185,14 @@ function hurtEnemy(e,damage,options={}){
  game.score+=Math.ceil(chassis*.4);showDamage(e,Math.round(chassis),crit);
  if(e.hp<=0){e.dead=true;awardKill(e)}else sound(blocked>0?108:170,.055,'triangle',.035);
 }
-function damagePlayer(d){const p=game.p;if(p.iframes>0||p.shield>0||game.state!=='playing')return;p.armorDelay=0;let amount=d;if(p.armor>0){const fraction=clamp(.72+(p.armorTier||0)*.035,.72,.86),a=Math.min(amount*fraction,p.armor);p.armor-=a;amount-=a;
+function damagePlayer(d,source=null){const p=game.p;if(game.state!=='playing')return;
+ if(p.shield>0){
+  if(game.t-(p.lastShieldHitAt??-100)>.16){p.lastShieldHitAt=game.t;
+   if(typeof operatorHitReaction==='function')operatorHitReaction(p,source,{blocked:true});}
+  return;
+ }
+ if(p.iframes>0)return;
+ p.armorDelay=0;let amount=d;if(p.armor>0){const fraction=clamp(.72+(p.armorTier||0)*.035,.72,.86),a=Math.min(amount*fraction,p.armor);p.armor-=a;amount-=a;
  const bar=$('bars');bar.classList.add('armorHit');setTimeout(()=>bar.classList.remove('armorHit'),180);
  }
  if((p.bodyArmor||0)>0&&(p.bodyArmorReduction||0)>0){
@@ -204,5 +211,7 @@ function damagePlayer(d){const p=game.p;if(p.iframes>0||p.shield>0||game.state!=
  // bomb cannot erase an otherwise healthy character outright when the suit
  // wears out; a *second* mistake is still deadly, so dodging remains vital.
  if(p.hp>=p.maxhp*.80)amount=Math.min(amount,p.maxhp*.72);
- p.hp=Math.max(0,p.hp-amount);p.iframes=.35;$('damageFlash').style.opacity=String(clamp(amount/75,.08,.29));setTimeout(()=>$('damageFlash').style.opacity='0',95);sound(115,.14,'sawtooth',.1);if(p.hp<=0)gameOver()}
+ p.hp=Math.max(0,p.hp-amount);p.iframes=.35;
+ if(typeof operatorHitReaction==='function')operatorHitReaction(p,source);
+ $('damageFlash').style.opacity=String(clamp(amount/75,.08,.29));setTimeout(()=>$('damageFlash').style.opacity='0',95);sound(115,.14,'sawtooth',.1);if(p.hp<=0)gameOver()}
 function burst(x,y,z,col,count=9){const g=game;for(let i=0;i<count;i++){let a=rand(0,TAU),v=rand(.4,3.5),vy=rand(-.4,2.8),life=rand(.25,.85);g.particles.push({x,y,z,vx:Math.cos(a)*v,vz:Math.sin(a)*v,vy,life,maxLife:life,a:rand(0,TAU),col})}}

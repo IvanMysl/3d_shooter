@@ -97,6 +97,102 @@ function operatorHeadPose(p,x,y,z){
  const dy=y-neckY,dz=z-neckZ;
  return {x,y:neckY+dy*c+dz*s,z:neckZ+dz*c-dy*s,tilt:-pitch};
 }
+// The actual muzzle of the operator's weapon, not the old neck-height shot
+// origin. The coordinates below follow renderOperatorWeapon's stock pivot,
+// barrel lengths, pitch, yaw and recoil. Multi-barrel weapons alternate tubes.
+function operatorMuzzleLocal(p,weaponId=p.weapon){
+ const idx=clamp(weaponId|0,0,weapons.length-1);
+ const compact=idx===5||idx===9,heavy=idx===2||idx===4||idx===8;
+ const long=idx===2||idx===6;
+ const length=long?.66:compact?.21:heavy?.46:.39;
+ const barrel=.55+(long?.09:compact?-.085:0);
+ const shot=Math.max(0,Number(p.shots)||0)|0;
+ const x=(idx===1||idx===8)?(shot%2===0?-.088:.088):
+  idx===6?[-.097,0,.097][shot%3]:0;
+ const y=(idx===1||idx===8)?.115:idx===6?.123:.125;
+ // Account for the front cylinder face and its round muzzle collar.
+ let z=barrel+Math.max(length*.50,length*.44+.045)+.018;
+ if(idx===5)z=Math.max(z,.733); // Forward vector compensator.
+ return {x,y,z};
+}
+function operatorMuzzlePoint(p,weaponId=p.weapon){
+ const m=operatorMuzzleLocal(p,weaponId);
+ const pitch=clamp(Number(p.pitch)||0,-1.08,1.06),si=Math.sin(pitch),co=Math.cos(pitch);
+ const yaw=Number(p.yaw)||0,cy=Math.cos(yaw),sy=Math.sin(yaw);
+ const recoil=Math.min(.06,(p.recoil||0)*.08);
+ const bob=p.walk?Math.sin((Number(game?.t)||0)*11)*.012:0;
+ const forward=m.z-recoil;
+ const x=.39+m.x,y=.98+m.y*co+forward*si+bob,z=.20+forward*co-m.y*si;
+ return {x:p.x+x*cy+z*sy,y:(p.feetY||0)+y,z:p.z-x*sy+z*cy};
+}
+// Projectiles leave the visible barrel, but converge on the existing sight
+// ray to avoid a near-field parallax penalty for offset/right-hand weapons.
+function directionFromMuzzle(sightOrigin,sightDir,muzzle,hitDistance){
+ const distance=Math.max(1.5,hitDistance);
+ const dx=sightOrigin.x+sightDir.x*distance-muzzle.x;
+ const dy=sightOrigin.y+sightDir.y*distance-muzzle.y;
+ const dz=sightOrigin.z+sightDir.z*distance-muzzle.z;
+ const size=Math.hypot(dx,dy,dz)||1;
+ return {x:dx/size,y:dy/size,z:dz/size};
+}
+// One or two short procedural flashes per gun, never new lights, textures,
+// particles, intervals or extra PvP packets. On mobile/low detail: one mesh.
+function drawGunMuzzleFlash(p,gunId,m,part,t){
+ const power=clamp((p.shotGlow||0)*8,0,1);
+ if(power<=.05)return;
+ const idx=clamp(gunId|0,0,weapons.length-1),color=weapons[idx].color;
+ const small=idx===3||idx===5,heavy=idx===1||idx===4||idx===8;
+ const radius=(small?.065:heavy?.14:.095)*(.55+power*.70);
+ const length=(idx===2?.37:idx===4?.31:idx===8?.22:small?.12:.20)*(.65+power*.8);
+ const main=idx===0||idx===7||idx===9?(geom.spark||geom.orb):
+  (geom.tracer||geom.octa);
+ part(m.x,m.y,m.z+.045*power,radius,radius,length,color,1.35+1.3*power,main);
+ const detail=save.settings.quality>0&&!(typeof touchOnly!=='undefined'&&touchOnly);
+ if(!detail)return;
+ if(idx===1||idx===2||idx===4||idx===8||idx===9){
+  // Shotgun pressure ring; railgun magnetic halo; rocket/grenade gas;
+  // cryo condensation. Static meshes fade with the same 0.1s shot timer.
+  const tint=(idx===4||idx===8)?[.39,.37,.35]:color;
+  const spread=idx===1?.24:idx===2?.19:idx===9?.17:.21;
+  part(m.x,m.y,m.z-.045,spread*power,spread*power,.06+power*.045,
+   tint,((idx===4||idx===8)?.5:1.2)*power,(idx===4||idx===8)?geom.orb:geom.ring);
+ }else if(idx===6||idx===7){
+  const side=idx===6?.12:.08;
+  for(const sign of [-1,1])part(m.x+side*sign,m.y,m.z-.035,
+   .035*power,.038*power,.09*power,color,1.1*power,geom.octa);
+ }else{
+  // Compact secondary spark for the carbine, LMG and vector SMG.
+  part(m.x+.065,m.y+.03,m.z-.015,.035*power,.031*power,.09*power,
+   color,.75*power,geom.octa);
+ }
+}
+// Shared, cheap player-hit reaction for solo, PvP, first/third/second person.
+// The visual position is on the side facing the attacker, while the armor
+// pulse wraps the actor so WebGL players can see hits from behind as well.
+function operatorHitReaction(p,source=null,{head=false,blocked=false}={}){
+ const g=game;if(!g||!p)return;
+ p.hitFlash=Math.max(p.hitFlash||0,.44);
+ p.hitHead=!!head;p.hitBlocked=!!blocked;
+ const from=source&&Number.isFinite(source.x)&&Number.isFinite(source.z)?source:
+  {x:p.x+Math.sin(p.yaw||0)*3,z:p.z+Math.cos(p.yaw||0)*3};
+ const dx=from.x-p.x,dz=from.z-p.z,len=Math.hypot(dx,dz)||1;
+ const x=p.x+dx/len*.53,y=(p.feetY||0)+(head?1.76:1.20),z=p.z+dz/len*.53;
+ const col=blocked?[.36,.85,1]:head?[1,.87,.37]:[1,.38,.25];
+ g.impactFx.push({x,y,z,life:.39,maxLife:.39,r:head?.43:.51,col});
+ if(g.impactFx.length>35)g.impactFx.splice(0,g.impactFx.length-35);
+ // Shotguns and rapid fire refresh the armor pulse, not an unbounded shower.
+ if(g.t-(p.lastHitSparkAt??-100)>.085){
+  p.lastHitSparkAt=g.t;
+  const count=save.settings?.quality===0||(typeof touchOnly!=='undefined'&&touchOnly)?3:5;
+  for(let i=0;i<count;i++){
+   const angle=i*TAU/count+g.t*11,life=.20+.055*(i%3);
+   g.particles.push({x,y,z,vx:Math.cos(angle)*(1.1+i*.18),
+    vy:.40+i*.23,vz:Math.sin(angle)*(1.1+i*.18),life,maxLife:life,a:angle,col});
+  }
+  if(g.particles.length>48&&typeof mpMatch!=='undefined'&&mpMatch?.active)
+   g.particles.splice(0,g.particles.length-48);
+ }
+}
 // A third-person weapon uses the same ten distinctive silhouette families as
 // the cockpit weapon. All components share a glove pivot and rise with camera
 // pitch; the old universal rectangular club is completely removed.
@@ -185,10 +281,7 @@ function renderOperatorWeapon(g,p,block,c){
   }
   part(0,.245,.40,.13,.085,.13,edge);
  }
- if((p.shotGlow||0)>.015){
-  const power=clamp(p.shotGlow*7,0,1);
-  part(0,.12,muzzle+barrelLen*.5,.11+power*.10,.11+power*.10,.19,glow,1.9,geom.orb);
- }
+ drawGunMuzzleFlash(p,idx,operatorMuzzleLocal(p,idx),part,g.t);
 }
 function renderOperator(g,p){
  if(!glReady)return;
@@ -279,6 +372,27 @@ function renderOperator(g,p){
   headBlock(0,1.96,-.34,.035,.41,.035,c.light);
   headBlock(0,2.16,-.34,.075,.075,.075,c.accent,.72,geom.orb);
   for(const side of [-1,1])block(side*.11,1.27,-.51,.035,.33,.035,c.accent,.45);
+ }
+ // The pulse is visible from ALL directions, even if the shooter sees the
+ // back/side of the target. The front-only Stage47 plate was occluded in WebGL.
+ // All geometry is skipped when not hit, including mobile and solo gameplay.
+ const hit=clamp((p.hitFlash||0)/.44,0,1);
+ if(hit>0){
+  const tint=p.hitBlocked?[.35,.85,1]:p.hitHead?[1,.86,.38]:[1,.36,.29];
+  const light=c.light.map((v,i)=>v*(1-hit*.9)+tint[i]*hit*.9);
+  block(0,1.20,.249,.48,.40,.053,light,.5+hit*1.2,geom.bevel);
+  block(0,1.20,-.268,.48,.40,.053,light,.5+hit*1.2,geom.bevel);
+  if(p.hitHead)headBlock(0,1.83,.338,.30,.15,.049,light,.45+hit*1.5,geom.bevel);
+  else block(0,1.18,.292,.22,.22,.032,tint,.55+hit*1.35,geom.bevel);
+  // Broad halo around the whole body, not a small front-facing detail.
+  draw(geom.ring,p.x,feet+1.17,p.z,1.35,1.35,1.35,g.t*4,tint,.7+hit*1.8,.20);
+  // On capable desktop renderers two side glints reinforce oblique views;
+  // low/mobile quality keeps the cheaper all-direction ring and rear plate.
+  if(save.settings.quality>0&&!(typeof touchOnly!=='undefined'&&touchOnly))
+   for(const side of [-1,1]){
+    const q=point(side*.47,1.24,0);
+    draw(geom.orb,...q,.13*hit,.13*hit,.13*hit,g.t,tint,1.2+hit*1.4);
+   }
  }
  renderOperatorWeapon(g,p,block,c);
  if(p.shield>0){
@@ -378,6 +492,15 @@ function drawFallbackOperator(ctx,p,size){
  if(gunId===9){for(const y of [-.105,.105])plate(.10,y,.23,.065,signal);}
  ctx.restore();
  if(c.grade>0)for(const s of [-1,1])plate(s*.49,-.46,.19,.17,rgb(c.accent));
+ // Match WebGL's hit flash when WebGL is unavailable (Android Canvas path).
+ const hit=clamp((p.hitFlash||0)/.44,0,1);
+ if(hit>0){
+  const shade=p.hitBlocked?'#70eaff':p.hitHead?'#ffe685':'#ff8174';
+  ctx.save();ctx.globalAlpha=hit*.78;ctx.fillStyle=shade;ctx.shadowColor=shade;
+  ctx.shadowBlur=15*hit;ctx.beginPath();
+  ctx.ellipse(0,p.hitHead?-.91:-.28,p.hitHead?.27:.35,p.hitHead?.20:.31,0,0,TAU);
+  ctx.fill();ctx.restore();
+ }
  ctx.restore();
 }
 

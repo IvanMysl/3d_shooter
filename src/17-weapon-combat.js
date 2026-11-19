@@ -33,9 +33,10 @@ function addImpact(hit,w,power=1){
  g.impactFx.push({x:hit.x,y:hit.y,z:hit.z,life:.19,maxLife:.19,r:(.13+.14*power),col:w.color||[1,1,1]});
  if(g.impactFx.length>38)g.impactFx.shift();
 }
-function makeTracer(o,end,w,width=1){
+function makeTracer(o,end,w,width=1,localView=false){
  const g=game;if(!g)return;
- g.tracers.push({a:{...o},b:{...end},life:w.pierce?.22:.13,maxLife:w.pierce?.22:.13,r:(w.pierce?.052:.017)*width,col:w.color});
+ g.tracers.push({a:{...o},b:{...end},life:w.pierce?.22:.13,maxLife:w.pierce?.22:.13,
+  r:(w.pierce?.052:.017)*width,col:w.color,localView});
  if(g.tracers.length>(touchOnly?35:65))g.tracers.shift();
 }
 function muzzleVisual(w){
@@ -45,10 +46,11 @@ function muzzleVisual(w){
  clearTimeout(muzzleVisual.tm);muzzleVisual.tm=setTimeout(()=>el.style.opacity='0',72);
  sound(w.pierce?135:w.blast?110:w.shots>1?165:w.rate<.09?280:218,w.blast?.24:.10,w.pierce||w.blast?'sawtooth':'triangle',w.blast?.12:.058);
 }
-function shotProjectile(w,o,d){
+function shotProjectile(w,o,d,localView=false){
  const g=game;
  if(g.projectiles.length>=42)g.projectiles.shift();
- g.projectiles.push({x:o.x+d.x*.035,y:o.y+d.y*.035,z:o.z+d.z*.035,vx:d.x*w.speed,vy:d.y*w.speed,vz:d.z*w.speed,life:Math.min(5.4,w.range/w.speed),w,rad:w.name.includes('ГРОМ')?.20:.13});
+ g.projectiles.push({x:o.x+d.x*.035,y:o.y+d.y*.035,z:o.z+d.z*.035,vx:d.x*w.speed,vy:d.y*w.speed,vz:d.z*w.speed,life:Math.min(5.4,w.range/w.speed),w,rad:w.name.includes('ГРОМ')?.20:.13,
+  localView,launchAge:0});
 }
 // Stage 4: a blast affects the actual volumetric robot silhouette, not a
 // single point at its center. Cover is sampled at five independent visible
@@ -153,8 +155,20 @@ function shootPellet(w,burstIndex=0){
  const baseYaw=Math.atan2(targetDir.x,targetDir.z),basePitch=Math.atan2(targetDir.y,Math.hypot(targetDir.x,targetDir.z));
  const ang=baseYaw+rand(-w.spread,w.spread),pitch=clamp(basePitch+rand(-w.spread*.64,w.spread*.64),-1.13,1.04);
  const d=v3(Math.sin(ang)*Math.cos(pitch),Math.sin(pitch),Math.cos(ang)*Math.cos(pitch));
+ // Match the gun that is actually displayed: the first-person viewmodel
+ // is deliberately larger and closer to the camera than the world avatar.
+ const localView=!externalCameraEnabled();
+ const muzzle=localView&&glReady?heldWeaponMuzzleWorld(g,p):operatorMuzzlePoint(p);
  if(w.mode==='projectile'){
-   shotProjectile(w,o,d);
+   // Parallax correction: the physical rocket/bolt leaves the barrel and
+   // converges onto the same sighted obstruction or enemy. Cheap for the
+   // low-rate projectile weapons; hitscan damage stays entirely unchanged.
+   const wall=rayWall(o,d,w.range);
+   const node=rayNode(o,d,wall?wall.t:w.range);
+   const limit=node?node.t:(wall?wall.t:w.range);
+   const enemy=rayEnemy(o,d,limit);
+   const hitDistance=enemy?.t??node?.t??wall?.t??w.range;
+   shotProjectile(w,muzzle,directionFromMuzzle(o,d,muzzle,hitDistance),localView);
    return;
  }
  const wall=rayWall(o,d,w.range);
@@ -179,7 +193,7 @@ function shootPellet(w,burstIndex=0){
  const end=node||wall||first||v3(o.x+d.x*w.range,o.y+d.y*w.range);
  // An enemy stops ordinary rounds; railgun beams penetrate until the wall.
  const target=(w.pierce||!first)?end:first;
- if(w.shots===1||count>0||Math.random()<.42)makeTracer(v3(o.x+d.x*.44,o.y+d.y*.44,o.z+d.z*.44),target,w,w.shots>1?.48:1);
+ if(w.shots===1||count>0||Math.random()<.42)makeTracer(muzzle,target,w,w.shots>1?.48:1,localView);
  if(wall&&!node&&(!first||w.pierce||w.shots>1))addImpact(wall,w,w.pierce?1.8:.85);
 }
 function fireBurstShot(w){
@@ -212,6 +226,7 @@ function updatePlayerOrdnance(dt){
  g.burstQueue=g.burstQueue.filter(x=>!x.done);
  for(const s of g.projectiles){
    if(s.dead)continue;
+   s.launchAge=(s.launchAge||0)+dt;
    const ox=s.x,oy=s.y,oz=s.z;
    const length=hypot(s.vx*dt,s.vy*dt,s.vz*dt);
    if(length<1e-6)continue;

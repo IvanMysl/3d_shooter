@@ -218,7 +218,7 @@ function updateEnemies(dt){const g=game,p=g.p;for(let e of g.enemies){if(e.dead)
    if(prev>0&&e.ultWarn===0){
     const near=hypot(p.x-e.x,p.z-e.z)<5.15;
     const nearHeight=Math.abs((p.feetY||0)-(e.feetY||0))<1.35;
-    if(near&&nearHeight&&p.grounded&&e.stun<=0&&bossGroundWaveReach(e,p))damagePlayer(16+Math.min(22,g.sector*.45));
+    if(near&&nearHeight&&p.grounded&&e.stun<=0&&bossGroundWaveReach(e,p))damagePlayer(16+Math.min(22,g.sector*.45),e);
     burst(e.x,.18+(e.feetY||0),e.z,[1,.4,.12],28);
     sound(92,.32,'sawtooth',.13);
    }
@@ -247,11 +247,11 @@ if((d>3.5||!enemyDirectRoute(e,p))&&e.stun<=0)enemyMove(e,dx*e.speed*dt,dz*e.spe
  // e.attack was reset by each projectile volley, suppressing boss melee.
  e.meleeTimer=Math.max(0,(e.meleeTimer||0)-dt);
  if(d<1.35&&e.meleeTimer<=0&&e.stun<=0&&enemyMeleeReach(e,p)){
-  damagePlayer(e.damage*.72);e.meleeTimer=1.65;e.attackPulse=Math.max(e.attackPulse||0,.24);
+  damagePlayer(e.damage*.72,e);e.meleeTimer=1.65;e.attackPulse=Math.max(e.attackPulse||0,.24);
  }
  continue}
 if(e.airborne){updateFlyingRobot(e,p,dt);continue;}
-if(e.type==='medic'){if(e.trail>.75){e.trail=0;for(let f of g.enemies)if(!f.dead&&f!==e&&distance(e,f)<4&&enemyCombatClear(e,f,1.1,1.1))f.hp=Math.min(f.maxhp,f.hp+9)}}if(e.stun>0)continue;let chase=e.type==='scout'||e.type==='brute'||e.type==='charger'||e.type==='raider',stopDist=chase?1.1:e.type==='sniper'?8:5;if(d>stopDist||(!chase&&!enemyDirectRoute(e,p))){let mul=chase&&e.type==='charger'&&e.attack<.4?1.9:e.type==='raider'&&e.attack<.40?1.7:1;enemyMove(e,dx*e.speed*dt*mul,dz*e.speed*dt*mul,e.radius*.45)}else if(d<2.5&&!chase){enemyMove(e,-dx*e.speed*dt*.7,-dz*e.speed*dt*.7,e.radius*.45)}else if(!chase&&d<e.range&&d>3&&enemyDirectRoute(e,p)){enemyMove(e,-dz*e.orbit*e.speed*dt*.31,dx*e.orbit*e.speed*dt*.31,e.radius*.45)}if(e.attack<=0){if(chase&&d<1.55&&enemyMeleeReach(e,p)){damagePlayer(e.damage);e.attack=.75+(e.type==='brute'?.42:0)}else if(!chase&&d<e.range&&enemyDirectRoute(e,p)&&enemyCombatClear(e,p,1.25,1.05)){if(e.type==='sniper'){
+if(e.type==='medic'){if(e.trail>.75){e.trail=0;for(let f of g.enemies)if(!f.dead&&f!==e&&distance(e,f)<4&&enemyCombatClear(e,f,1.1,1.1))f.hp=Math.min(f.maxhp,f.hp+9)}}if(e.stun>0)continue;let chase=e.type==='scout'||e.type==='brute'||e.type==='charger'||e.type==='raider',stopDist=chase?1.1:e.type==='sniper'?8:5;if(d>stopDist||(!chase&&!enemyDirectRoute(e,p))){let mul=chase&&e.type==='charger'&&e.attack<.4?1.9:e.type==='raider'&&e.attack<.40?1.7:1;enemyMove(e,dx*e.speed*dt*mul,dz*e.speed*dt*mul,e.radius*.45)}else if(d<2.5&&!chase){enemyMove(e,-dx*e.speed*dt*.7,-dz*e.speed*dt*.7,e.radius*.45)}else if(!chase&&d<e.range&&d>3&&enemyDirectRoute(e,p)){enemyMove(e,-dz*e.orbit*e.speed*dt*.31,dx*e.orbit*e.speed*dt*.31,e.radius*.45)}if(e.attack<=0){if(chase&&d<1.55&&enemyMeleeReach(e,p)){damagePlayer(e.damage,e);e.attack=.75+(e.type==='brute'?.42:0)}else if(!chase&&d<e.range&&enemyDirectRoute(e,p)&&enemyCombatClear(e,p,1.25,1.05)){if(e.type==='sniper'){
   e.telegraph=.86;e.lockTarget={x:p.x,z:p.z,feetY:p.feetY||0};e.attack=2.9;
  }else{enemyFire(e,e.type==='artillery'?6:0);e.attack=e.type==='artillery'?3.15:e.type==='warden'?1.95:1.7}}else{e.attack=.26}}}
 g.enemies=g.enemies.filter(x=>!x.dead);if(g.portalReady)return;if(g.spawned>=g.target&&g.enemies.length===0&&g.target>0)maybeFinishMission(g)}
@@ -328,7 +328,7 @@ function updateBullets(dt){
    const body=rayEllipsoid(o,d,v3(p.x,(p.feetY||0)+1.03,p.z),.42+b.radius,.89+b.radius,.42+b.radius,length);
    if(body!==null&&(!solid||body<solid.t)){
     b.x=o.x+d.x*body;b.y=o.y+d.y*body;b.z=o.z+d.z*body;
-    damagePlayer(b.damage);b.dead=true;burst(b.x,b.y,b.z,b.col,7);
+    damagePlayer(b.damage,b);b.dead=true;burst(b.x,b.y,b.z,b.col,7);
    }else if(solid){
     b.x=solid.x;b.y=solid.y;b.z=solid.z;b.dead=true;burst(b.x,b.y,b.z,b.col,4);
    }else{b.x+=delta.x;b.y+=delta.y;b.z+=delta.z;}

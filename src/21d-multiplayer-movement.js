@@ -85,6 +85,7 @@ function mpMatchOpen(token,roster,settings){
    p.bodyArmor=0;p.bodyArmorType=-1;p.bodyArmorMax=0;p.bodyArmorReduction=0;
    p.damage=1;p.rate=1;p.heatMod=1;p.cooldown=0;p.heat=0;p.heatLock=0;
    p.weapon=settings.equipment==='equal'?settings.weapon:0;p.shotGlow=0;
+   p.hitFlash=0;p.hitHead=false;p.hitBlocked=false;p.lastHitSparkAt=-100;
    actors.set(r.id,{...r,p,cmd:{mx:0,mz:0,j:false,s:false,yaw:p.yaw,pitch:0},seq:-1,
     lastInputAt:0,samples:[]});
   }
@@ -242,7 +243,13 @@ function mpMatchFast(peer,data){
   if(typeof mp8OnSnapshot==='function')mp8OnSnapshot(m);
   m.lastSnapshot=data.tick;m.lastFromHost=Date.now();
   for(const next of list){const actor=m.actors.get(next.id),p=actor.p;
+   // Unreliable fast-channel packets can be dropped. A real authoritative
+   // HP/armor decrease still lights the victim when its hit event was lost.
+   const missedHit=(next.hp<p.hp-.05||next.ar<p.armor-.05)&&
+    (p.hitFlash||0)<.055;
    p.hp=next.hp;p.armor=next.ar;p.weapon=next.gun;
+   if(missedHit&&typeof mpCombatPlayerHitFx==='function')
+    mpCombatPlayerHitFx(next.id*4,{x:p.x+1,y:p.feetY+1.2,z:p.z});
    if(typeof mp6ApplyActorState==='function')mp6ApplyActorState(p,next,actor.id===m.self);
    actor.kills=next.k;actor.deaths=next.d;actor.respawnAt=next.rs?m.tick+next.rs:0;
    actor.invulnUntil=next.iv?m.tick+next.iv:0;
@@ -351,7 +358,23 @@ function mpMatchUpdate(dt){
  input.jumpQueued=false;
  if(game?.tracers)game.tracers=game.tracers.filter(x=>(x.life-=dt)>0);
  if(game?.impactFx)game.impactFx=game.impactFx.filter(x=>(x.life-=dt)>0);
- for(const a of m.actors.values())a.p.shotGlow=Math.max(0,(a.p.shotGlow||0)-dt);
+ if(game?.particles){
+  for(const spark of game.particles){spark.life-=dt;spark.x+=spark.vx*dt;
+   spark.y+=spark.vy*dt;spark.z+=spark.vz*dt;spark.vy-=dt*.8;}
+  game.particles=game.particles.filter(s=>s.life>0);
+ }
+ for(const a of m.actors.values()){
+  a.p.shotGlow=Math.max(0,(a.p.shotGlow||0)-dt);
+  a.p.hitFlash=Math.max(0,(a.p.hitFlash||0)-dt);
+ }
+ m.hitConfirm=Math.max(0,(m.hitConfirm||0)-dt);
+ if(!m.hitConfirm&&(m.lastHitConfirm||0)>0)$('crosshair')?.classList.remove('hit');
+ m.lastHitConfirm=m.hitConfirm;
+ m.hurtPulse=Math.max(0,(m.hurtPulse||0)-dt*.8);
+ if(m.hurtPulse>0||(m.lastHurtPulse||0)>0){
+  const flash=$('damageFlash');if(flash)flash.style.opacity=String(m.hurtPulse);
+ }
+ m.lastHurtPulse=m.hurtPulse;
 }
 function mpMatchActors(){return mpMatch?.active?[...mpMatch.actors.values()].filter(a=>a.id!==mpMatch.self&&a.p.hp>0).map(a=>a.p):[];}
 function mpMatchRosterChanged(){
@@ -406,6 +429,8 @@ function mpMatchPause(){
 function mpMatchAbort(){
  if(!mpMatch&&!mpMatchStarting)return;
  mpMatchStarting=false;
+ $('crosshair')?.classList.remove('hit');
+ const flash=$('damageFlash');if(flash)flash.style.opacity='0';
  mpMatch=null;game=null;document.body.classList.remove('mpTraining');
  $('mpTrainingBadge')?.remove();$('mpReconnectNow')?.remove();$('mpCombatScore')?.remove();$('hud').classList.remove('show');
  input.fire=false;input.jumpHeld=false;input.jumpQueued=false;input.keys={};

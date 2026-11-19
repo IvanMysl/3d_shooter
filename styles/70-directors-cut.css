@@ -224,3 +224,18 @@ body:not(.webgl).thirdPersonCameraClose #gun{display:block!important}
  #flightControls #flightToggle{min-width:61px;}
  #flightControls #flightUp,#flightControls #flightDown{min-width:35px;}
 }
+
+/* Stage49: The flight row belongs ABOVE ARSENAL, not above the action pad.
+   JS aligns it to ARSENAL's measured top/right edge exactly; these rules are
+   immediate CSS fallbacks before the first layout/rotation callback. */
+@media (hover:none),(pointer:coarse){
+ #flightControls{top:auto;right:17px;bottom:196px;flex-direction:row-reverse;
+  justify-content:flex-start;z-index:9;max-width:calc(100vw - 20px);}
+ #flightControls button{box-sizing:border-box;min-height:36px;}
+}
+@media (max-width:600px) and (orientation:portrait){
+ #flightControls{top:auto;right:11px;bottom:180px;}
+}
+@media (max-height:570px) and (orientation:landscape){
+ #flightControls{top:auto;right:14px;bottom:147px;}
+}

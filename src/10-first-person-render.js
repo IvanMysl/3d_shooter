@@ -1,5 +1,32 @@
-
-
+// The first-person gun is deliberately a screen-space viewmodel, placed at a
+// different offset from the in-world third-person gun. A tracer launched from
+// the operator's world-space gun will therefore appear to come from empty
+// space on the other side of the screen. Use this *exact* viewmodel transform
+// for the visible local muzzle, independent of desktop/mobile aspect ratio.
+function heldWeaponMuzzleLocal(p){
+ const idx=clamp(p.weapon|0,0,weapons.length-1);
+ const compact=idx===5||idx===9,heavy=idx===2||idx===4||idx===8;
+ const long=idx===2||idx===6,twin=idx===1||idx===8;
+ const barrelLen=long?.96:compact?.35:heavy?.68:.62;
+ const front=Math.max(.90+barrelLen*.5,1.18+.15*.5,
+  idx===2?1.35+.22*.5:0,compact?1.01+.16*.5:0)+.025;
+ const x=twin?.24+((Math.max(0,p.shots||0)%2===0)?-.084:.084):.24;
+ return {x,y:-.28+.022,z:front};
+}
+function heldWeaponMuzzleWorld(g,p){
+ const muzzle=heldWeaponMuzzleLocal(p),yaw=p.yaw,pitch=p.pitch;
+ const cy=Math.cos(yaw),sy=Math.sin(yaw),si=Math.sin(pitch),co=Math.cos(pitch);
+ const forward=[sy*co,si,cy*co];
+ const right=[-cy,0,sy],up=[-sy*si,co,-cy*si];
+ const eyeY=1.47+(p.feetY||0)+Math.sin(g.t*10)*(p.walk?.028:0)+(p.recoil||0)*-.045;
+ const recoil=Math.min(.37,Math.max(0,p.recoil||0))*.20;
+ const walk=p.walk?Math.sin(g.t*10.5)*.010:Math.sin(g.t*1.4)*.002;
+ const equip=Math.max(0,(p.equipAnim||0))*.17;
+ const x=muzzle.x*.61+.20,y=muzzle.y*.55-.19+walk-equip,z=muzzle.z*.87+.72-recoil;
+ return {x:p.x+right[0]*x+up[0]*y+forward[0]*z,
+  y:eyeY+right[1]*x+up[1]*y+forward[1]*z,
+  z:p.z+right[2]*x+up[2]*y+forward[2]*z};
+}
 function renderHeldWeapon(g,p,eye,dir){
  // A modular multi-part viewmodel: different silhouettes for all ten guns.
  // Procedural geometry only; no external models or textures are required.
@@ -98,13 +125,9 @@ function renderHeldWeapon(g,p,eye,dir){
    part(x0-.24,y0-.22,.64,.19,.145,.25,[.145,.17,.18]);
    for(let j=0;j<3;j++)part(x0-.15+j*.066,y0-.15,.75,.056,.061,.17,[.19,.22,.22]);
  }
- // Muzzle animation is short and weapon-dependent.
- if((p.shotGlow||0)>.006){
-   const flash=Math.min(1,(p.shotGlow||0)*8),fz=1.26+(long?.26:0);
-   const pos=a(x0,y0+.02,fz);
-   draw(geom.orb,...pos,.10+.10*flash,.10+.10*flash,.15+.15*flash,g.t,glow,2.6*flash);
-   draw(geom.ring,...pos,.20+.09*flash,.20+.09*flash,.20+.09*flash,g.t*8,glow,1.0*flash,1.0);
- }
+ // Effects sit on the visible front of each barrel in the viewmodel too.
+ // Reuse the same weapon-specific bounded-cost flash as the world model.
+ drawGunMuzzleFlash(p,idx,heldWeaponMuzzleLocal(p),part,g.t);
  gl.uniform1f(u.uMatOverride,-1.);
 }
 // Directional glow tails share one tapered GPU mesh. No per-shot allocations
@@ -113,7 +136,8 @@ function drawEnergyTail(b,color,width,maxLength,glow=1.1){
  const vx=Number(b.vx)||0,vy=Number(b.vy)||0,vz=Number(b.vz)||0;
  const speed=Math.hypot(vx,vy,vz);if(speed<.001)return;
  const len=Math.min(maxLength,.06+speed*.032);
- const x=b.x-vx/speed*len*.5,y=b.y-vy/speed*len*.5,z=b.z-vz/speed*len*.5;
+ const point=b.visualPoint||b;
+ const x=point.x-vx/speed*len*.5,y=point.y-vy/speed*len*.5,z=point.z-vz/speed*len*.5;
  const yaw=Math.atan2(vx,vz),tilt=-Math.atan2(vy,Math.hypot(vx,vz));
  draw(geom.tracer||geom.cylinder,x,y,z,width,width,len,yaw,color,glow,tilt);
 }
@@ -208,11 +232,12 @@ for(const f of (g.impactFx||[])){
  draw(geom.orb,f.x,f.y,f.z,r*.5*a,r*.5*a,r*.5*a,g.t,f.col,1.15*a);
 }
 for(const b of (g.projectiles||[])){
- if(hypot(b.x-p.x,b.z-p.z)>40)continue;
- draw(geom.spark||geom.orb,b.x,b.y,b.z,b.rad*2,b.rad*2,b.rad*2,g.t*2,b.w.color,2.4);
+ const point=b.visualPoint||b;
+ if(hypot(point.x-p.x,point.z-p.z)>40)continue;
+ draw(geom.spark||geom.orb,point.x,point.y,point.z,b.rad*2,b.rad*2,b.rad*2,g.t*2,b.w.color,2.4);
  if(save.settings.quality>0){
    drawEnergyTail(b,b.w.color,b.rad*1.15,1.25,1.35);
-   draw(geom.ring,b.x,b.y,b.z,b.rad*2.5,b.rad*2.5,b.rad*2.5,g.t,b.w.color,.58);
+   draw(geom.ring,point.x,point.y,point.z,b.rad*2.5,b.rad*2.5,b.rad*2.5,g.t,b.w.color,.58);
  }
 }
 if(save.settings.quality>0){
@@ -244,5 +269,5 @@ for(let i=g.particles.length-1;i>=0&&renderedSparks<maxSparks;i--){
 }
 // Draw peers with the existing detailed operator model in both camera modes.
 if(typeof mpMatchRenderOperators==='function')mpMatchRenderOperators(g);
-if(camera?.drawActor)renderOperator(g,p);else renderHeldWeapon(g,p,eye,dir);if(!camera?.drawActor&&p.shotGlow>.015){const rt=[-Math.cos(p.yaw),0,Math.sin(p.yaw)];const fx=eye[0]+dir[0]*1.55+rt[0]*.27,fy=eye[1]+dir[1]*1.55-.24,fz=eye[2]+dir[2]*1.55+rt[2]*.27;const sz=.10+Math.min(1,p.shotGlow*9)*.18;draw(geom.octa,fx,fy,fz,sz*.7,sz*.7,sz*1.8,g.t*25,weapons[p.weapon].color,1.75);}if(post)showPost(g.t);
+if(camera?.drawActor)renderOperator(g,p);else renderHeldWeapon(g,p,eye,dir);if(post)showPost(g.t);
 }
