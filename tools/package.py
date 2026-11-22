@@ -18,6 +18,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 INCLUDE_ROOT = (
+    'QUALITY_STAGE131_OCCLUDED_NAMES_RU.md',
     'QUALITY_STAGE130_HOST_LAUNCH_RU.md',
     'QUALITY_STAGE129_CHAT_KEYBOARD_RESTORE_RU.md',
     'QUALITY_STAGE128_SHARED_CHAT_SCROLL_RU.md',

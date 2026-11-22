@@ -43,6 +43,7 @@ function frame(now){
  const willDraw=state==='playing'&&shouldRenderFpsFrame(elapsedMs,cap);
  if(game&&state==='playing'&&willDraw){
   render();
+  if(typeof mpNameTagsUpdate==='function')mpNameTagsUpdate();
   if(state==='playing'&&game?.state==='playing'){fpsSamples++;framesRenderedTotal++;}
  }
  if(state==='playing'){

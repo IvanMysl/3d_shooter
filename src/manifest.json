@@ -360,6 +360,10 @@
       "description": "MP-10: loss-tolerant compact P2P codec, adaptive idle traffic, smarter projectile relevance"
     },
     {
+      "file": "21k-multiplayer-nametags.js",
+      "description": "Stage131: никнеймы над игроками с точной 3D-проекцией, дистанционным затуханием и перекрытием реальными физическими стенами/платформами"
+    },
+    {
       "file": "22-menus-and-upgrades.js",
       "description": "Настройки FPS, меню, ангар, улучшения, пауза",
       "statements": [

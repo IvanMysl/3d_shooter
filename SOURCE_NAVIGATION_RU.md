@@ -1,3 +1,9 @@
+# Новое в Stage131
+
+`src/21k-multiplayer-nametags.js` — привязка ника к голове удалённого сетевого актёра, проекция WebGL/Canvas и фильтрация видимости через физический raycast; `styles/55-multiplayer.css` — ненавязчивые плашки. В `src/27-main-loop-diagnostics.js` вызов обновления после кадра. Полный отчёт: `QUALITY_STAGE131_OCCLUDED_NAMES_RU.md`.
+
+---
+
 # Stage129
 
 В `src/21j-multiplayer-traffic.js` — разделённые состояния фокуса и IME, `mpChatDismissKeyboard`, `mpChatViewportEvent`, `mpChatFollowKeyboard`. В `styles/55-multiplayer.css` — резерв справа для системной навигации Android и кнопка `⌄`. Разметка в `tools/index-template.html` и `dev.html`. Регрессия `tests/test_stage129_chat_keyboard_restore.py`. Протокол WebRTC 43 не изменён.

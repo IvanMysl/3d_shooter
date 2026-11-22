@@ -213,3 +213,11 @@ body.mpChatOpen #mpChatFeed{display:none!important}
 html.mpChatOpen,body.mpChatOpen{touch-action:auto}
 #mpChatUnread[hidden]{display:none!important}
 #mpChatUnread{position:absolute;right:-4px;top:-5px;min-width:19px;height:19px;padding:1px 4px;border:1px solid #c5fff7;border-radius:12px;background:#1a787d;color:#fff;text-align:center;font:750 11px/15px system-ui;pointer-events:none}
+
+/* Stage131: restrained Minecraft-style overhead names. The world is always
+   visibility-tested before a label is shown. Never intercept any input. */
+#mpNameTags[hidden],#mpNameTags .mpNameTag[hidden]{display:none!important}
+#mpNameTags{position:fixed;inset:0;pointer-events:none;z-index:1;overflow:hidden;contain:layout paint}
+.mpNameTag{position:absolute;left:0;top:0;max-width:min(175px,35vw);min-width:24px;padding:3px 8px 4px;border:1px solid rgba(139,220,226,.53);border-radius:6px;background:rgba(5,15,23,.77);box-shadow:0 2px 9px rgba(0,0,0,.65),inset 0 1px rgba(255,255,255,.10);color:#eaffff;font:750 13px/1.25 system-ui,sans-serif;letter-spacing:.01em;text-align:center;text-shadow:0 1px 3px #000;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;user-select:none;pointer-events:none;will-change:transform,opacity}
+.mpNameTag.mpNameEnemy{border-color:rgba(237,139,135,.62);color:#ffddd8}
+@media(max-width:700px),(hover:none),(pointer:coarse){.mpNameTag{padding:3px 6px;border-radius:5px;max-width:min(124px,32vw);box-shadow:0 1px 5px rgba(0,0,0,.6)}}

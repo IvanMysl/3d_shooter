@@ -19,6 +19,7 @@
 <body>
 <canvas id="gl"></canvas><div id="scanlines"></div><div id="vignette"></div><div id="damageFlash"></div><div id="floatText"></div>
 <div id="hud">
+  <div id="mpNameTags" hidden aria-hidden="true"></div>
   <div class="hudtop"><div><div class="brandtiny">ECLIPSE PROTOCOL · SKYBRIDGE / SECTOR</div><div class="sector" id="sectorText">01 · ГРАНИЦА РАЗЛОМА</div><div id="zoneText" class="brandtiny" style="letter-spacing:.11em;color:#9bd7cf;font-size:9px;margin-top:2px">ЦИТАДЕЛЬ</div><div class="stats"><span id="killText">УНИЧТОЖЕНО 0 / 0</span><span id="scoreText">ОЧКИ 0000</span></div></div></div>
   <div id="fpsCorner" aria-label="Фактическая частота кадров"><span id="fpsMeter">— FPS</span></div>
   <div class="topright"><canvas id="minimap" width="192" height="192"></canvas><button id="fullscreenBtn" class="hudbutton" aria-label="Включить полноэкранный режим" title="Полный экран (G)" aria-pressed="false">⛶</button><button id="pauseBtn" class="hudbutton" aria-label="Пауза">Ⅱ</button><button type="button" id="mpChatButton" hidden aria-label="Открыть чат (T)" title="Чат (T)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M4 4h16v12H9l-5 4z"/><path d="M8 8h8M8 12h5"/></svg><span>Чат</span><b id="mpChatUnread" hidden aria-label="Новые сообщения"></b></button></div>

@@ -162,7 +162,7 @@ function mpPreviewStart(id,button){
 }
 function mpPreviewEnd(){
  const session=mpPreviewSession;if(!session)return false;
- mpPreviewSession=null;mpMatch=null;game=null;closeArsenal();$('mpCombatScore')?.remove();$('mpReconnectNow')?.remove();$('crosshair')?.classList.remove('hit');const flash=$('damageFlash');if(flash)flash.style.opacity='0';legacyResumeSector=session.legacy;legacyResumeDivisor=session.divisor;miniZoom=session.zoom;
+ mpPreviewSession=null;mpMatch=null;game=null;if(typeof mpNameTagClear==='function')mpNameTagClear();closeArsenal();$('mpCombatScore')?.remove();$('mpReconnectNow')?.remove();$('crosshair')?.classList.remove('hit');const flash=$('damageFlash');if(flash)flash.style.opacity='0';legacyResumeSector=session.legacy;legacyResumeDivisor=session.divisor;miniZoom=session.zoom;
  resetTransientInput();input.mobileSprint=false;
  $('runTouch')?.classList.remove('running');$('runTouch')?.setAttribute('aria-pressed','false');
  document.body.classList.remove('mpMapPreview','mpTraining','flightUnlocked','flying','thirdPersonCameraClose');
@@ -526,6 +526,7 @@ function mpMatchAbort(){
  if(mpPreviewSession)return mpPreviewEnd();
  if(!mpMatch&&!mpMatchStarting)return;
  mpMatchStarting=false;
+ if(typeof mpNameTagClear==='function')mpNameTagClear();
  $('crosshair')?.classList.remove('hit');
  const flash=$('damageFlash');if(flash)flash.style.opacity='0';
  mpMatch=null;game=null;document.body.classList.remove('mpTraining');
