@@ -36,8 +36,9 @@ check(b.x<6,'big dash crossed a physical post/rail');
 // Top of a suspended bridge is an obstacle, underneath is accessible only
 // with sufficient real headroom; heavy boss must not pass through the plate.
 setup();c.registerWorldSolid(4,2.03,4,6,2.20,6,'bridge');
-const small=bot(5,3,{id:6});
-check(c.enemyCanOccupy(small,5,5,.25),'standard robot cannot pass under elevated bridge');
+const small=bot(5,3,{id:6,type:'scout',radius:.42});
+check(c.enemyCanOccupy(small,5,5,.25),'short scout cannot pass under elevated bridge');
+check(!c.enemyCanOccupy(bot(5,3,{id:9}),5,5,.25),'taller shooter must not pass under 2.03m plate');
 const boss=bot(5,3,{id:7,boss:true,radius:1.03,maxhp:500});
 check(!c.enemyCanOccupy(boss,5,5,.45),'big boss passed inside bridge plate');
 // World changes must invalidate cached navigation; tiles previously blocked

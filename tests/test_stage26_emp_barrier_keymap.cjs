@@ -55,6 +55,7 @@ const blast={Math,Number,Array,clamp,
 vm.createContext(blast);
 vm.runInContext(permBlock.slice(permBlock.indexOf('const PERM_COMPOUND='),permBlock.indexOf('function newPlayer(')),blast);
 vm.runInContext(pulseBlock,blast);
+vm.runInContext(src('13-enemy-navigation-spawn.js').split('function emitPulseFx(').pop().replace(/^/, 'function emitPulseFx('),blast);
 function targets(){
  blast.game.enemies=[{id:1,x:5,z:0,dead:false},{id:2,x:8,z:0,dead:false}];
  blast.game.nodes=[{id:1,x:5,z:0,feetY:0,radius:.2,dead:false},

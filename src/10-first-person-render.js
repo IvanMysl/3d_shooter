@@ -162,15 +162,21 @@ if(g.portalReady){
     draw(geom.ring,q.x,.061+floorHeight(q.x,q.z),q.z,.25,.021,.25,tm*.4+i,tt.accent,.72);
   }
 }
-for(const loot of g.loot){let c=loot.type==='heal'?[1,.32,.48]:loot.type==='energy'?[.32,.88,1]:loot.type==='plates'?[.67,.80,.94]:[1,.75,.31];draw(geom.octa,loot.x,.45+floorHeight(loot.x,loot.z)+Math.sin(g.t*4+loot.z)*.12,loot.z,.24,.39,.24,g.t*2,c,1.25)}
+for(const loot of g.loot){let c=loot.type==='heal'?[1,.32,.48]:loot.type==='energy'?[.32,.88,1]:loot.type==='plates'?[.67,.80,.94]:[1,.75,.31];draw(geom.octa,loot.x,.45+(Number.isFinite(loot.feetY)?loot.feetY:floorHeight(loot.x,loot.z))+Math.sin(g.t*4+loot.z)*.12,loot.z,.24,.39,.24,g.t*2,c,1.25)}
 if(save.settings.quality>0)for(const s of (g.scorch||[])){
  if(hypot(s.x-p.x,s.z-p.z)>22)continue;
  let r=s.r*Math.min(1,s.life/2);draw(geom.orb,s.x,.021,s.z,r*2,.009,r*2,0,[.037,.041,.047],0);
 }
-if(g.mission?.type==='recovery')for(const c of g.mission.caches)if(!c.got&&distance(c,p)<31){
- const y=.76+floorHeight(c.x,c.z)+Math.sin(g.t*2.5+c.id)*.13;
- draw(geom.octa,c.x,y,c.z,.30,.43,.30,g.t*.95,[.56,.91,1],1.1);
- draw(geom.ring,c.x,.08+floorHeight(c.x,c.z),c.z,.66,.05,.66,g.t,[.30,.95,1],.7);
+if(g.mission?.type==='recovery')for(const c of g.mission.caches)if(distance(c,p)<31){
+ const ground=floorHeight(c.x,c.z),enabled=!c.got&&missionItemActive(g,c,'recovery');
+ // Steel body = exact AABB in worldEquipmentGrid: +/- .31 horizontally,
+ // ground+.02 to ground+.32 vertically. Top inset is inside that body.
+ draw(geom.cube,c.x,ground+.17,c.z,.62,.30,.62,0,[.20,.29,.36],.015);
+ draw(geom.cube,c.x,ground+.295,c.z,.37,.045,.37,0,c.got?[.14,.24,.24]:[.26,.50,.57],c.got?.02:.15);
+ if(c.got)continue;
+ const y=.76+ground+Math.sin(g.t*2.5+c.id)*.13;
+ draw(geom.octa,c.x,y,c.z,.30,.43,.30,g.t*.95,enabled?[.56,.91,1]:[.27,.34,.42],enabled?1.1:.14);
+ draw(geom.ring,c.x,.34+ground,c.z,.66,.05,.66,g.t,enabled?[.30,.95,1]:[.32,.39,.42],enabled?.7:.10);
 }
 if(g.arenaEvent?.phase==='warning'){const a=g.arenaEvent;
  const ground=floorHeight(a.x,a.z);const c=a.kind==='thermal'?[1,.28,.13]:[.3,.76,1];

@@ -1,8 +1,8 @@
 // THIRD-PERSON OPERATOR. Single-source armor palette for the hangar preview
 // and the in-world character. No new libraries or network assets.
 const OPERATOR_CAMERA_DISTANCE=3.35;
-function thirdPersonEnabled(){return save.settings.cameraMode==='third';}
-function secondPersonEnabled(){return save.settings.cameraMode==='second';}
+function thirdPersonEnabled(){return (game?.preview?game.previewCamera:save.settings.cameraMode)==='third';}
+function secondPersonEnabled(){return (game?.preview?game.previewCamera:save.settings.cameraMode)==='second';}
 function externalCameraEnabled(){return thirdPersonEnabled()||secondPersonEnabled();}
 function cameraModeLabel(){return secondPersonEnabled()?'ВТОРОЕ ЛИЦО':thirdPersonEnabled()?'ТРЕТЬЕ ЛИЦО':'ПЕРВОЕ ЛИЦО';}
 function operatorColor(c,k=1){return c.map(v=>clamp(v*k,0,1));}
@@ -187,7 +187,8 @@ function operatorHitReaction(p,source=null,{head=false,blocked=false}={}){
   for(let i=0;i<count;i++){
    const angle=i*TAU/count+g.t*11,life=.20+.055*(i%3);
    g.particles.push({x,y,z,vx:Math.cos(angle)*(1.1+i*.18),
-    vy:.40+i*.23,vz:Math.sin(angle)*(1.1+i*.18),life,maxLife:life,a:angle,col});
+    vy:.40+i*.23,vz:Math.sin(angle)*(1.1+i*.18),life,maxLife:life,a:angle,col,
+    ...(typeof mpMatch!=='undefined'&&mpMatch?.active?{fxGravity:.8}:{})});
   }
   if(g.particles.length>48&&typeof mpMatch!=='undefined'&&mpMatch?.active)
    g.particles.splice(0,g.particles.length-48);
@@ -434,6 +435,7 @@ function refreshCameraInterface(){
  if(touchButton){touchButton.textContent=secondPersonEnabled()?'◉ СПЕРЕДИ':thirdPersonEnabled()?'◧ 3D ВИД':'◫ ВИД';touchButton.setAttribute('aria-pressed',String(active));touchButton.setAttribute('aria-label','Камера: '+cameraModeLabel()+'. Переключить вид');}
 }
 function toggleCameraMode(){
+ if(game?.preview){game.previewCamera=thirdPersonEnabled()?'second':secondPersonEnabled()?'first':'third';refreshCameraInterface();return game.previewCamera;}
  save.settings.cameraMode=thirdPersonEnabled()?'second':secondPersonEnabled()?'first':'third';
  persist();refreshCameraInterface();
  if(game?.state==='playing')toast('КАМЕРА: '+cameraModeLabel()+(secondPersonEnabled()?' · ОРУЖИЕ СТРЕЛЯЕТ ВПЕРЁД':''),1.65);

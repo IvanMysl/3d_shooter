@@ -24,9 +24,9 @@ async function main(){
  await until(()=>host.run('mpRtcLinks.size===1')&&guest.run('mpRtcLinks.size===1')&&
   host.run('[...mpRtcLinks.values()][0].fast?.readyState==="open"')&&
   guest.run('[...mpRtcLinks.values()][0].control?.readyState==="open"'));
- await host.run('mpReady()');await guest.run('mpReady()');
+ 
  host.run('mpMatchStartTraining()');await until(()=>active(host)&&active(guest));
- check(host.run('MP_VERSION')===3,'new flight schema requires protocol v3');
+ check(host.run('MP_VERSION')>=3,'new flight schema requires at least protocol v3');
  check(host.run('mpMatch.actors.size')===2,'both players start in the new physics world');
  check(host.run('[...mpMatch.actors.values()].every(a=>a.p.flightUnlocked)'),
   'every player receives fair baseline flight regardless of owned suits');
@@ -49,16 +49,16 @@ async function main(){
  check(actor(host,1).feetY>=0,'descent cannot pass below safe floor');
  guest.run('input.flyDown=false');
  check(host.run(`(()=>{const p=mpMatch.actors.get(1).p;p.feetY=6.9;
-  mp6FlyVertical(p,{u:true,dn:false},.30,0,0);return p.feetY<=7.001})()`),
+  mp6FlyVertical(p,{u:true,dn:false},.30,0,[]);return p.feetY<=7.001})()`),
   'vertical movement clamps to the suit-sized ceiling');
  check(host.run(`(()=>{const p=mpMatch.actors.get(1).p,old=worldSolidHeadBarrier;
   p.feetY=1.7;worldSolidHeadBarrier=()=>4;
-  mp6FlyVertical(p,{u:true,dn:false},.5,0,0);worldSolidHeadBarrier=old;
+  mp6FlyVertical(p,{u:true,dn:false},.5,0,[]);worldSolidHeadBarrier=old;
   return p.feetY<2.21&&p.feetY>1.69})()`),
   'solid overhead beam blocks ascent without player clipping');
  check(host.run(`(()=>{const p=mpMatch.actors.get(1).p,old=worldSolidFeetBarrier;
   p.feetY=4;worldSolidFeetBarrier=()=>2.8;
-  mp6FlyVertical(p,{u:false,dn:true},.4,0,0);worldSolidFeetBarrier=old;
+  mp6FlyVertical(p,{u:false,dn:true},.4,0,[]);worldSolidFeetBarrier=old;
   return p.feetY>2.79})()`),
   'solid suspended floor blocks flight descent');
  check(host.run(`(()=>{const a=mpMatch.actors.get(1),p=a.p;
@@ -149,9 +149,11 @@ async function main(){
   a.p.hp=100;a.p.armor=30;b.p.energy=100;b.p.hp=100;b.p.armor=30;
   b.p.x=15;b.p.z=15;a.p.x=15;a.p.z=12;a.invulnUntil=0;b.invulnUntil=0;
   b.p.abilityCooldowns.pulse=0;})()`);
+ for(const client of [host,guest])client.run('globalThis.pulseEmitted=0;const pulseOriginal=emitPulseFx;emitPulseFx=(...args)=>{const before=game.particles.length;pulseOriginal(...args);globalThis.pulseEmitted+=game.particles.length-before}');
  guest.run('useAbility("pulse")');await step(host,guest,4);
  check(actor(host,0).hp<100||actor(host,0).armor<30,'energy pulse damages a visible opponent');
  check(actor(host,1).energy<60,'pulse costs energy only on host');
+ for(const client of [host,guest])check(client.run('globalThis.pulseEmitted===45'),'full EMI particles on both clients');
  const afterPulse=actor(host,0).hp+actor(host,0).armor;
  guest.run('useAbility("pulse")');await step(host,guest,4);
  check(Math.abs(actor(host,0).hp+actor(host,0).armor-afterPulse)<.001,

@@ -17,7 +17,7 @@ async function start(){
  await until(()=>host.run('mpRtcLinks.size===1')&&guest.run('mpRtcLinks.size===1')&&
   host.run('[...mpRtcLinks.values()][0].fast?.readyState==="open"')&&
   guest.run('[...mpRtcLinks.values()][0].fast?.readyState==="open"'));
- await host.run('mpReady()');await guest.run('mpReady()');
+ 
  host.run('mpMatchStartTraining()');await until(()=>active(host)&&active(guest));
  host.run('mpMatch.tick=70;for(const a of mpMatch.actors.values()){a.invulnUntil=0;a.respawnAt=0;}');
  host.run('mpMatch.fxPackets=[];const oldSend=mpRtcFastSend;'+

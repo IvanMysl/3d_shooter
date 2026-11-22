@@ -80,6 +80,7 @@ async function run(){
   sound:()=>{},burst:()=>{},worldSolidBodyCollision:()=>false,
   clamp:(v,a,b)=>Math.max(a,Math.min(v,b))};
  vm.createContext(phy);vm.runInContext(src('03-height-and-collision.js'),phy);
+ vm.runInContext(src('04a-static-world-solids.js'),phy);
  const p={x:8.5,z:8.5,feetY:0,vy:0,grounded:true,flying:false,flightUnlocked:false};
  phy.game.p=p;
  check(!phy.toggleFlight()&&!p.flying,'flight enabled without level 10 suit');
@@ -87,7 +88,7 @@ async function run(){
  check(phy.toggleFlight()&&p.flying,'suit level 10 did not allow flight');
  phy.input.keys.Space=true;
  for(let i=0;i<300;i++)phy.updateVertical(p,1/60);
- near(p.feetY,15-1.95-.2,'flight passed through high ceiling');
+ near(p.feetY,phy.ceilingHeight()-1.95-.2,'flight passed through high ceiling');
  check(p.flying&&!p.grounded,'flight mode exited at ceiling');
  phy.input.keys.Space=false;phy.input.keys.ControlLeft=true;
  for(let i=0;i<250;i++)phy.updateVertical(p,1/60);
@@ -101,9 +102,11 @@ async function run(){
  for(let i=0;i<200;i++)phy.updateVertical(p,1/60);
  near(p.feetY,4.25-1.95-.2,'low ceiling was ignored');
  phy.input.keys.Space=false;
- phy.sectorStyle=15;p.feetY=10;p.grounded=false;p.flying=false;p.vy=0;
+ phy.sectorStyle=15;
+ const glideStart=phy.ceilingHeight()-2.8;
+ p.feetY=glideStart;p.grounded=false;p.flying=false;p.vy=0;
  phy.updateVertical(p,1/60);
- check(p.feetY>9.9,'turning flight off at altitude teleported player downward');
+ check(p.feetY>glideStart-.1,'turning flight off at altitude teleported player downward');
  // High-ceiling stages include platforms far above ordinary jumping range.
  phy.sectorStyle=15;phy.mapRooms=[{x:2.5,z:2.5,w:12,h:12},{x:18.5,z:18.5,w:12,h:12}];
  phy.makeStairHeights(14);

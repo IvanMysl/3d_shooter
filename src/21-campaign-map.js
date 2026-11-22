@@ -1,8 +1,7 @@
 
 
 const CAMPAIGN_ZONE_NAMES=['Цитадель Разлома','Реакторные кварталы','Архивный пояс','Вертикальные доки','Атриумы времени','Глубины металла','Пограничные системы','Небесные крепости'];
-const LEVEL_ARCHITECTURES=['ЦИТАДЕЛЬ','РЕАКТОРНЫЕ КОЛЬЦА','ХРАМ ПЕРЕХОДОВ','НЕБЕСНЫЕ ДОКИ','АРХИВ ЛАБИРИНТОВ','ГРУЗОВЫЕ ВЕРФИ','КАРАНТИННЫЙ КОМПЛЕКС','ЗАТОПЛЕННЫЙ ТРАНЗИТ','ЗВЁЗДНАЯ ОБСЕРВАТОРИЯ','ПОДЗЕМНОЕ МЕТРО','КРИСТАЛЬНАЯ ГАВАНЬ','ТИТАНОВАЯ КУЗНЯ','ВЕРТИКАЛЬНАЯ ВЕРФЬ','ЛЕСТНИЧНАЯ ЦИТАДЕЛЬ','ВОЗДУШНЫЙ КОЛЛЕКТОР','ТИТАНОВЫЙ АТРИУМ','КРИОГЕННЫЙ ШПИЛЬ','ГРАВИТАЦИОННАЯ ФАБРИКА'];
-function stageName(stage){return LEVEL_ARCHITECTURES[(stage-1)%LEVEL_ARCHITECTURES.length];}
+function stageName(stage){return MP_MAPS[stage-1]?.name||'СЕКТОР '+stage;}
 function mapChapterMaximum(){return developerMaxChapter();}
 function updateCampaignRoute(){
  const grid=$('panel').querySelector('.campaignRoute');
@@ -78,7 +77,7 @@ function showCampaignMap(page=campaignPage){
  <div class="campaignProgressOuter"><div class="campaignProgressInner" style="width:${(chapterDone/CAMPAIGN_CHAPTER_SIZE*100).toFixed(2)}%"></div></div>
  <div class="campaignRoute"><svg class="campaignWires" aria-hidden="true"></svg>${nodes.join('')}</div></div>
  <div class="campaignDetails" id="campaignStageDetail"><strong>Уровень ${unlocked}: ${nextTitle}</strong><div>${pendingReward?`Сначала забери награду за уровень ${checkpoint.sector}. После выбора начнётся уровень ${unlocked}.`:'Нажми на открытую клетку карты, чтобы увидеть рекорд и начать прохождение.'}</div></div>
- <div class="campaignActions"><button id="mapPlayNext" class="primary">${pendingReward?`🎁 ВЫБРАТЬ НАГРАДУ · ${checkpoint.sector} → ${unlocked}`:nextCanResume?`↪ ПРОДОЛЖИТЬ ЗАБЕГ · ${checkpoint.sector}`:done>=CAMPAIGN_MAX_LEVEL?'▶ ПОВТОРИТЬ ФИНАЛ · 100':`▶ ИГРАТЬ · УРОВЕНЬ ${unlocked}`}</button>${checkpoint&&!nextCanResume?`<button id="mapResume" class="secondary">${checkpoint.state==='upgrade'?`🎁 НАГРАДА · ${checkpoint.sector}`:`↪ ПРОДОЛЖИТЬ ${checkpoint.sector}`}</button>`:''}<button id="mapHangar" class="secondary">⚙ АНГАР</button><button id="mapBack" class="secondary">← МЕНЮ</button></div>
+ <div class="campaignActions"><button id="mapPlayNext" class="primary">${pendingReward?`🎁 ВЫБРАТЬ НАГРАДУ · ${checkpoint.sector} → ${unlocked}`:nextCanResume?`↪ ПРОДОЛЖИТЬ ЗАБЕГ · ${checkpoint.sector}`:done>=CAMPAIGN_MAX_LEVEL?'▶ ПОВТОРИТЬ ФИНАЛ · 100':`▶ ИГРАТЬ · УРОВЕНЬ ${unlocked}`}</button>${checkpoint&&!nextCanResume?`<button id="mapResume" class="secondary">${checkpoint.state==='upgrade'?`🎁 НАГРАДА · ${checkpoint.sector}`:`↪ ПРОДОЛЖИТЬ ${checkpoint.sector}`}</button>`:''}<button id="mapHangar" class="secondary">⚙ АНГАР</button><button id="mapBack" data-esc-action class="secondary">← МЕНЮ</button></div>
  ${devMode?'<div class="devStageJump"><label for="devStageNumber">БЫСТРЫЙ ПЕРЕХОД К УРОВНЮ</label><input id="devStageNumber" type="number" min="1" max="100" value="'+first+'"><button id="devStageGo" class="primary">▶ ЗАПУСТИТЬ</button><button id="devStageChapter" class="secondary">ПОКАЗАТЬ НА КАРТЕ</button></div>':''}
  <p class="campaignNote">Прогресс кампании сохраняется после победы. Портал завершает уровень и открывает следующий. Повтор старых уровней не сбрасывает достижения.</p>
  <div class="backupActions"><button class="secondary" data-export-save>⬇ ЭКСПОРТ</button><button class="secondary" data-import-save>⬆ ИМПОРТ</button></div>

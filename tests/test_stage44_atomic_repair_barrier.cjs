@@ -17,6 +17,7 @@ vm.createContext(solo);
 const stats=source('12-arsenal-and-game.js');
 vm.runInContext(stats.slice(stats.indexOf('const PERM_COMPOUND='),stats.indexOf('function newPlayer(')),solo);
 const abilities=source('18-ai-and-abilities.js');
+{const fx=fs.readFileSync(path.join(__dirname,'../src/13-enemy-navigation-spawn.js'),'utf8');vm.runInContext(fx.slice(fx.indexOf('function emitWeaponSound(')),solo);}
 vm.runInContext(abilities.slice(abilities.indexOf('function restorePriorityDefense('),abilities.indexOf('function useAbility(')),solo);
 equal(solo.restorePriorityDefense(player),false,'solo 49 energy cannot buy full 49 HP repair');
 equal(player.hp,0,'failed solo repair does not heal');
@@ -89,6 +90,9 @@ const sim={Math,Number,clamp,hypot:Math.hypot,
   armor:0,maxArmor:50,armorRegen:2.6,armorDelay:0,abilityCooldowns:{},
   heatLock:0,heat:0,recoil:0,shotGlow:0,equipAnim:0,iframes:0,shield:0,
   healRegen:0,cooldown:0,flying:false},t:0,sectorTime:0,combo:0}};
+Object.assign(sim,{navFieldDestroyed:0,navFieldWorldCount:0,worldSolidCount:0,
+ navFieldEquipment:null,worldEquipmentGrid:()=>null,navFieldMap:null,mapCells:null,
+ navFieldHeights:null,heightCells:null,navFieldWorld:null,worldSolidGrid:null});
 vm.createContext(sim);vm.runInContext(gameplay.slice(begin,end),sim);
 sim.update(.5);
 near(sim.game.p.armor,2.6/1.5*.5,'base solo barrier regen slowed exactly 1.5x');

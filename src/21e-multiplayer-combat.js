@@ -76,7 +76,7 @@ function mpCombatVisible(from,to){
  const hit=rayWall(from,d,Math.max(0,dist-.16));
  return !hit||hit.t>=dist-.17;
 }
-function mpCombatBlast(shooter,point,w,direct=null){
+function mpCombatBlast(shooter,point,w,direct=null,wall=null){
  const r=w.blast||1.15;
  const hits=[];
  for(const a of mpMatch.actors.values()){
@@ -88,9 +88,15 @@ function mpCombatBlast(shooter,point,w,direct=null){
   const damaged=mpCombatHit(shooter,a,w.damage*factor);
   hits.push(a.id*4+(damaged?0:1));
  }
- mpCombatEmit('blast',point,point,shooter.p.weapon,direct?.id??-1,hits,shooter.id);
+ const gun=weapons.findIndex(v=>v===w||v.name===w.name);
+ mpCombatEmit('blast',point,point,gun>=0?gun:shooter.p.weapon,direct?.id??-1,hits,shooter.id,wall);
 }
-function mpCombatEmit(type,start,end,weapon,targetId=-1,hits=null,shooterId=-1){
+function mpCombatWallDataValid(a){
+ return Array.isArray(a)&&a.length===12&&a.every(n=>Number.isFinite(n)&&Math.abs(n)<1000)&&
+  a.slice(3,6).every(n=>Math.abs(n)<=1.001)&&Math.hypot(...a.slice(3,6))>.5&&
+  [0,1,2].every(i=>a[i+6]<=a[i+9]&&a[i]>=a[i+6]-.04&&a[i]<=a[i+9]+.04);
+}
+function mpCombatEmit(type,start,end,weapon,targetId=-1,hits=null,shooterId=-1,wall=null,repair=null){
  const m=mpMatch;if(!m?.host)return;
  const event={v:MP_VERSION,kind:'mp3-effect',token:m.token,
   type,gun:weapon,id:targetId,
@@ -99,6 +105,11 @@ function mpCombatEmit(type,start,end,weapon,targetId=-1,hits=null,shooterId=-1){
  // Hit metadata rides in the EXISTING shot/blast event: no extra RTC packets.
  // Up to eight actors; two flags per actor: headshot and absorbed/invulnerable.
  if(hits?.length){event.h=hits;if(shooterId>=0)event.s=shooterId;}
+ if((type==='shot'||type==='blast')&&wall){
+  const bounds=wall.solid?.box||wall.box;
+  if(bounds?.length===6){const data=[wall.x,wall.y,wall.z,wall.nx,wall.ny,wall.nz,...bounds].map(n=>Number.isFinite(n)?+n.toFixed(4):NaN);if(mpCombatWallDataValid(data)){if(type==='shot')event.wall=data;else event.surface=data;}}
+ }
+ if(type==='heal'&&['hp','armor'].includes(repair))event.repair=repair;
  mpCombatReceiveEffect(event);
  for(const a of m.actors.values())if(!a.host)mpRtcFastSend(a.peerId,event);
 }
@@ -116,7 +127,28 @@ function mpCombatReceiveEffect(data){
   (data.h!==undefined&&(!['shot','blast'].includes(data.type)||!Array.isArray(data.h)||
    data.h.length>MP_CAP||!data.h.every(code=>Number.isInteger(code)&&code>=0&&code<MP_CAP*4)))||
   (data.s!==undefined&&(!Number.isInteger(data.s)||!mpMatch.actors.has(data.s)))||
+  (data.wall!==undefined&&(data.type!=='shot'||!mpCombatWallDataValid(data.wall)))||
+  (data.surface!==undefined&&(data.type!=='blast'||!mpCombatWallDataValid(data.surface)))||
+  (data.repair!==undefined&&(data.type!=='heal'||!['hp','armor'].includes(data.repair)))||
   ![...data.a,...data.b].every(n=>Number.isFinite(n)&&Math.abs(n)<1000))return;
+ const listener=game.p,w=weapons[data.gun];
+ const gainAt=(x,y,z)=>Math.max(0,1-Math.hypot(x-listener.x,y-((listener.feetY||0)+1.1),z-listener.z)/24);
+ if(data.type==='shot'&&Number.isInteger(data.id)){
+  // The existing event's id field now identifies the shooter. No extra
+  // network message is needed to animate each peer's visible weapon.
+  const actor=mpMatch.actors.get(data.id);
+  if(actor){
+   // Each shotgun pellet has a tracer, but only one sound/recoil per volley.
+   const now=mpMatch.host?mpMatch.tick*(1000/30):Date.now(),self=data.id===mpMatch.self;
+   if(now-(actor.lastShotFxAt??-Infinity)>=25||actor.lastShotFxGun!==data.gun){
+    actor.lastShotFxAt=now;actor.lastShotFxGun=data.gun;
+    applyWeaponShotPose(actor.p,w);
+    if(self){
+     if(typeof muzzleVisual==='function')muzzleVisual(w);else emitWeaponSound(w);
+    }else emitWeaponSound(w,gainAt(data.a[0],data.a[1],data.a[2]));
+   }
+  }
+ }
  const localView=data.type==='shot'&&data.id===mpMatch.self&&!externalCameraEnabled();
  // The host keeps authoritative collision/projectile positions at the actual
  // world avatar's barrel. Only this client's first-person tracer is moved to
@@ -139,20 +171,42 @@ function mpCombatReceiveEffect(data){
   }
  }
  if(data.type==='shot'&&Number.isInteger(data.id)){
-  // The existing event's id field now identifies the shooter. No extra
-  // network message is needed to animate each peer's visible weapon.
-  const actor=mpMatch.actors.get(data.id);
-  if(actor)actor.p.shotGlow=Math.max(actor.p.shotGlow||0,.14);
+  if(data.wall&&typeof addImpact==='function'){
+   const [x,y,z,nx,ny,nz,...bounds]=data.wall;
+   addImpact({x,y,z,nx,ny,nz,kind:'solid',solid:{box:bounds}},w,w.pierce?1.8:.85);
+  }
  }
- if(data.type==='shot'||data.type==='dash')game.tracers.push({a,b,localView,
-  life:data.type==='dash'?.24:.14,maxLife:data.type==='dash'?.24:.14,
-  r:data.type==='dash'?.10:.018,col:data.type==='dash'?[.3,1,.97]:weapons[data.gun].color});
- else game.impactFx.push({x:b.x,y:b.y,z:b.z,
-  life:data.type==='pulse'?.55:.35,maxLife:data.type==='pulse'?.55:.35,
-  r:data.type==='pulse'?1.1:data.type==='blast'?.50:.27,
-  col:data.type==='shield'?[.60,.58,1]:data.type==='heal'?[.3,1,.55]:weapons[data.gun].color});
- if(game.tracers.length>60)game.tracers.splice(0,game.tracers.length-60);
- if(game.impactFx.length>35)game.impactFx.splice(0,game.impactFx.length-35);
+ if(data.type==='shot'){
+  // Projectile launch packets carry a direction for muzzle interpolation,
+  // not a visible extra laser. Campaign also renders only the actual orb.
+  if(w.mode!=='projectile')emitShotTracer(a,b,w,w.shots>1?.48:1,localView);
+ }
+ else if(data.type==='dash'){
+  // The network dash path is intentionally visible to other participants.
+  game.tracers.push({a,b,localView:false,life:.24,maxLife:.24,r:.10,col:[.3,1,.97]});
+  const cap=typeof touchOnly!=='undefined'&&touchOnly?35:65;
+  if(game.tracers.length>cap)game.tracers.splice(0,game.tracers.length-cap);
+  emitDashFx(b.x,b.y-.7,b.z,data.id===mpMatch.self?1:gainAt(b.x,b.y,b.z));
+ }
+ else if(data.type==='pulse'){
+  // An EMI event is not a bullet impact. Use the campaign particle emitter
+  // at the authoritative actor position, including airborne pulses.
+  const p=game.p,dist=Math.hypot(b.x-p.x,b.y-((p.feetY||0)+1.1),b.z-p.z);
+  emitPulseFx(b.x,b.y,b.z,data.id===mpMatch.self?.2:.2*Math.max(0,1-dist/24));
+ }else if(data.type==='shield')emitShieldFx(b.x,b.y,b.z,data.id===mpMatch.self?1:gainAt(b.x,b.y,b.z));
+ else if(data.type==='heal')emitRepairFx(b.x,b.y-.1,b.z,data.repair||'hp',data.id===mpMatch.self?1:gainAt(b.x,b.y,b.z));
+ else if(data.type==='blast'){
+  // Surface contact is visual metadata only. The authoritative blast center
+  // and damage/cover calculation are deliberately NOT displaced.
+  let visual=b;
+  if(data.surface){
+   const [x,y,z,nx,ny,nz,...bounds]=data.surface;
+   visual=projectileSurfaceFx({x,y,z,nx,ny,nz,kind:'solid',solid:{box:bounds}},w);
+  }
+  emitExplosionFx(visual.x,visual.y,visual.z,w,w.blast||1.15,gainAt(visual.x,visual.y,visual.z));
+ }
+ else game.impactFx.push({x:b.x,y:b.y,z:b.z,life:.35,maxLife:.35,r:.27,col:w.color});
+ if((data.type==='down'||data.type==='spawn')&&game.impactFx.length>35)game.impactFx.splice(0,game.impactFx.length-35);
  if(data.h?.length){
   const shooter=data.type==='shot'?data.id:data.s;
   let actualHit=false;
@@ -167,13 +221,17 @@ function mpCombatReceiveEffect(data){
   }
  }
 }
+// Keep host-authoritative collision and each client's displayed projectile
+// at the SAME physical radius as the single-player ordnance (Stage78).
+// Covers close grazing hits on brackets, railings, shutters and gunport edges.
+function mpProjectileRadius(w){return w?.name?.includes('ГРОМ')?.20:.13;}
 function mpCombatOrdnance(){
  return mpMatch.projectiles.slice(0,72).map(s=>({x:+s.pos.x.toFixed(2),y:+s.pos.y.toFixed(2),
   z:+s.pos.z.toFixed(2),vx:+s.v.x.toFixed(1),vy:+s.v.y.toFixed(1),vz:+s.v.z.toFixed(1),
   gun:weapons.indexOf(s.w)}));
 }
 function mpCombatApplyOrdnance(list){
- if(!Array.isArray(list)||list.length>48)return;
+ if(!Array.isArray(list)||list.length>(mpMatch?.host?72:48))return;
  const display=[];
  // A tiny visual-only offset bridges the avatar barrel and first-person
  // model for about 220 ms; host collision positions are never modified.
@@ -184,7 +242,7 @@ function mpCombatApplyOrdnance(list){
   if(!obj||![obj.x,obj.y,obj.z,obj.vx,obj.vy,obj.vz].every(n=>Number.isFinite(n)&&Math.abs(n)<1000)||
    !Number.isInteger(obj.gun)||weapons[obj.gun]?.mode!=='projectile')return;
   const shot={x:obj.x,y:obj.y,z:obj.z,vx:obj.vx,vy:obj.vy,vz:obj.vz,
-   w:weapons[obj.gun],rad:obj.gun===8?.13:.10};
+   w:weapons[obj.gun],rad:mpProjectileRadius(weapons[obj.gun])};
   let match=null,score=Infinity;
   for(const r of launches){
    if(r.gun!==obj.gun||used.has(r))continue;
@@ -207,15 +265,17 @@ function mpCombatApplyOrdnance(list){
 }
 function mpCombatShot(shooter,w){
  const o=mpCombatOrigin(shooter.p),d=mpCombatDirection(shooter.p,w.spread||0);
- const muzzle=operatorMuzzlePoint(shooter.p);
+ const index=weapons.findIndex(v=>v===w||v.name===w.name),gun=index>=0?index:shooter.p.weapon;
+ const muzzle=operatorMuzzlePoint(shooter.p,gun);
  if(w.mode==='projectile'){
   const m=mpMatch;
   const wall=rayWall(o,d,w.range),limit=wall?Math.min(w.range,wall.t):w.range;
   const target=mpCombatTarget(shooter,o,d,limit);
   const direction=directionFromMuzzle(o,d,muzzle,target?.t??limit);
   if(m.projectiles.length<72)m.projectiles.push({shooter:shooter.id,w,
+   rad:mpProjectileRadius(w),
    pos:muzzle,v:{x:direction.x*w.speed,y:direction.y*w.speed,z:direction.z*w.speed},life:w.range/w.speed});
-  mpCombatEmit('shot',muzzle,mpCombatPoint(muzzle,direction,Math.min(1.5,w.range)),shooter.p.weapon,shooter.id);
+  mpCombatEmit('shot',muzzle,mpCombatPoint(muzzle,direction,Math.min(1.5,w.range)),gun,shooter.id);
   return;
  }
  const wall=rayWall(o,d,w.range),stop=wall?Math.min(w.range,wall.t):w.range;
@@ -236,7 +296,7 @@ function mpCombatShot(shooter,w){
   hits.push(target.a.id*4+(target.head?2:0)+(damaged?0:1));
   if(!w.pierce)break;
  }
- mpCombatEmit('shot',muzzle,mpCombatPoint(o,d,stop),shooter.p.weapon,shooter.id,hits);
+ mpCombatEmit('shot',muzzle,mpCombatPoint(o,d,stop),gun,shooter.id,hits,-1,wall);
 }
 function mpCombatProjectileStep(dt){
  const m=mpMatch;
@@ -246,10 +306,14 @@ function mpCombatProjectileStep(dt){
   const old=s.pos,travel=Math.hypot(s.v.x,s.v.y,s.v.z)*dt;
   if(travel<=.00001){s.life=0;continue;}
   const dir={x:s.v.x*dt/travel,y:s.v.y*dt/travel,z:s.v.z*dt/travel};
-  const wall=rayWall(old,dir,travel),limit=wall?Math.min(travel,wall.t):travel;
+  // The ray-only path missed real visible obstacles grazed by a rocket's
+  // rim. The host must use the exact continuous sphere-vs-world collision
+  // already used in solo play, including solids inside wall-map cells.
+  const wall=sweepWorldSphere(old,dir,travel,s.rad??mpProjectileRadius(s.w));
+  const limit=wall?Math.min(travel,wall.t):travel;
   const impact=mpCombatTarget(shooter,old,dir,limit);
   if(impact){s.pos=mpCombatPoint(old,dir,impact.t);mpCombatBlast(shooter,s.pos,s.w,impact.actor);s.life=0;}
-  else if(wall){s.pos=mpCombatPoint(old,dir,wall.t);mpCombatBlast(shooter,s.pos,s.w);s.life=0;}
+  else if(wall){s.pos=mpCombatPoint(old,dir,wall.t);mpCombatBlast(shooter,s.pos,s.w,null,wall);s.life=0;}
   else{s.pos=mpCombatPoint(old,dir,travel);s.v.y-=(s.w.gravity||0)*dt;s.life-=dt;
    if(s.life<=0)mpCombatBlast(shooter,s.pos,s.w);}
  }
@@ -285,11 +349,19 @@ function mpCombatRespawn(a){
  if(!best){a.respawnAt=m.tick+15;return;}
  const p=a.p;p.x=best.x;p.z=best.z;p.feetY=supportHeight(p,p.x,p.z);
  p.vy=0;p.grounded=true;p.flying=false;p.shield=0;p.energy=100;
- p.hp=100;p.armor=30;p.heat=0;p.heatLock=0;p.cooldown=.5;
+ p.hp=100;p.armor=30;p.heat=0;p.heatLock=0;p.cooldown=.5;p.recoil=0;p.equipAnim=0;
  if(a.id===m.self)refreshFlightButtons();
  a.respawnAt=0;a.invulnUntil=m.tick+MP4_SPAWN_SHIELD_TICKS;
  a.cmd.f=false;a.bursts.length=0;
  mpCombatEmit('spawn',mpCombatOrigin(p),mpCombatOrigin(p),p.weapon,a.id);
+}
+// A warning belongs to the owner of the overheated weapon only. A guest
+// observes authoritative lock transitions, not its locally predicted timer.
+function mpCombatThermalFeedback(actor,lock){
+ if(actor.id!==mpMatch.self)return;
+ const active=lock>.001;
+ if(active&&!actor.overheatFxActive)emitOverheatFx();
+ actor.overheatFxActive=active;
 }
 function mpCombatStep(dt){
  const m=mpMatch;if(!m?.host)return;
@@ -302,6 +374,7 @@ function mpCombatStep(dt){
   if(a.respawnAt){if(m.tick>=a.respawnAt)mpCombatRespawn(a);else continue;}
   p.cooldown=Math.max(0,(p.cooldown||0)-dt);
   p.heatLock=Math.max(0,(p.heatLock||0)-dt);
+  mpCombatThermalFeedback(a,p.heatLock);
   p.heat=Math.max(0,(p.heat||0)-dt*(p.heatLock>0?22:25));
   // Reject client-provided equipment changes to equal-loadout matches.
   mpCombatSelect(a,command.w);
@@ -310,9 +383,9 @@ function mpCombatStep(dt){
   }}
   a.bursts=a.bursts.filter(x=>!x.done);
   if(!command.f||a.paused||p.cooldown>0||p.heatLock>0||p.hp<=0)continue;
-  const w=weapons[p.weapon];if(p.heat>=97){p.heatLock=.9;continue;}
+  const w=weapons[p.weapon];if(p.heat>=97){p.heatLock=.9;mpCombatThermalFeedback(a,p.heatLock);continue;}
   p.cooldown=Math.max(.035,w.rate);p.heat=Math.min(105,p.heat+w.heat);
-  p.shotGlow=.14;p.shots=(p.shots||0)+1;
+  p.shots=(p.shots||0)+1;
   const pellets=Math.min(12,w.shots||1);
   for(let i=0;i<pellets;i++)mpCombatShot(a,w);
   if(w.burst)for(let i=1;i<w.burst;i++)a.bursts.push({w,delay:i*w.burstGap});

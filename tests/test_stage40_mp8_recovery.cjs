@@ -25,9 +25,9 @@ async function main(){
  await until(()=>host.run('mpRtcLinks.size===1')&&guest.run('mpRtcLinks.size===1')&&
   host.run('[...mpRtcLinks.values()][0]?.fast?.readyState==="open"')&&
   guest.run('[...mpRtcLinks.values()][0]?.control?.readyState==="open"'));
- await host.run('mpReady()');await guest.run('mpReady()');
+ 
  host.run('mpMatchStartTraining()');await until(()=>active(host)&&active(guest));
- check(host.run('MP_VERSION')===3,'wire format remains upgraded v3');
+ check(host.run('MP_VERSION')>=3,'wire format retains v3 features or later');
  check(host.run('mpMatch.actors.size')===2,'both actors remain authoritative on host');
  check(guest.run('mpMatch.recoveryAttempts')===0,'auto-recovery budget initialized');
  check(guest.run('mp8GuestState()')==='ok','guest begins with a healthy snapshot stream');

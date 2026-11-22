@@ -38,6 +38,7 @@ vm.createContext(pulseCtx);
 vm.runInContext(stats.slice(stats.indexOf('const PERM_COMPOUND='),stats.indexOf('function newPlayer(')),pulseCtx);
 const ability=src('18-ai-and-abilities.js');
 vm.runInContext(ability.slice(ability.indexOf('function useAbility('),ability.indexOf('function enemyFire(')),pulseCtx);
+vm.runInContext(src('13-enemy-navigation-spawn.js').split('function emitPulseFx(').pop().replace(/^/, 'function emitPulseFx('),pulseCtx);
 pulseCtx.useAbility('pulse');
 close(hits[0],66*1.04**40,'real EMP damage at rank 40');
 close(nodeHits[0],45*1.04**40,'real EMP node damage at rank 40');

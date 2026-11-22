@@ -79,6 +79,7 @@ const power={game:{state:'playing',p:player},Math,Number,
  DASH_DISTANCE_BASE:2.52,DASH_DISTANCE_MAX:14.52,DASH_DISTANCE_MIN:.5};
 vm.createContext(power);
 vm.runInContext(arsenal.slice(arsenal.indexOf('const PERM_COMPOUND='),arsenal.indexOf('function newPlayer(')),power);
+{const fx=fs.readFileSync(path.join(__dirname,'../src/13-enemy-navigation-spawn.js'),'utf8');vm.runInContext(fx.slice(fx.indexOf('function emitWeaponSound(')),power);}
 vm.runInContext(abilities.slice(abilities.indexOf('function restorePriorityDefense('),
  abilities.indexOf('function enemyFire(')),power);
 power.useAbility('shield');

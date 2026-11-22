@@ -40,7 +40,7 @@ function mpRoundLeader(reason){
  return {winnerId,winnerTeam,scores};
 }
 function mpRoundFinish(reason){
- const m=mpMatch,r=m?.round;if(!m?.active||!m.host||!r||r.ended||!MP5_RESULT_REASONS.includes(reason))return false;
+ const m=mpMatch,r=m?.round;if(!m?.active||m.preview||!m.host||!r||r.ended||!MP5_RESULT_REASONS.includes(reason))return false;
  const leaders=mpRoundLeader(reason),result={reason,mode:m.settings.mode,tick:m.tick,
   winnerId:leaders.winnerId,winnerTeam:leaders.winnerTeam,scores:leaders.scores,
   players:[...m.actors.values()].map(a=>({id:a.id,k:a.kills||0,d:a.deaths||0,team:a.team}))};
@@ -58,6 +58,9 @@ function mpRoundFinish(reason){
 function mpRoundCheck(){
  const m=mpMatch,r=m?.round;
  if(!m?.active||!m.host||!r||r.ended)return;
+ // A solo practice session cannot win a competitive round. Preserve the configured
+ // clock; start a new practice interval in place, without replacing the room form.
+ if(m.preview){if(Date.now()>=r.endsAt){r.startedAt=Date.now();r.endsAt=r.startedAt+r.settings.timeLimitSec*1000;toast('ВРЕМЯ ВЫШЛО · НОВЫЙ ТРЕНИРОВОЧНЫЙ РАУНД',2);}return;}
  const limit=r.settings.scoreLimit;
  const leaders=mpRoundLeader('score');
  const points=m.settings.mode==='teams'?Math.max(...leaders.scores):
@@ -135,7 +138,7 @@ function mpRoundShowResults(){
   <ol class="mpResultList">${rows}</ol>
   <div class="row">${m.host?'<button class="primary" id="mpReturnLobby">↻ В ЛОББИ / СЛЕДУЮЩИЙ МАТЧ</button>':
    '<span class="mpRule">Ожидаем ведущего, чтобы вернуться в лобби.</span>'}
-   <button class="secondary" id="mpResultExit">← ВЫЙТИ ИЗ КОМНАТЫ</button></div>`);
+   <button class="secondary" id="mpResultExit" data-esc-action>← ВЫЙТИ ИЗ КОМНАТЫ</button></div>`);
  if(m.host)$('mpReturnLobby').onclick=mpMatchStop;
  $('mpResultExit').onclick=mpLeave;
 }

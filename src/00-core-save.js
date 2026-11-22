@@ -6,7 +6,7 @@ const $=x=>document.getElementById(x), TAU=Math.PI*2, clamp=(n,a,b)=>Math.max(a,
 // replace an existing protected journal.
 const SAVE_KEY='neonrift3d-save-protected-v1',SAVE_BACKUP_KEY='neonrift3d-save-protected-backup-v1',SAVE_SESSION_KEY='neonrift3d-save-protected-session-v1';
 const LEGACY_SAVE_KEY='neonrift3d-save',LEGACY_BACKUP_KEY='neonrift3d-save-backup',LEGACY_SESSION_KEY='neonrift3d-save-session';
-const GAME_BUILD='49',GAME_RELEASE='2026-11-19 / MOBILE FLIGHT HUD ABOVE ARSENAL';
+const GAME_BUILD='130',GAME_RELEASE='2026-11-22 / HOST LAUNCH LOBBY';
 // Developer play is an isolated rehearsal save. It can never overwrite the
 // player's regular autosaves, backup journal or session save.
 const DEV_SAVE_KEY='neonrift3d-developer-sandbox-v1',DEV_PASSWORD_KEY='neonrift3d-developer-password-v1';
@@ -53,6 +53,21 @@ save.settings.flightHorizontal=normalizeFlightThrottle(save.settings.flightHoriz
 save.settings.flightVertical=normalizeFlightThrottle(save.settings.flightVertical);
 // A complete campaign has five chapters of twenty levels, with a real finale.
 const CAMPAIGN_CHAPTER_SIZE=20, CAMPAIGN_MAX_LEVEL=100;
+// Reject damaged checkpoint containers before changing the active game or journal.
+function checkpointShapeOK(ck){
+ if(ck==null)return true;
+ const record=v=>v!==null&&typeof v==='object'&&!Array.isArray(v);
+ if(!record(ck)||!Number.isInteger(Number(ck.sector))||Number(ck.sector)<1||Number(ck.sector)>CAMPAIGN_MAX_LEVEL)return false;
+ for(const k of ['player','upgrades','live'])if(ck[k]!=null&&!record(ck[k]))return false;
+ if(ck.pendingUpgrade!=null&&(!Array.isArray(ck.pendingUpgrade)||ck.pendingUpgrade.some(x=>typeof x!=='string')))return false;
+ if(ck.player?.abilityCooldowns!=null&&!record(ck.player.abilityCooldowns))return false;
+ for(const k of ['enemies','bullets','tracers','projectiles','burstQueue','loot','nodes','decals','scorch','devices','robotDebris']){
+  if(ck.live&&Object.prototype.hasOwnProperty.call(ck.live,k)&&(!Array.isArray(ck.live[k])||ck.live[k].some(x=>!record(x))))return false;
+ }
+ if(ck.live?.mission!=null&&!record(ck.live.mission))return false;
+ for(const k of ['caches','objectives'])if(ck.live?.mission?.[k]!=null&&!Array.isArray(ck.live.mission[k]))return false;
+ return true;
+}
 function normalizeCampaign(record, legacyBest=1, checkpoint=null){
  const oldUnlocked=clamp(Math.floor(Number(legacyBest)||1),1,CAMPAIGN_MAX_LEVEL);
  const oldCheckpoint=Number(checkpoint?.sector)>CAMPAIGN_MAX_LEVEL?1:clamp(Math.floor(Number(checkpoint?.sector)||1),1,CAMPAIGN_MAX_LEVEL);
@@ -84,6 +99,7 @@ function showSaveConflict(){
  if(game?.state==='playing'&&typeof pause==='function')pause();
 }
 function persist(force=false){
+ if(game?.preview)return false;
  try{
   if(devMode){
    save._savedAt=Math.max(Date.now(),(Number(save._savedAt)||0)+1);
@@ -143,12 +159,12 @@ restoreInput.addEventListener('change',async()=>{
  if(devMode){restoreInput.value='';alert('В режиме разработчика импорт отключён, чтобы не затронуть обычные сохранения.');return;}
  const f=restoreInput.files?.[0];if(!f)return;
  try{const payload=JSON.parse(await f.text());const backup=payload?.format==='NEON_RIFT_BACKUP_V3'?payload.saved:payload;
-   if(!backup||typeof backup!=='object'||!Array.isArray(backup.perms)||!Number.isInteger(backup.best)||backup.best<1)throw Error('Invalid backup');
+   if(!backup||typeof backup!=='object'||!Array.isArray(backup.perms)||!Number.isInteger(backup.best)||backup.best<1||!checkpointShapeOK(backup.checkpoint))throw Error('Invalid backup');
    if(!confirm('Импорт ЗАМЕНИТ текущий прогресс, а не объединит покупки. Сначала экспортируй текущую игру в JSON. Продолжить?'))return;
    const before=save;
    // An imported old backup does not specify dashDistance. Do not inherit
    // an unrelated current-session choice: old saves use their full range.
-   save={...save,...backup,perms:normalizePerms(backup.perms),settings:{...save.settings,dashDistance:null,...(backup.settings||{})},weaponMods:backup.weaponMods||{},bodyArmor:backup.bodyArmor||{owned:{},equipped:-1}};
+   save={...save,...backup,checkpoint:backup.checkpoint??null,perms:normalizePerms(backup.perms),settings:{...save.settings,dashDistance:null,...(backup.settings||{})},weaponMods:backup.weaponMods||{},bodyArmor:backup.bodyArmor||{owned:{},equipped:-1}};
    save.settings.quality=clamp(save.settings.quality|0,0,2);
    save.settings.fpsLimit=normalizeFpsLimit(save.settings.fpsLimit);
    save.settings.cameraMode=normalizeCameraMode(save.settings.cameraMode);

@@ -8,6 +8,26 @@ function dcNamedEnemy(e){
   if(e.elite)return 'ЭЛИТНЫЙ БОЕВОЙ РОБОТ';
   return ({scout:'РАЗВЕДЧИК',charger:'ШТУРМОВИК',brute:'ТЯЖЁЛЫЙ ДРОИД',sniper:'СНАЙПЕР',medic:'РЕМОНТНЫЙ ДРОН',shooter:'СТРЕЛОК',warden:'СТРАЖ БАРЬЕРА',artillery:'АРТИЛЛЕРИСТ',raider:'КВАНТОВЫЙ РЕЙДЕР',interceptor:'НЕБЕСНЫЙ ПЕРЕХВАТЧИК',drone:'НЕБЕСНЫЙ ПЕРЕХВАТЧИК',skyhunter:'ФАЗОВЫЙ ОХОТНИК',skyguard:'НЕБЕСНЫЙ СТРАЖ',stormray:'ГРОЗОВОЙ СКАТ'})[e.type]||'БОЕВАЯ МАШИНА';
 }
+// Stage95: the target identification HUD must agree with physical bullets.
+// A two-dimensional wall-only ray can report an enemy THROUGH a steel
+// chassis, bridge plate, gantry or a raised floor. Sample true 3D geometry
+// from the player's eye to the robot's torso and upper silhouette.
+function dcTargetPhysicallyVisible(p,e){
+ if(!p||!e)return false;
+ const px=Number(p.x),pz=Number(p.z),ex=Number(e.x),ez=Number(e.z);
+ if(![px,pz,ex,ez].every(Number.isFinite))return false;
+ const foot=Number.isFinite(p.feetY)?p.feetY:floorHeight(px,pz),
+  enemyFoot=Number.isFinite(e.feetY)?e.feetY:floorHeight(ex,ez);
+ const origin={x:px,y:foot+1.47,z:pz};
+ const upper=enemyFoot+Math.min(1.62,enemyBodyHeight(e)-.13);
+ for(const y of [enemyFoot+Math.min(1.03,enemyBodyHeight(e)*.52),upper]){
+  const dx=ex-px,dy=y-origin.y,dz=ez-pz,range=Math.hypot(dx,dy,dz);
+  if(!(range>.01))continue;
+  const hit=rayWall(origin,{x:dx/range,y:dy/range,z:dz/range},range);
+  if(!hit||hit.t>=range-.012)return true;
+ }
+ return false;
+}
 function dcBadge(message,duration=1.05){
   const el=$('combatBadge');if(!el)return;
   el.textContent=message;el.classList.add('visible');
@@ -123,7 +143,7 @@ render=function(){
         const center=Math.abs(theta),hY=(Number.isFinite(e.feetY)?e.feetY:0)+1.05-(p.feetY||0)-1.47;
         const pitch=Math.atan2(hY,d);
         const error=center+Math.abs(pitch-p.pitch)*.7;
-        if(error<.19&&(rank<0||error<rank)){target=e;rank=error;}
+        if(error<.19&&(rank<0||error<rank)&&dcTargetPhysicallyVisible(p,e)){target=e;rank=error;}
       }
       if(target){
         intel.querySelector('.dcTargetTitle').textContent=dcNamedEnemy(target)+'  ·  '+Math.ceil(target.hp)+' HP';

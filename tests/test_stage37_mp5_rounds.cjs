@@ -13,8 +13,8 @@ async function step(host,guest,n=1){
 }
 async function startNext(host,guest,changes){
  host.run('Object.assign(mpRoom.settings,'+JSON.stringify(changes)+');mpRoom.seq++;mpPublishRoster()');
- await wait(12);await host.run('mpReady()');await guest.run('mpReady()');
- await until(()=>host.run('mpMatchReady()'));
+ await wait(12);
+ await until(()=>host.run('mpMatchCanStart()'));
  host.run('mpMatchStartTraining()');await until(()=>active(host)&&active(guest));
 }
 async function endToLobby(host,guest){
@@ -38,7 +38,7 @@ async function main(){
  await until(()=>host.run('mpRtcLinks.size===1')&&guest.run('mpRtcLinks.size===1')&&
   host.run('[...mpRtcLinks.values()][0].fast?.readyState==="open"')&&
   guest.run('[...mpRtcLinks.values()][0].control?.readyState==="open"'));
- await host.run('mpReady()');await guest.run('mpReady()');
+ 
  host.run('mpMatchStartTraining()');await until(()=>active(host)&&active(guest));
  check(guest.run('mpMatch.round.settings.scoreLimit')===5,'guest receives room score limit');
  check(guest.run('mpMatch.round.settings.timeLimitSec')===60,'guest receives room time limit');

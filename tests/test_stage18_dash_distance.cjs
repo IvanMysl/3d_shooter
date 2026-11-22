@@ -116,6 +116,8 @@ const phy={Math,Number,Array,Map,Float32Array,console,
 vm.createContext(phy);
 vm.runInContext('const DASH_DISTANCE_BASE=2.52,DASH_DISTANCE_MAX=14.52,DASH_DISTANCE_MIN=.5;',phy);
 vm.runInContext(read('03-height-and-collision.js'),phy);
+vm.runInContext(read('04a-static-world-solids.js'),phy);
+phy.worldSolidBodyCollision=(x,z,r,y,h)=>obstacle(x,z,r,y,h);
 const ability=read('18-ai-and-abilities.js');
 vm.runInContext(ability.slice(ability.indexOf('function useAbility('),
  ability.indexOf('function enemyFire(')),phy);

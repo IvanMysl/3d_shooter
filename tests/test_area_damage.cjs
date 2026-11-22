@@ -18,6 +18,7 @@ const statsSource=read('12-arsenal-and-game.js');
 vm.runInContext(statsSource.split('\n').filter(line=>line.startsWith('const PERM_COMPOUND=')||line.startsWith('const permanentStat=')).join('\n'),ctx);
 const robotRay=read('14-combat-raycast.js');
 vm.runInContext(robotRay.slice(robotRay.indexOf('function rayEllipsoid(')),ctx);
+{const fx=read('13-enemy-navigation-spawn.js');vm.runInContext(fx.slice(fx.indexOf('function emitWeaponSound(')),ctx);}
 vm.runInContext(pick(raw,'function enemyBlastSamples(','function shootPellet('),ctx);
 const enemy=(x=7,y=0,z=6)=>({x,z,feetY:y,radius:.52,type:'shooter',boss:false,dead:false,hp:300,maxhp:300,stun:0});
 const w={damage:100,blast:3.5,penetration:.3,color:[1,.4,.2],name:'РАКЕТНАЯ УСТАНОВКА'};
@@ -69,6 +70,7 @@ assert.equal(near.stun,0);
 // a high-elevation target with the same XY projection unaffected.
 const ability=read('18-ai-and-abilities.js');
 vm.runInContext(pick(ability,'function useAbility(','function enemyFire('),ctx);
+vm.runInContext(read('13-enemy-navigation-spawn.js').split('function emitPulseFx(').pop().replace(/^/, 'function emitPulseFx('),ctx);
 ctx.input={mx:0,mz:0};ctx.distance=(a,b)=>Math.hypot(a.x-b.x,a.z-b.z);
 ctx.moveEntity=()=>{};ctx.sound=()=>{};ctx.burst=()=>{};
 const adjacent=enemy(6.2,0,6.2),elevated=enemy(6.2,12,6.2);

@@ -4,16 +4,21 @@
 const MP3_STEP=1/30,MP3_INPUT_EVERY=.05,MP3_SNAPSHOT_EVERY=.10;
 let mpMatch=null,mpMatchStarting=false;
 
-function mpMatchReady(){
- if(!mpRoom?.host||!mpWire||mpMatch?.active||mpRoom.players.length<2)return false;
- return mpRoom.players.every(p=>p.ready&&(p.host||(
+function mpMatchCanStart(){
+ if(!mpRoom?.host||!mpWire||mpMatch?.active||mpMatchStarting||mpRoom.players.length<2)return false;
+ // Readiness is the network transport, not a player-controlled status.
+ // Never start a match until every joined guest has both WebRTC channels.
+ return mpRoom.players.every(p=>p.host||(
   mpRtcLinks.get(p.peerId)?.control?.readyState==='open'&&
-  mpRtcLinks.get(p.peerId)?.fast?.readyState==='open')));
+  mpRtcLinks.get(p.peerId)?.fast?.readyState==='open'));
 }
 function mpMatchPaintLobbyStart(){
  const btn=$('mpStartTraining');if(!btn)return;
- btn.disabled=!mpMatchReady();
- btn.title=btn.disabled?'Нужно минимум два готовых игрока и два работающих P2P-канала для каждого гостя.':'';
+ btn.disabled=!mpMatchCanStart();
+ const hint=mpRoom?.players.length<2?'Ожидаем подключения хотя бы одного гостя.':
+  btn.disabled?'Соединяем игроков: дождитесь P2P ✓ у всех участников.':'Все подключены. Ведущий может начать бой.';
+ btn.title=hint;
+ const status=$('mpLaunchHint');if(status)status.textContent=hint;
 }
 function mpMatchEntry(roomPlayers){
  const ids=new Set(),peers=new Set();
@@ -57,7 +62,17 @@ function mpMatchActor(spawn){
   yaw:0,pitch:0,walk:0,energy:100,maxEnergy:100,speed:3.05,
   flightUnlocked:true,flying:false,shield:0,abilityCooldowns:{dash:0,pulse:0,shield:0,heal:0},
   weapon:0,bodyArmorType:-1,bodyArmor:0,bodyArmorMax:0,shotGlow:0,
-  hp:100,maxhp:100,armor:30,maxArmor:30,cooldown:0,heat:0,heatLock:0};
+  hp:100,maxhp:100,armor:30,maxArmor:30,cooldown:0,heat:0,heatLock:0,
+  armorTier:0,bodyArmorReduction:0,armorDelay:0,damage:1,rate:1,heatMod:1,
+  hitFlash:0,hitHead:false,hitBlocked:false,lastHitSparkAt:-100,recoil:0,equipAnim:0,shots:0};
+}
+// Shared empty competitive arena: never create campaign objectives or loot.
+function mpBuildArena(map){
+ legacyResumeSector=-1;game.sector=map.sector;buildMap(map.sector);
+ if(typeof decalDirty!=='undefined')decalDirty=true;
+ sectorArchitecture=map.name;
+ $('sectorText').textContent=mpMapLabel(map);$('zoneText').textContent=map.name;
+ $('bossWrap').style.display='none';$('altimeter').textContent='';
 }
 function mpMatchOpen(token,roster,settings){
  if(mpMatch?.active||!mpRoom||!mpWire||!mpMap(settings.mapId))return false;
@@ -66,7 +81,7 @@ function mpMatchOpen(token,roster,settings){
  const oldGame=game;
  try{
   game=freshGame();game.sector=mpMap(settings.mapId).sector;
-  legacyResumeSector=-1;enterSector(game.sector);
+  mpBuildArena(mpMap(settings.mapId));
   game.enemies=[];game.bullets=[];game.particles=[];game.projectiles=[];
   game.nodes=[];game.devices=[];game.mission=null;game.arenaEvent=null;
   game.portalReady=false;game.target=0;game.spawned=0;
@@ -74,18 +89,9 @@ function mpMatchOpen(token,roster,settings){
   if(!me)throw Error('Игрок отсутствует в составе матча.');
   const actors=new Map();
   for(const r of roster){
-   const p=r.id===me.id?game.p:mpMatchActor(placements.get(r.id));
-   const start=placements.get(r.id);p.x=start.x;p.z=start.z;p.feetY=supportHeight(p,p.x,p.z);
-   p.vy=0;p.grounded=true;p.flying=false;p.flightUnlocked=true;
-   p.shield=0;p.abilityCooldowns={dash:0,pulse:0,shield:0,heal:0};
-   p.walk=0;p.yaw=(r.id%8)*TAU/8;
-   p.energy=100;p.maxEnergy=100;p.speed=3.05;
-   // Competitive stats are independent of solo permanent upgrades and unverified saves.
-   p.hp=100;p.maxhp=100;p.armor=30;p.maxArmor=30;p.armorTier=0;
-   p.bodyArmor=0;p.bodyArmorType=-1;p.bodyArmorMax=0;p.bodyArmorReduction=0;
-   p.damage=1;p.rate=1;p.heatMod=1;p.cooldown=0;p.heat=0;p.heatLock=0;
-   p.weapon=settings.equipment==='equal'?settings.weapon:0;p.shotGlow=0;
-   p.hitFlash=0;p.hitHead=false;p.hitBlocked=false;p.lastHitSparkAt=-100;
+   const p=r.id===me.id?game.p:{};
+   Object.assign(p,mpMatchActor(placements.get(r.id)),{yaw:(r.id%8)*TAU/8,
+    weapon:settings.equipment==='equal'?settings.weapon:0});
    actors.set(r.id,{...r,p,cmd:{mx:0,mz:0,j:false,s:false,yaw:p.yaw,pitch:0},seq:-1,
     lastInputAt:0,samples:[]});
   }
@@ -100,18 +106,90 @@ function mpMatchOpen(token,roster,settings){
   if(typeof mp8Init==='function')mp8Init();
   const gunEl=$('gun');if(gunEl?.dataset){gunEl.dataset.gun=String(game.p.weapon);
    gunEl.style?.setProperty?.('--weapon-glow',`rgb(${weapons[game.p.weapon].color.map(v=>Math.round(v*255)).join(',')})`);}
+  if(typeof mpChatClose==='function')mpChatClose(false);
   input.fire=false;input.jumpQueued=false;
   closeArsenal();$('overlay').classList.add('hidden');$('hud').classList.add('show');
   document.body.classList.add('mpTraining');
   const hud=document.createElement('div');hud.id='mpTrainingBadge';hud.setAttribute('role','status');
   document.body.appendChild(hud);mpMatchStatus();refreshFlightButtons();
-  lastFrame=performance.now();mpMatchStarting=false;return true;
+  if(typeof mpChatRender==='function')mpChatRender();
+  if(typeof audioStart==='function')audioStart();
+ lastFrame=performance.now();mpMatchStarting=false;return true;
  }catch(e){game=oldGame;mpMatch=null;document.body.classList.remove('mpTraining');
   $('mpCombatScore')?.remove();$('mpTrainingBadge')?.remove();$('mpReconnectNow')?.remove();
   mpMatchStarting=false;console.error('MP-3 map initialization:',e);return false;}
 }
+// Stage118: one local host actor, same authoritative PvP simulation, no transport.
+let mpPreviewSession=null;
+function mpPreviewStart(id,button){
+ const map=mpMap(id),pane=$('panel'),list=$('mpMapFamilies'),back=$('pauseBtn');
+ if(!map||!pane||!list||!back||!$('mpCreate')||$('mpCreate').disabled||mpWire||mpRoom||mpMatch?.active||mpPreviewSession||game)return false;
+ const session={button,paneScroll:pane.scrollTop,listScroll:list.scrollTop,
+  legacy:legacyResumeSector,divisor:legacyResumeDivisor,zoom:miniZoom,
+  backText:back.textContent,backLabel:back.getAttribute('aria-label'),backTitle:back.getAttribute('title')};
+ mpPreviewSession=session;
+ try{
+  game=freshGame();game.preview=true;game.sector=map.sector;
+  mpBuildArena(map);
+  const settings=mpSettings({mapId:id,mode:$('mpMode').value,equipment:$('mpEquipment').value,
+   weapon:Number($('mpWeapon').value),scoreLimit:Number($('mpScoreLimit').value),timeLimitSec:Number($('mpTimeLimit').value)});
+  let nick='Тренировка';try{nick=mpNickname($('mpHostNick').value);}catch(_){}
+  const member={id:0,peerId:'local-preview',nick,team:0,host:true};
+  const start=mpMatchSpawnPositions([member],settings).get(0);
+  Object.assign(game.p,mpMatchActor(start),{weapon:settings.equipment==='equal'?settings.weapon:0});
+  game.previewCamera=save.settings.cameraMode;game.target=0;game.portalReady=false;
+  const actor={...member,p:game.p,cmd:{mx:0,mz:0,j:false,s:false,yaw:0,pitch:0},seq:-1,lastInputAt:0,samples:[]};
+  mpMatch={active:true,preview:true,token:'local-preview',host:true,self:0,actors:new Map([[0,actor]]),roster:[member],
+   tick:0,acc:0,sendAcc:0,snapAcc:0,inputSeq:0,lastSnapshot:-1,paused:false,lastHud:0,jumpUntil:0,
+   startedAt:Date.now(),lastFromHost:Date.now(),settings,projectiles:[],fireUntil:0};
+  mpCombatInit();mpRoundInit();mp6Init();mp7Init();mp8Init();
+  const gun=$('gun');if(gun?.dataset){gun.dataset.gun=String(game.p.weapon);gun.style.setProperty('--weapon-glow',`rgb(${weapons[game.p.weapon].color.map(v=>Math.round(v*255)).join(',')})`);}
+  closeArsenal();resetTransientInput();input.mobileSprint=false;
+  $('runTouch')?.classList.remove('running');$('runTouch')?.setAttribute('aria-pressed','false');
+  $('sectorText').textContent=mpMapLabel(map);$('zoneText').textContent='ТРЕНИРОВКА PVP';
+  $('bossWrap').style.display='none';$('altimeter').textContent='';
+  const badge=document.createElement('div');badge.id='mpPreviewBadge';badge.setAttribute('role','status');
+  badge.textContent='ТРЕНИРОВКА PVP · БЕЗ СОПЕРНИКОВ';
+  const heading=$('sectorText').parentElement||$('hud');heading.appendChild(badge);
+  const scoreboard=$('mpCombatScore');if(scoreboard)heading.appendChild(scoreboard);
+  document.body.classList.add('mpMapPreview','mpTraining');refreshCameraInterface();refreshFlightButtons();
+  back.textContent='← Назад';back.setAttribute('aria-label','Вернуться к созданию комнаты');back.title='Вернуться (Esc)';
+  $('overlay').classList.add('hidden');$('hud').classList.add('show');
+  pauseResumeGraceUntil=performance.now()+1100;lastFrame=performance.now();
+  if(typeof audioStart==='function')audioStart();
+  drawMinimap();return true;
+ }catch(err){console.error('Map preview:',err);mpPreviewEnd();mpStatus('Не удалось открыть карту. Попробуйте ещё раз.',true);return false;}
+}
+function mpPreviewEnd(){
+ const session=mpPreviewSession;if(!session)return false;
+ mpPreviewSession=null;mpMatch=null;game=null;closeArsenal();$('mpCombatScore')?.remove();$('mpReconnectNow')?.remove();$('crosshair')?.classList.remove('hit');const flash=$('damageFlash');if(flash)flash.style.opacity='0';legacyResumeSector=session.legacy;legacyResumeDivisor=session.divisor;miniZoom=session.zoom;
+ resetTransientInput();input.mobileSprint=false;
+ $('runTouch')?.classList.remove('running');$('runTouch')?.setAttribute('aria-pressed','false');
+ document.body.classList.remove('mpMapPreview','mpTraining','flightUnlocked','flying','thirdPersonCameraClose');
+ $('mpPreviewBadge')?.remove();$('hud').classList.remove('show');
+ const back=$('pauseBtn');back.textContent=session.backText;
+ for(const [key,value] of [['aria-label',session.backLabel],['title',session.backTitle]]){if(value===null)back.removeAttribute(key);else back.setAttribute(key,value);}
+ if(document.pointerLockElement)document.exitPointerLock();
+ if(typeof dc!=='undefined'){dc.shake=0;dc.weaponUntil=0;dc.hitUntil=0;dc.killUntil=0;}
+ refreshCameraInterface();refreshFlightButtons();$('overlay').classList.remove('hidden');
+ const pane=$('panel'),list=$('mpMapFamilies');if(pane)pane.scrollTop=session.paneScroll;if(list)list.scrollTop=session.listScroll;
+ session.button?.focus({preventScroll:true});return true;
+}
+function mpPreviewUpdate(dt){
+ if(!game?.preview||!mpMatch?.preview||game.state!=='playing')return;
+ mpMatchUpdate(dt);
+}
+function mpPreviewHud(){
+ if(!game?.preview||!mpMatch?.preview)return;
+ updateHud();
+ $('zoneText').textContent='ТРЕНИРОВКА PVP';
+ $('killText').textContent='БЕЗ СОПЕРНИКОВ';
+ $('scoreText').textContent='';
+ const badge=$('mpPreviewBadge');if(badge)badge.textContent='ТРЕНИРОВКА PVP · '+mpRoundClock()+' · Esc / Назад';
+ mpCombatSyncHud();
+}
 function mpMatchStartTraining(){
- if(!mpMatchReady()){mpStatus('Ожидайте готовности игроков и установления прямых каналов.',true);return;}
+ if(!mpMatchCanStart()){mpStatus(mpRoom?.players.length<2?'Для сетевого боя необходимо минимум два игрока.':'Подождите завершения подключения P2P-каналов всех игроков.',true);return;}
  const token=mpRandom(8),roster=mpMatchEntry(mpRoom.players);
  if(!roster)return;
  const message={v:MP_VERSION,kind:'mp3-start',token,mapId:mpRoom.settings.mapId,roster};
@@ -129,7 +207,7 @@ function mpMatchStartTraining(){
  }
 }
 function mpMatchInput(){
- if(mpMatch?.paused||mpMatch?.round?.ended||document.hidden||arsenalOpened)
+ if(mpMatch?.paused||mpMatch?.round?.ended||document.hidden||arsenalOpened||(typeof mpChat!=='undefined'&&mpChat.open))
   return {mx:0,mz:0,j:false,s:false,yaw:game.p.yaw,pitch:game.p.pitch,f:false,w:game.p.weapon,
    ...(typeof mp6Input==='function'?mp6Input(false):{})};
  if(input.jumpQueued&&mpMatch)mpMatch.jumpUntil=Date.now()+140;
@@ -168,31 +246,38 @@ function mpMatchMove(p,cmd,dt,others=[]){
  const length=hypot(dx,dz),count=Math.max(1,Math.ceil(length/.12));
  for(let i=0;i<count;i++){
   for(const [ax,az] of [[dx/count,0],[0,dz/count]]){
-   const x=p.x+ax,z=p.z+az,floor=supportHeight(p,x,z);
-   if(collide(x,z,.25)||floor>p.feetY+.245||
-      worldSolidBodyCollision(x,z,.25,Math.max(p.feetY,floor),PLAYER_SOLID_HEIGHT)||
-      others.some(o=>o!==p&&Math.abs(o.feetY-p.feetY)<1.65&&hypot(o.x-x,o.z-z)<.67))continue;
-   p.x=x;p.z=z;if(p.grounded&&Math.abs(floor-p.feetY)<.246)p.feetY=floor;
+   const x=p.x+ax,z=p.z+az;
+   if(ax===0&&az===0)continue;
+   const pose=worldActorAdvance(p.x,p.z,x,z,.25,p.feetY,p.grounded&&!p.flying,false,PLAYER_SOLID_HEIGHT,worldMPBlockers(p,others,.67));
+   if(!pose)continue;
+   p.x=pose.x;p.z=pose.z;p.feetY=pose.feet;
+   if(p.grounded&&!pose.grounded){p.grounded=false;p.vy=0;}
   }
  }
  p.walk=mag>.1?1:0;
- const ground=supportHeight(p,p.x,p.z),deck=deckHeight(p.x,p.z);
- const beam=worldSolidStandingSupport(p.x,p.z,.23,p.feetY);
- const floor=Math.max(ground,beam===null?ground:beam);
+ const blockers=worldMPBlockers(p,others,.67);
+ const floor=worldActorVerticalFloor(p.x,p.z,p.feetY,worldActorGround(p.x,p.z,.25,p.feetY),blockers);
  if(p.flying&&typeof mp6FlyVertical==='function'){
-  mp6FlyVertical(p,cmd,dt,floor,deck);return;
+  mp6FlyVertical(p,cmd,dt,floor,blockers);return;
  }
  if(p.grounded){if(p.feetY>floor+.245){p.grounded=false;p.vy=0;}
   else if(floor<=p.feetY+.24)p.feetY=floor;else p.feetY=Math.max(p.feetY,floor);}
- if(cmd.j&&p.grounded){p.grounded=false;p.vy=JUMP_VELOCITY;p.feetY+=.008;}
+ if(cmd.j&&p.grounded){p.grounded=false;p.vy=JUMP_VELOCITY;}
  if(!p.grounded){
   p.vy-=JUMP_GRAVITY*dt;const from=p.feetY;p.feetY+=p.vy*dt;
-  const low=deck-.17-PLAYER_SOLID_HEIGHT;
-  if(deck>0&&from<=low+.001&&p.vy>0&&p.feetY>low){p.feetY=Math.max(0,low-.004);p.vy=0;}
-  if(p.vy>0&&glReady){const bar=worldSolidHeadBarrier(p.x,p.z,.23,from+PLAYER_SOLID_HEIGHT,p.feetY+PLAYER_SOLID_HEIGHT);
-   if(bar!==null){p.feetY=Math.max(from,bar-PLAYER_SOLID_HEIGHT-.004);p.vy=0;}}
-  if(p.vy<0&&glReady){const beamFloor=worldSolidFeetBarrier(p.x,p.z,.23,from,p.feetY);
-   if(beamFloor!==null){p.feetY=Math.max(p.feetY,beamFloor+.004);p.vy=0;p.grounded=true;}}
+  if(p.vy>0){
+   const prevHead=from+PLAYER_SOLID_HEIGHT,nextHead=p.feetY+PLAYER_SOLID_HEIGHT;
+   const bar=worldLowestContact(worldDeckHeadBarrier(p.x,p.z,.25,prevHead,nextHead),
+    worldSolidHeadBarrier(p.x,p.z,.25,prevHead,nextHead));
+   if(bar!==null){p.feetY=Math.max(from,bar-PLAYER_SOLID_HEIGHT-.004);p.vy=0;}
+  }
+  if(p.vy<0){
+   const landing=worldHighestContact(worldDeckFeetBarrier(p.x,p.z,.25,from,p.feetY),
+    worldSolidFeetBarrier(p.x,p.z,.25,from,p.feetY));
+   if(landing!==null){p.feetY=Math.max(p.feetY,landing+.004);p.vy=0;p.grounded=true;}
+  }
+  const limited=worldActorVerticalLimit(p.x,p.z,from,p.feetY,PLAYER_SOLID_HEIGHT,blockers);
+  if(limited!==p.feetY){p.grounded=p.feetY<from;p.feetY=limited;p.vy=0;}
   if(p.feetY<=floor){p.feetY=floor;p.vy=0;p.grounded=true;}
  }
  const ceiling=Math.max(floor,ceilingHeight()-PLAYER_SOLID_HEIGHT-.2);
@@ -206,6 +291,7 @@ function mpMatchState(){
    e:+p.energy.toFixed(2),w:p.walk?1:0,g:p.grounded?1:0,
    ...(typeof mp6ActorState==='function'?mp6ActorState(p):{}),
    hp:+p.hp.toFixed(1),ar:+p.armor.toFixed(1),gun:p.weapon,
+   ht:+(p.heat||0).toFixed(1),hl:+(p.heatLock||0).toFixed(2),wc:+Math.max(0,p.cooldown||0).toFixed(2),
    k:kills,d:deaths,rs:Math.max(0,respawnAt-mpMatch.tick),
    iv:Math.max(0,invulnUntil-mpMatch.tick)})),
   ordnance:mpMatch.host&&typeof mpCombatOrdnance==='function'?mpCombatOrdnance():[],
@@ -221,6 +307,7 @@ function mpMatchSafeState(data){
    Math.abs(p.yaw)>1e8||Math.abs(p.pitch)>1.11||Math.abs(p.vy)>30||![0,1].includes(p.w)||![0,1].includes(p.g)||
    !Number.isFinite(p.hp)||p.hp<0||p.hp>100||!Number.isFinite(p.ar)||p.ar<0||p.ar>30||
    !Number.isInteger(p.gun)||p.gun<0||p.gun>=weapons.length||
+   ([p.ht,p.hl,p.wc].some(n=>n!==undefined)&&!([p.ht,p.hl,p.wc].every(Number.isFinite)&&p.ht>=0&&p.ht<=105.01&&p.hl>=0&&p.hl<=1.01&&p.wc>=0&&p.wc<=2.01))||
    !Number.isSafeInteger(p.k)||Math.abs(p.k)>1e7||
    ![p.d,p.rs,p.iv].every(n=>Number.isSafeInteger(n)&&n>=0&&n<=1e7)||
    (typeof mp6SafeState==='function'&&!mp6SafeState(p)))return null;
@@ -247,7 +334,13 @@ function mpMatchFast(peer,data){
    // HP/armor decrease still lights the victim when its hit event was lost.
    const missedHit=(next.hp<p.hp-.05||next.ar<p.armor-.05)&&
     (p.hitFlash||0)<.055;
-   p.hp=next.hp;p.armor=next.ar;p.weapon=next.gun;
+   p.hp=next.hp;p.armor=next.ar;
+   if(actor.id!==m.self||m.desiredWeapon===undefined||m.settings.equipment==='equal'||next.gun===m.desiredWeapon){
+    p.weapon=next.gun;if(actor.id===m.self)m.desiredWeapon=undefined;
+   }
+   if(next.ht!==undefined){p.heat=next.ht;p.heatLock=next.hl;p.cooldown=next.wc;
+    if(typeof mpCombatThermalFeedback==='function')mpCombatThermalFeedback(actor,next.hl);
+   }
    if(missedHit&&typeof mpCombatPlayerHitFx==='function')
     mpCombatPlayerHitFx(next.id*4,{x:p.x+1,y:p.feetY+1.2,z:p.z});
    if(typeof mp6ApplyActorState==='function')mp6ApplyActorState(p,next,actor.id===m.self);
@@ -344,26 +437,26 @@ function mpMatchUpdate(dt){
    if(typeof mpRoundCheck==='function')mpRoundCheck();
  }else if(!m.host&&!m.round?.ended&&!guestFrozen&&!(self.respawnAt>m.tick))
   {if(typeof mp6GuestStep==='function')mp6GuestStep(self.p,MP3_STEP);
+   self.p.heatLock=Math.max(0,(self.p.heatLock||0)-MP3_STEP);
+   self.p.heat=Math.max(0,(self.p.heat||0)-MP3_STEP*(self.p.heatLock>0?22:25));
+   self.p.cooldown=Math.max(0,(self.p.cooldown||0)-MP3_STEP);
    mpMatchMove(self.p,local,MP3_STEP,[...m.actors.values()].filter(x=>x.p.hp>0).map(x=>x.p));}
  }
- if(m.host){m.snapAcc+=dt;
+ if(m.host&&!m.preview){m.snapAcc+=dt;
   const period=m.round?.ended?1:(typeof mp10SnapshotPeriod==='function'?mp10SnapshotPeriod(m):MP3_SNAPSHOT_EVERY);
   if(m.snapAcc>=period){m.snapAcc%=period;
    const snapshot=mpMatchState();let delivered=false;
    for(const a of m.actors.values())if(!a.host)delivered=mpRtcFastSend(a.peerId,snapshot)||delivered;
    if(delivered&&typeof mp10SnapshotSent==='function')mp10SnapshotSent(m);
-  }}else mpMatchInterpolate(dt);
+  }}else if(!m.host)mpMatchInterpolate(dt);
  game.t+=dt;game.sectorTime+=dt;
  if(performance.now()-m.lastHud>350){m.lastHud=performance.now();mpMatchStatus();}
  input.jumpQueued=false;
- if(game?.tracers)game.tracers=game.tracers.filter(x=>(x.life-=dt)>0);
- if(game?.impactFx)game.impactFx=game.impactFx.filter(x=>(x.life-=dt)>0);
- if(game?.particles){
-  for(const spark of game.particles){spark.life-=dt;spark.x+=spark.vx*dt;
-   spark.y+=spark.vy*dt;spark.z+=spark.vz*dt;spark.vy-=dt*.8;}
-  game.particles=game.particles.filter(s=>s.life>0);
- }
+ advanceSharedImpactFx(game,dt);
+ advanceSharedWorldFx(game,dt);
+ if(game.p)game.p.equipAnim=Math.max(0,(game.p.equipAnim||0)-dt*2.2);
  for(const a of m.actors.values()){
+  a.p.recoil=Math.max(0,(a.p.recoil||0)-dt*4);
   a.p.shotGlow=Math.max(0,(a.p.shotGlow||0)-dt);
   a.p.hitFlash=Math.max(0,(a.p.hitFlash||0)-dt);
  }
@@ -407,17 +500,19 @@ function mpMatchStatus(){
  if(typeof mpCombatSyncHud==='function')mpCombatSyncHud();
 }
 function mpMatchPause(){
+ if(mpPreviewSession)return mpPreviewEnd();
  const m=mpMatch;if(!m?.active)return;
  if(m.round?.ended){if(typeof mpRoundShowResults==='function')mpRoundShowResults();return;}
+ if(typeof mpChatClose==='function')mpChatClose(false);
  m.paused=!m.paused;input.fire=false;
- if(!m.paused){$('overlay').classList.add('hidden');$('hud').classList.add('show');return;}
+ if(!m.paused){$('overlay').classList.add('hidden');$('hud').classList.add('show');if(typeof mpChatRender==='function')mpChatRender();return;}
  pauseResumeGraceUntil=performance.now()+1100;
  if(document.pointerLockElement)document.exitPointerLock();
  panel(`<div class="eyebrow">СЕТЕВАЯ ИГРА / MP-10</div><h2>Сетевой матч</h2>
  <p class="lede">${mpEscape(mpMap(mpRoom?.settings?.mapId)?.name||'КАРТА')} · ${m.actors.size} игроков.</p>
  <p class="smalltext">${typeof mp10TrafficLabel==='function'?mp10TrafficLabel():''}</p>
  <p class="smalltext">Стрельба, попадания, полёт, рывок, импульс, щит, ремонт, убийства и возрождение рассчитываются ведущим. Всем доступны одинаковые базовые параметры полёта и способностей без переноса сохранённых улучшений. V / двойной Space — полёт, Space — вверх, Shift — вниз, E — рывок, Q — импульс, C — щит, F — ремонт. Пока открыто меню, матч продолжается.</p>
- <div class="row"><button class="primary" id="mpResume">▶ ВЕРНУТЬСЯ</button>
+ <div class="row"><button class="primary" id="mpResume" data-esc-action>▶ ВЕРНУТЬСЯ</button>
  <button class="secondary" id="mpRetryInGame">⟳ ПЕРЕПОДКЛЮЧИТЬ</button>
  ${m.host?'<button class="secondary" id="mpStop">■ ЗАВЕРШИТЬ МАТЧ ДЛЯ ВСЕХ</button>':''}
  <button class="secondary" id="mpExit">← ВЫЙТИ ИЗ КОМНАТЫ</button></div>`);
@@ -427,6 +522,8 @@ function mpMatchPause(){
  $('mpExit').onclick=mpLeave;
 }
 function mpMatchAbort(){
+ if(typeof mpChatClose==='function')mpChatClose(false);
+ if(mpPreviewSession)return mpPreviewEnd();
  if(!mpMatch&&!mpMatchStarting)return;
  mpMatchStarting=false;
  $('crosshair')?.classList.remove('hit');
@@ -436,18 +533,20 @@ function mpMatchAbort(){
  input.fire=false;input.jumpHeld=false;input.jumpQueued=false;input.keys={};
  document.body.classList.remove('flightUnlocked','flying');
  if(document.pointerLockElement)document.exitPointerLock();
+ if(typeof mpChatRender==='function')mpChatRender();
 }
 function mpMatchStop(){
+ if(mpPreviewSession)return mpPreviewEnd();
  const m=mpMatch;if(!m?.active||!m.host)return;
  for(const a of m.actors.values())if(!a.host){const link=mpRtcLinks.get(a.peerId);
   if(link)mpRtcSend(link,link.control,{v:MP_VERSION,kind:'mp3-stop',token:m.token});
  }
- mpMatchAbort();for(const p of mpRoom.players)p.ready=false;mpRoom.seq++;
- mpPublishRoster();mpLobby();mpStatus('Матч завершён. Подтвердите готовность для следующего боя.');
+ mpMatchAbort();mpRoom.seq++;
+ mpPublishRoster();mpLobby();mpStatus('Матч завершён. Ведущий может запустить следующий бой.');
 }
 // Restrict combat-only controls without changing the solo input handlers.
 addEventListener('keydown',e=>{
- if(!mpMatch?.active||e.target?.matches?.('input,textarea,select'))return;
+ if(!mpMatch?.active||(typeof mpChat!=='undefined'&&mpChat.open)||e.target?.matches?.('input,textarea,select'))return;
  if(/^(Key[EQFCV]|BracketLeft|BracketRight)$/.test(e.code)){
   if(!e.repeat&&typeof mp6Request==='function'){
    const action={KeyE:'dash',KeyQ:'pulse',KeyC:'shield',KeyF:'heal',KeyV:'flight'}[e.code];
@@ -467,7 +566,10 @@ switchWeapon=function(...args){
   if(mpMatch.settings.equipment==='equal')return;
   const n=args[0]===undefined?(game.p.weapon+1)%weapons.length:args[0];
   if(!Number.isInteger(n)||n<0||n>=weapons.length)return;
-  game.p.weapon=n;
+  const local=mpMatch.actors.get(mpMatch.self);
+  if(n!==game.p.weapon&&local?.bursts)local.bursts.length=0;
+  if(!mpMatch.host)mpMatch.desiredWeapon=n;
+  return mpSoloWeapon(n);
  }
  return mpSoloWeapon(...args);
 };

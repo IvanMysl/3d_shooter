@@ -23,7 +23,8 @@ const ctx={console,Math,Number,Set,Map,Float32Array,
  ceilingHeight:()=>5.6,
  save:{settings:{quality:2}},
  themes:Array.from({length:18},()=>({wall:[.2,.2,.2],floor:[.1,.1,.1],accent:[.7,.3,.2]})),
- sectorStyle:15,mapRooms:rooms,mapFeatures:[],spawnX:16.5,spawnZ:16.5,
+ sectorStyle:15,mapRooms:rooms,mapFeatures:[],landmarkSpecs:[],
+ landmarkCells:()=>[],spawnX:16.5,spawnZ:16.5,
  portal:{x:19.5,z:19.5},TAU:Math.PI*2,
  clamp:(x,a,b)=>Math.max(a,Math.min(b,x))
 };

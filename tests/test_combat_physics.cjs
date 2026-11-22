@@ -13,7 +13,10 @@ const context={
  floorHeight:(x,z)=>heights[Math.floor(z)]?.[Math.floor(x)]||0,
  game:{enemies:[]},clamp:(x,a,b)=>Math.max(a,Math.min(b,x)),
 };
+// Rays now delegate 3D solid checks to this production module. Load the
+// real registry instead of relying on an absent implicit global helper.
 vm.createContext(context);
+vm.runInContext(read('04a-static-world-solids.js'),context);
 const rays=read('14-combat-raycast.js');
 vm.runInContext(get(rays,'function clipDecalPoly(','function rebuildDecalMesh(')+get(rays,'function v3('),context);
 const v=(x,y,z)=>({x,y,z}),eps=(a,b,tol=.003)=>assert.ok(Math.abs(a-b)<tol,`${a} != ${b}`);

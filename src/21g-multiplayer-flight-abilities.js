@@ -19,7 +19,7 @@ function mp6Init(){
 }
 function mp6Request(type){
  const m=mpMatch;
- if(!m?.active||!m.special||m.round?.ended||m.paused||document.hidden||arsenalOpened||
+ if(!m?.active||!m.special||m.round?.ended||m.paused||document.hidden||arsenalOpened||(typeof mpChat!=='undefined'&&mpChat.open)||
   m.actors.get(m.self)?.p.hp<=0||
   (typeof mp8GuestFrozen==='function'&&mp8GuestFrozen()))return false;
  const key=type==='flight'?'ft':MP6_SKILLS[type]?.key;
@@ -70,20 +70,21 @@ function mp6ApplyActorState(p,next,local){
  for(const [i,name] of ['dash','pulse','shield','heal'].entries())cds[name]=next.cd[i];
  if(local&&changed)refreshFlightButtons();
 }
-function mp6FlyVertical(p,cmd,dt,floor,deck){
+function mp6FlyVertical(p,cmd,dt,floor,blockers=[]){
  const before=p.feetY,maxFeet=Math.max(floor,ceilingHeight()-PLAYER_SOLID_HEIGHT-.2);
  const direction=Number(!!cmd.u)-Number(!!cmd.dn);
  let after=clamp(before+direction*MP6_FLIGHT_VERTICAL*dt,floor,maxFeet);
  if(after>before){
-  const low=deck-.17-PLAYER_SOLID_HEIGHT;
-  if(deck>0&&before+PLAYER_SOLID_HEIGHT<=deck-.17+.001&&after>low)
-   after=Math.min(after,low-.004);
-  if(glReady){const roof=worldSolidHeadBarrier(p.x,p.z,.23,before+PLAYER_SOLID_HEIGHT,after+PLAYER_SOLID_HEIGHT);
-   if(roof!==null)after=Math.min(after,roof-PLAYER_SOLID_HEIGHT-.004);}
- }else if(after<before&&glReady){
-  const landing=worldSolidFeetBarrier(p.x,p.z,.23,before,after);
+  const prevHead=before+PLAYER_SOLID_HEIGHT,nextHead=after+PLAYER_SOLID_HEIGHT;
+  const roof=worldLowestContact(worldDeckHeadBarrier(p.x,p.z,.25,prevHead,nextHead),
+   worldSolidHeadBarrier(p.x,p.z,.25,prevHead,nextHead));
+  if(roof!==null)after=Math.min(after,roof-PLAYER_SOLID_HEIGHT-.004);
+ }else if(after<before){
+  const landing=worldHighestContact(worldDeckFeetBarrier(p.x,p.z,.25,before,after),
+   worldSolidFeetBarrier(p.x,p.z,.25,before,after));
   if(landing!==null)after=Math.max(after,landing+.004);
  }
+ after=worldActorVerticalLimit(p.x,p.z,before,after,PLAYER_SOLID_HEIGHT,blockers);
  p.feetY=clamp(after,floor,maxFeet);p.vy=0;p.grounded=p.feetY<=floor+.003;
 }
 function mp6Dash(a,cmd){
@@ -93,12 +94,11 @@ function mp6Dash(a,cmd){
  const start={x:p.x,y:p.feetY+1,z:p.z};
  for(let d=0;d<range-1e-6;d+=step){
   const length=Math.min(step,range-d),x=p.x+Math.sin(angle)*length,z=p.z+Math.cos(angle)*length;
-  const floor=supportHeight(p,x,z);
-  if(collide(x,z,.26)||floor>p.feetY+.245||
-   worldSolidBodyCollision(x,z,.26,Math.max(p.feetY,floor),PLAYER_SOLID_HEIGHT)||
-   others.some(o=>Math.abs(o.feetY-p.feetY)<1.65&&hypot(o.x-x,o.z-z)<.69))break;
-  p.x=x;p.z=z;
-  if(p.grounded&&Math.abs(floor-p.feetY)<.245)p.feetY=floor;
+  const pose=worldActorAdvance(p.x,p.z,x,z,.25,p.feetY,p.grounded&&!p.flying,false,PLAYER_SOLID_HEIGHT,worldMPBlockers(p,others,.67));
+  if(!pose)break;
+  p.x=pose.x;p.z=pose.z;p.feetY=pose.feet;
+  if(p.grounded&&!pose.grounded){p.grounded=false;p.vy=0;}
+  if(!pose.complete)break;
  }
  mpCombatEmit('dash',start,{x:p.x,y:p.feetY+1,z:p.z},p.weapon,a.id);
 }
@@ -120,7 +120,8 @@ function mp6Skill(a,name){
  if(name==='heal'){
   // No artificial cooldown. Repair the full intended amount or nothing;
   // the last small missing remainder requires only its proportional cost.
-  const missing=p.hp<100-1e-6?100-p.hp:Math.max(0,30-p.armor);
+  const repairingHull=p.hp<100-1e-6;
+  const missing=repairingHull?100-p.hp:Math.max(0,30-p.armor);
   const gain=p.hp<100-1e-6?38:22;
   if(missing<=1e-6)return false;
   const restored=Math.min(missing,gain),spent=restored/gain*rule.cost;
@@ -134,7 +135,7 @@ function mp6Skill(a,name){
   if(a.id===mpMatch.self&&typeof mpCombatSyncHud==='function')mpCombatSyncHud();
   // A final tiny remainder need not emit a barely visible network effect.
   if(restored>=.5){
-   const o={x:p.x,y:p.feetY+1,z:p.z};mpCombatEmit('heal',o,o,p.weapon,a.id);
+   const o={x:p.x,y:p.feetY+1,z:p.z};mpCombatEmit('heal',o,o,p.weapon,a.id,null,-1,null,repairingHull?'hp':'armor');
   }
   return true;
  }

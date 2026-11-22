@@ -107,14 +107,15 @@ ctx.mpMatch={active:true,host:true,self:0,token:'stage46',tick:100,
 ctx.MP_VERSION=3;const packets=[];
 ctx.mpRtcFastSend=(peer,event)=>packets.push(event);
 ctx.rayEllipsoid=()=>null;
+ctx.sound=()=>{};const fx=src('13-enemy-navigation-spawn.js');vm.runInContext(fx.slice(fx.indexOf('function emitWeaponSound(')),ctx);
 vm.runInContext(src('21e-multiplayer-combat.js'),ctx);
 const shooter={id:0,host:true,p:ctx.game.p,peerId:'host'};
 const peer={id:1,host:false,p:gun(5,{x:25,z:25}),peerId:'guest'};
 ctx.mpMatch.actors.set(0,shooter);ctx.mpMatch.actors.set(1,peer);
-ctx.mpCombatShot(shooter,weapons[3]);
+const physicalMuzzle=ctx.operatorMuzzlePoint(shooter.p);ctx.mpCombatShot(shooter,weapons[3]);
 const pkt=packets.at(-1),ownTrace=ctx.game.tracers.at(-1);
 ok(pkt.id===0&&pkt.type==='shot','MP shot identity carried by unchanged event id');
-ok(dist({x:pkt.a[0],y:pkt.a[1],z:pkt.a[2]},ctx.operatorMuzzlePoint(shooter.p))<.01,
+ok(dist({x:pkt.a[0],y:pkt.a[1],z:pkt.a[2]},physicalMuzzle)<.01,
  'host emits the real physical multiplayer muzzle');
 ok(dist(ownTrace.a,ctx.heldWeaponMuzzleWorld(ctx.game,ctx.game.p))<.001,
  'local MP first-person tracer starts at viewmodel, not host avatar');
@@ -131,10 +132,11 @@ ok(Object.keys(pkt).sort().join(',')==='a,b,gun,id,kind,token,type,v',
  'no extra network fields or paid relay messages');
 ctx.externalCameraEnabled=()=>false;ctx.mpMatch.self=0;
 shooter.p.weapon=4;ctx.game.p.weapon=4;
-ctx.mpCombatShot(shooter,weapons[4]);
+ctx.game.tracers.length=0;
+const rocketMuzzle=ctx.operatorMuzzlePoint(shooter.p);ctx.mpCombatShot(shooter,weapons[4]);
 const physicalRocket=ctx.mpMatch.projectiles.at(-1);
-const rocketEvent=packets.at(-1),rocketTrace=ctx.game.tracers.at(-1);
-ok(rocketEvent.gun===4&&rocketTrace.localView,'own MP rocket receives a local launch marker');
+const rocketEvent=packets.at(-1),rocketLaunch=ctx.mpMatch.localLaunches.at(-1);
+ok(rocketEvent.gun===4&&rocketLaunch.gun===4&&ctx.game.tracers.length===0,'own MP rocket receives a local launch marker without a fake laser');
 const rocketList=[{x:physicalRocket.pos.x,y:physicalRocket.pos.y,z:physicalRocket.pos.z,
  vx:physicalRocket.v.x,vy:physicalRocket.v.y,vz:physicalRocket.v.z,gun:4}];
 ctx.mpCombatApplyOrdnance(rocketList);
@@ -142,13 +144,13 @@ const displayRocket=ctx.game.projectiles[0];
 ok(!!displayRocket.visualPoint&&
  dist(displayRocket.visualPoint,ctx.heldWeaponMuzzleWorld(ctx.game,ctx.game.p))<.03,
  'own MP rocket first appears at the visible held barrel');
-ok(dist(physicalRocket.pos,ctx.operatorMuzzlePoint(shooter.p))<.001,
+ok(dist(physicalRocket.pos,rocketMuzzle)<.001,
  'MP rocket authoritative physics remains at the world barrel');
 const netDir={x:rocketEvent.b[0]-rocketEvent.a[0],
  y:rocketEvent.b[1]-rocketEvent.a[1],z:rocketEvent.b[2]-rocketEvent.a[2]};
-const localDir={x:rocketTrace.b.x-rocketTrace.a.x,
- y:rocketTrace.b.y-rocketTrace.a.y,z:rocketTrace.b.z-rocketTrace.a.z};
-ok(dist(netDir,localDir)<.03,'visual rocket tracer follows the same velocity direction');
+const length=Math.hypot(netDir.x,netDir.y,netDir.z);
+const localDir={x:rocketLaunch.dir.x*length,y:rocketLaunch.dir.y*length,z:rocketLaunch.dir.z*length};
+ok(dist(netDir,localDir)<.03,'visual rocket launch follows the same velocity direction');
 ctx.mpMatch.localLaunches[0].at=Date.now()-300;
 ctx.mpCombatApplyOrdnance(rocketList);
 ok(!ctx.game.projectiles[0].visualPoint,

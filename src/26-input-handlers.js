@@ -32,6 +32,7 @@ addEventListener('resize',positionMobileFlightControls);
 addEventListener('orientationchange',()=>requestAnimationFrame(positionMobileFlightControls));
 if(typeof window!=='undefined'&&window.visualViewport)window.visualViewport.addEventListener('resize',positionMobileFlightControls);
 function setFlightThrottle(axis,value,commit=false){
+ if(typeof mpMatch!=='undefined'&&mpMatch?.active)return;
  if(!['horizontal','vertical'].includes(axis))return;
  const key=axis==='horizontal'?'flightHorizontal':'flightVertical';
  save.settings[key]=normalizeFlightThrottle(value);
@@ -75,8 +76,12 @@ addEventListener('keydown',e=>{
  if(action&&!action.disabled){e.preventDefault();e.stopImmediatePropagation();action.click();}
 },true);
 let lastDashRangeArrowAt=-Infinity;
+function textEntryTarget(target){return !!target?.matches?.('input,textarea,select,[contenteditable]')||!!target?.isContentEditable;}
 function keydown(e){
- if(e.target?.matches?.('input,textarea,select')&&!e.target.matches('#gl'))return;
+ if(mpChat.open)return;
+ if(e.code==='Escape')return;
+ if(textEntryTarget(e.target)&&!e.target.matches('#gl'))return;
+ if(mpMatch?.active&&/^(ArrowUp|ArrowDown|BracketLeft|BracketRight|Comma|Period)$/.test(e.code)){e.preventDefault();return;}
  if(e.code==='F5'&&game&&['playing','paused'].includes(game.state)){e.preventDefault();if(!e.repeat)toggleCameraMode();return;}
  if((e.code==='ArrowUp'||e.code==='ArrowDown')&&game?.state==='playing'&&!touchOnly&&!e.altKey&&!arsenalOpened){
   e.preventDefault();
@@ -98,11 +103,27 @@ function keydown(e){
  if(input.joyId!==null){try{$('joystick').releasePointerCapture(input.joyId)}catch(_){}}
  input.joyId=null;
  const stick=$('stick');if(stick)stick.style.transform='translate(0,0)';
- if(game?.state==='playing'&&!(typeof mpMatch!=='undefined'&&mpMatch?.paused))pause();
+ if(game?.state==='playing'&&!mpChat.open&&!game.preview&&!(typeof mpMatch!=='undefined'&&mpMatch?.paused))pause();
 }
 addEventListener('blur',resetTransientInput);
 document.addEventListener('visibilitychange',()=>{if(document.hidden)resetTransientInput()});
-addEventListener('keydown',e=>{if(e.code!=='Escape'||e.repeat)return;if(game?.state==='playing'){e.preventDefault();pause()}else if(game?.state==='paused'){e.preventDefault();unpauseGame()}else if(!game&&document.querySelector('[data-up]')&&$('back')){e.preventDefault();$('back').click()}});glCanvas.addEventListener('mousedown',e=>{if(!game||game.state!=='playing')return;if(e.button===0){input.fire=true;if(!touchOnly&&!document.pointerLockElement){try{glCanvas.requestPointerLock?.()}catch(er){}}}});addEventListener('mouseup',()=>input.fire=false);glCanvas.addEventListener('contextmenu',e=>e.preventDefault());document.addEventListener('pointerlockchange',()=>{if(!touchOnly&&!document.pointerLockElement&&!fullscreenTransition&&game?.state==='playing'&&performance.now()>pauseResumeGraceUntil)pause()});glCanvas.addEventListener('mousemove',e=>{if(!game||game.state!=='playing'||touchOnly)return;if(document.pointerLockElement===glCanvas||input.fire){game.p.yaw-=(document.pointerLockElement?e.movementX:e.movementX)*.0032;game.p.pitch=clamp(game.p.pitch-e.movementY*.0029,-1.15,1.1)}});glCanvas.addEventListener('wheel',e=>{if(!game||game.state!=='playing')return;e.preventDefault();switchWeapon((game.p.weapon+(e.deltaY>0?1:weapons.length-1))%weapons.length)},{passive:false});
+// Esc delegates to the visible screen's actual button, never bypasses its cleanup.
+function handleEscape(e){
+ if(mpChat.open)return false;
+ if(e.code!=='Escape'||e.repeat||e.defaultPrevented)return false;
+ const consume=()=>{e.preventDefault();e.stopImmediatePropagation?.();return true;};
+ if(arsenalOpened){closeArsenal();return consume();}
+ const overlay=$('overlay');
+ if(overlay&&!overlay.classList.contains('hidden')){
+  const action=$('panel')?.querySelector('button[data-esc-action]:not(:disabled)');
+  if(action){consume();action.click();return true;}
+  return false;
+ }
+ if(game?.state==='playing'){consume();pause();return true;}
+ return false;
+}
+addEventListener('keydown',handleEscape,true);
+glCanvas.addEventListener('mousedown',e=>{if(mpChat.open||!game||game.state!=='playing')return;if(e.button===0){input.fire=true;if(!touchOnly&&!document.pointerLockElement){try{glCanvas.requestPointerLock?.()}catch(er){}}}});addEventListener('mouseup',()=>input.fire=false);glCanvas.addEventListener('contextmenu',e=>e.preventDefault());document.addEventListener('pointerlockchange',()=>{if(touchOnly||document.pointerLockElement||fullscreenTransition||mpChat.open||game?.state!=='playing')return;if(game.preview){mpPreviewEnd();return;}if(performance.now()>pauseResumeGraceUntil)pause();});glCanvas.addEventListener('mousemove',e=>{if(mpChat.open||!game||game.state!=='playing'||touchOnly)return;if(document.pointerLockElement===glCanvas||input.fire){game.p.yaw-=(document.pointerLockElement?e.movementX:e.movementX)*.0032;game.p.pitch=clamp(game.p.pitch-e.movementY*.0029,-1.15,1.1)}});glCanvas.addEventListener('wheel',e=>{if(mpChat.open||!game||game.state!=='playing')return;e.preventDefault();switchWeapon((game.p.weapon+(e.deltaY>0?1:weapons.length-1))%weapons.length)},{passive:false});
 if(touchOnly){
   // A tap is a shot. A drag is camera movement, and MUST never shoot.
   // Touches on buttons/joystick don't reach this canvas, so they never fire.
@@ -146,7 +167,8 @@ if(touchOnly){
   let joy=$('joystick'),stick=$('stick');const joyPos=e=>{const r=joy.getBoundingClientRect(),cx=r.left+r.width/2,cy=r.top+r.height/2;let x=e.clientX-cx,y=e.clientY-cy,lim=r.width*.35,mag=hypot(x,y)||1;if(mag>lim){x*=lim/mag;y*=lim/mag}input.mx=x/lim;input.mz=-y/lim;stick.style.transform=`translate(${x}px,${y}px)`};joy.addEventListener('pointerdown',e=>{if(input.joyId!==null){e.preventDefault();return;}input.joyId=e.pointerId;joy.setPointerCapture(e.pointerId);joyPos(e);e.preventDefault()});joy.addEventListener('pointermove',e=>{if(input.joyId===e.pointerId){joyPos(e);e.preventDefault()}});const endJoy=e=>{if(e.pointerId===input.joyId){input.mx=0;input.mz=0;input.joyId=null;stick.style.transform='translate(0,0)'}};joy.addEventListener('pointerup',endJoy);joy.addEventListener('pointercancel',endJoy);
 [['dashTouch','dash'],['pulseTouch','pulse'],['shieldTouch','shield'],['healTouch','heal']].forEach(([id,ab])=>$(id).addEventListener('pointerdown',e=>{e.preventDefault();useAbility(ab)}));const runTouch=$('runTouch');
  runTouch.addEventListener('pointerdown',e=>{e.preventDefault();e.stopPropagation();input.mobileSprint=!input.mobileSprint;runTouch.classList.toggle('running',input.mobileSprint);runTouch.setAttribute('aria-pressed',String(input.mobileSprint));},{passive:false});
- // Touch camera mode is selected exclusively through the pause menu.
+ // Practice returns directly to the room form, so expose a local-only camera switch.
+ $('viewTouch')?.addEventListener('pointerdown',e=>{if(mpMatch?.active){e.preventDefault();e.stopPropagation();toggleCameraMode();}},{passive:false});
  const flyButton=$('flightToggle');
  flyButton.addEventListener('pointerdown',e=>{e.preventDefault();e.stopPropagation();toggleFlight();},{passive:false});
  for(const [id,axis] of [['flightUp','flyUp'],['flightDown','flyDown']]){
@@ -192,4 +214,6 @@ for(const event of ['fullscreenchange','webkitfullscreenchange'])document.addEve
 updateFullscreenButtons();
 $('pauseBtn').onclick=pause;
 $('minimap').addEventListener('click',()=>{miniZoom=!miniZoom;drawMinimap();});
-addEventListener('keydown',e=>{if(e.code==='KeyM'&&game?.state==='playing'){miniZoom=!miniZoom;drawMinimap();e.preventDefault();}});
+addEventListener('keydown',e=>{if(mpChat.open||textEntryTarget(e.target))return;if(e.code==='KeyM'&&game?.state==='playing'){miniZoom=!miniZoom;drawMinimap();e.preventDefault();}});
+
+mpChatBind();

@@ -19,8 +19,7 @@ function restorePriorityDefense(p){
   p.energy=Math.max(0,p.energy-required);
   p[stage.key]=Math.min(limit,value+added);
   if(stage.key==='armor')p.armorDelay=0;
-  burst(p.x,(p.feetY||0)+.9,p.z,stage.key==='hp'?[.22,1,.66]:stage.key==='bodyArmor'?[.96,.78,.37]:[.45,.73,1],10);
-  sound(stage.key==='hp'?640:stage.key==='bodyArmor'?500:440,.10,'sine',.07);
+  emitRepairFx(p.x,(p.feetY||0)+.9,p.z,stage.key);
   toast('✚ '+stage.name+' +'+Math.round(added*10)/10,.65);
   return stage.key;
  }
@@ -55,7 +54,7 @@ function useAbility(type){const g=game;if(!g||g.state!=='playing')return;const p
  for(let left=range;left>1e-8;left-=.21){const step=Math.min(.21,left);moveEntity(p,Math.sin(s)*step,Math.cos(s)*step,.24);}
  // Without cooldown, long invulnerability windows would be exploitable.
  // The dash is now a displacement skill with only minimal transition safety.
- p.iframes=Math.max(p.iframes,.055);burst(p.x,(p.feetY||0)+.3,p.z,[.33,1,1],14);sound(380,.14)
+ p.iframes=Math.max(p.iframes,.055);emitDashFx(p.x,(p.feetY||0)+.3,p.z)
 }if(type==='pulse'){
   // Same physical silhouette and cover logic as explosive weapons.
   // In particular, contact-range targets cannot accidentally fall between
@@ -84,10 +83,9 @@ function useAbility(type){const g=game;if(!g||g.state!=='playing')return;const p
    if(Math.hypot(b.x-origin.x,b.y-origin.y,b.z-origin.z)>radius)continue;
    if(areaVisibility(origin,[v3(b.x,b.y,b.z)])>0)b.dead=true;
   }
-  burst(p.x,(p.feetY||0)+1.1,p.z,[.36,.95,1],45);
-  sound(190,.28,'sawtooth',.2);
+  emitPulseFx(origin.x,origin.y,origin.z);
   toast('ЭМИ-ВОЛНА · '+radius.toFixed(1)+' м · '+count+' ЦЕЛЕЙ'+(blocked?' · УКРЫТО '+blocked:''),1.25);
- }if(type==='shield'){p.shield=p.shieldDuration;burst(p.x,1,p.z,[.58,.58,1],18);sound(460,.2,'sine',.13)}}
+ }if(type==='shield'){p.shield=p.shieldDuration;emitShieldFx(p.x,(p.feetY||0)+1,p.z)}}
 function enemyFire(e,pattern=0){
  e.attackPulse=.19;
  const g=game,p=pattern===8&&e.lockTarget?e.lockTarget:g.p;
@@ -143,7 +141,8 @@ function bossGroundWaveReach(e,p){
 // cover checks, ray hits and collision; never snap it to a ground support.
 function updateFlyingRobot(e,p,dt){
  const time=Number(game?.t)||0;
- const low=floorHeight(e.x,e.z)+.13;
+ const r=enemyBodyRadius(e),height=enemyBodyHeight(e);
+ const low=worldTerrainFootprint(e.x,e.z,r)+.13;
  const high=Math.max(low,ceilingHeight()-enemyBodyHeight(e)-.08);
  let feet=Number.isFinite(e.feetY)?e.feetY:low;
  feet=clamp(feet,low,high);
@@ -157,15 +156,17 @@ function updateFlyingRobot(e,p,dt){
  const speed=variant==='stormray'?3.9:variant==='skyhunter'?3.15:
    variant==='skyguard'?2.2:2.6;
  const desired=clamp(target-feet,-speed*dt,speed*dt);
- const r=enemyBodyRadius(e),height=enemyBodyHeight(e);
  let next=clamp(feet+desired,low,high);
  if(next>feet){
-  const barrier=worldSolidHeadBarrier(e.x,e.z,r,feet+height,next+height);
+  const barrier=worldLowestContact(worldDeckHeadBarrier(e.x,e.z,r,feet+height,next+height),
+   worldSolidHeadBarrier(e.x,e.z,r,feet+height,next+height));
   if(barrier!==null)next=Math.min(next,barrier-height-.018);
  }else if(next<feet){
-  const barrier=worldSolidFeetBarrier(e.x,e.z,r,feet,next);
+  const barrier=worldHighestContact(worldDeckFeetBarrier(e.x,e.z,r,feet,next),
+   worldSolidFeetBarrier(e.x,e.z,r,feet,next));
   if(barrier!==null)next=Math.max(next,barrier+.018);
  }
+ next=worldActorVerticalLimit(e.x,e.z,feet,next,height,worldActorBlockers(e,r,false,true));
  next=clamp(next,low,high);
  if(!worldSolidBodyCollision(e.x,e.z,r,next,height))e.feetY=next;
  else e.feetY=feet;
@@ -338,7 +339,7 @@ function updateBullets(dt){
  g.bullets=g.bullets.filter(b=>!b.dead&&b.life>0);
  for(const e of g.loot){
   e.life-=dt;
-  if(distance(e,p)>=1.0+p.magnet)continue;
+  if(!worldLootPickupClear(p,e))continue;
   e.life=0;
   if(e.type==='heal')p.hp=Math.min(p.maxhp,p.hp+23);
   if(e.type==='energy')p.energy=Math.min(p.maxEnergy,p.energy+29);
@@ -351,11 +352,5 @@ function updateBullets(dt){
   sound(560,.08,'sine',.07);
  }
  g.loot=g.loot.filter(x=>x.life>0);
- for(const b of g.particles){b.life-=dt;b.x+=b.vx*dt;b.y+=b.vy*dt;b.z+=b.vz*dt;b.vy-=dt*2;}
- g.particles=g.particles.filter(b=>b.life>0);
- for(const t of (g.tracers||[]))t.life-=dt;
- g.tracers=(g.tracers||[]).filter(t=>t.life>0);
- for(const a of(g.scorch||[]))a.life-=dt;
- g.scorch=(g.scorch||[]).filter(a=>a.life>0);
- if(g.particles.length>140)g.particles.splice(0,g.particles.length-140);
+ advanceSharedWorldFx(g,dt);
 }

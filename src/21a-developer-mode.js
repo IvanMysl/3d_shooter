@@ -82,7 +82,7 @@ function showDeveloperPanel(){
  <div class="line"></div><h3>Сменить пароль</h3>
  <div class="row"><input type="password" id="devOld" autocomplete="off" placeholder="Текущий пароль"><input type="password" id="devNew" autocomplete="off" placeholder="Новый пароль" aria-label="Новый пароль (от 4 до 128 символов)"><button id="devChange" class="secondary">СМЕНИТЬ</button></div>
  <p class="smalltext">Пароль действует в этом браузере. Он защищает от случайного включения, но не является защитой от изменения исходного HTML.</p>
- <div class="row">${devMode?'<button id="devReset" class="secondary">↺ СБРОС ТЕСТОВЫХ ПОКУПОК</button><button id="devExit" class="secondary">ВЫЙТИ ИЗ DEV</button>':''}<button id="devBack" class="secondary">← МЕНЮ</button></div>`);
+ <div class="row">${devMode?'<button id="devReset" class="secondary">↺ СБРОС ТЕСТОВЫХ ПОКУПОК</button><button id="devExit" class="secondary">ВЫЙТИ ИЗ DEV</button>':''}<button id="devBack" data-esc-action class="secondary">← МЕНЮ</button></div>`);
  const msg=$('devMessage');
  $('devLogin').onclick=async()=>{
   const b=$('devLogin');b.disabled=true;

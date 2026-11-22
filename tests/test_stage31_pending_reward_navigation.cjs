@@ -111,7 +111,7 @@ const chosen=[
  {id:'regen',name:'Ядро',icon:'⚡',desc:'Регенерация',fn:g=>{g.p.regen+=2}},
  {id:'bullet',name:'Урон',icon:'◆',desc:'Урон',fn:g=>{g.p.damage+=.15}}];
 game.p={hp:50,regen:10,damage:1};
-const buttons={winMap:{},winReplay:{},overlay:{classList:{add(name){overlayHidden=name==='hidden'}}},
+const buttons={winMap:{},winReplay:{},winMenu:{},overlay:{classList:{add(name){overlayHidden=name==='hidden'}}},
  hud:{classList:{add(name){hudShown=name==='show'}}}};
 const upgradeCtx={game,Math,Array,Number,document:{querySelectorAll:()=>cards},
  upgrades:chosen,closeArsenal(){},CAMPAIGN_MAX_LEVEL:100,

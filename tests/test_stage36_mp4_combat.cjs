@@ -24,7 +24,7 @@ async function main(){
  await until(()=>host.run('mpRtcLinks.size===1')&&guest.run('mpRtcLinks.size===1')&&
   host.run('[...mpRtcLinks.values()][0].fast?.readyState==="open"')&&
   guest.run('[...mpRtcLinks.values()][0].fast?.readyState==="open"'));
- await host.run('mpReady()');await guest.run('mpReady()');
+ 
  host.run('mpMatchStartTraining()');await until(()=>active(host)&&active(guest));
  test(host.run('mpMatch.host')&&!guest.run('mpMatch.host'),'only room owner runs combat simulation');
  test(host.run('mpMatch.actors.size')===2,'both combatant models initialized');
@@ -133,8 +133,8 @@ async function main(){
  // A second round must honor the locked weapon in equal equipment mode.
  host.run('mpRoom.settings.equipment="equal";mpRoom.settings.weapon=2;mpRoom.seq++;mpPublishRoster()');
  await wait(12);
- await host.run('mpReady()');await guest.run('mpReady()');
- await until(()=>host.run('mpMatchReady()'));
+ 
+ await until(()=>host.run('mpMatchCanStart()'));
  host.run('mpMatchStartTraining()');await until(()=>active(host)&&active(guest));
  test(actor(host,0).weapon===2&&actor(host,1).weapon===2,'equal loadout assigns host preset to all actors');
  guest.run('switchWeapon(4)');

@@ -6,7 +6,7 @@ function initDevices(g){
  g.devices=[];
  const relay=g.mission?.type==='relay';
  const wanted=relay?7:g.sector>=3?6:3;
- const loc=missionLocations(g,wanted);
+ const loc=missionLocations(g,wanted,relay?'relay':'support');
  let madeRelays=0;
  for(let i=0;i<loc.length;i++){
   const p=loc[i];
@@ -17,7 +17,30 @@ function initDevices(g){
   g.devices.push({id:i+1,x:p.x,z:p.z,kind,used:false,charge:0,phase:i*2.31,
     cooldown:0,cycles:0});
  }
- if(relay)g.mission.required=madeRelays;
+ enemyNavMask=null;enemyNavEdges=null;missionGuideCache=null;
+ if(relay){g.mission.required=madeRelays;missionPlanOrder(g,g.devices.filter(d=>d.kind==='relay'));}
+ // Two more operation families use only physically reachable existing metal
+ // stations; no newly decorative or invisible objectives are generated.
+ if(g.mission?.type==='signal'){
+  const stations=g.devices.filter(d=>d.kind==='battery').slice(0,2);
+  const m=g.mission;m.signalIds=stations.map(d=>d.id);m.signalRequired=stations.length;
+  m.required=m.signalRequired+1;missionRefreshCombinedProgress(m);
+ }
+ if(g.mission?.type==='surge'){
+  const stations=g.devices.filter(d=>d.kind==='battery').slice(0,1);
+  const m=g.mission;m.surgeIds=stations.map(d=>d.id);m.surgeRequired=stations.length;
+  if(!stations.length)m.surgeReady=true; // rare cramped stage: no impossible prerequisite
+  m.required=m.nodesRequired+m.surgeRequired;missionRefreshCombinedProgress(m);
+ }
+ if(g.mission?.type==='conduit'){
+  // These are the ACTUAL metal/active coil housings, with the same physical
+  // contact checks as optional disarming. On a cramped legacy arena, reduce
+  // the quota to the number of physically placeable coils, never soft-lock.
+  const coils=g.devices.filter(d=>d.kind==='coil').slice(0,2);
+  g.mission.coilIds=coils.map(d=>d.id);g.mission.coilsRequired=coils.length;
+  g.mission.required=g.mission.coilsRequired+g.mission.nodesRequired;
+ }
+
 }
 function deviceColor(d){return d.kind==='relay'?[.99,.76,.34]:d.kind==='repair'?[.34,1,.64]:d.kind==='coil'?[1,.35,.21]:[.3,.84,1];}
 function completeDevice(g,d){
@@ -37,10 +60,30 @@ function completeDevice(g,d){
   toast('✚ РЕМОНТ · КОРПУС, ЭНЕРГОБАРЬЕР И КОСТЮМ',1.6);
  }else if(d.kind==='battery'){
   p.energy=Math.min(p.maxEnergy,p.energy+55*quality);p.heat=0;p.heatLock=0;
-  g.score+=85;toast('ϟ ЭНЕРГОСТАНЦИЯ · ЗАРЯД И ОХЛАЖДЕНИЕ',1.5);
+  const m=g.mission,scan= m?.type==='signal'&&(m.signalIds||[]).includes(d.id),
+   surge=m?.type==='surge'&&(m.surgeIds||[]).includes(d.id);
+  // Recharging the same resonance station after a timed failure must not
+  // become an infinite score exploit. The first use rewards normally.
+  const repeat=surge&&(m.surgeActivations||0)>0;
+  if(!repeat)g.score+=85;
+  if(scan){m.signalDone=Math.min(m.signalRequired,(m.signalDone||0)+1);
+   missionRefreshCombinedProgress(m);
+   toast('⌁ ПЕРЕХВАТ СИГНАЛА '+m.signalDone+'/'+m.signalRequired,1.5);
+  }else if(surge){
+   m.surgeReady=true;m.surgeRemaining=Math.min(26,17+g.sector*.08);m.surgeActivations++;
+   missionRefreshCombinedProgress(m);
+   toast('ϟ ПЕРЕГРУЗКА ЗАПУЩЕНА · '+Math.ceil(m.surgeRemaining)+' СЕКУНД',1.6);
+  }else toast('ϟ ЭНЕРГОСТАНЦИЯ · ЗАРЯД И ОХЛАЖДЕНИЕ',1.5);
  }else if(d.kind==='coil'){
   g.score+=160;save.credits+=3;
-  toast('✓ ИМПУЛЬСНЫЙ ИЗЛУЧАТЕЛЬ ОТКЛЮЧЁН',1.5);
+  const m=g.mission;
+  if(m?.type==='conduit'&&(m.coilIds||[]).includes(d.id)){
+   m.coilsDisabled=Math.min(m.coilsRequired,(m.coilsDisabled||0)+1);
+   // Reactor kills made BEFORE disarming must not soft-lock stage 2.
+   m.done=m.coilsDisabled+(m.coilsDisabled>=m.coilsRequired?
+    Math.min(m.nodesDisabled||0,m.nodesRequired||0):0);
+   toast('ϟ КОНТУР ОБЕСТОЧЕН '+m.coilsDisabled+'/'+m.coilsRequired,1.7);
+  }else toast('✓ ИМПУЛЬСНЫЙ ИЗЛУЧАТЕЛЬ ОТКЛЮЧЁН',1.5);
  }
  burst(d.x,.55+floorHeight(d.x,d.z),d.z,deviceColor(d),19);
  sound(d.kind==='coil'?210:650,.17,'triangle',.11);
@@ -52,24 +95,31 @@ function updateDevices(dt){
  const p=g.p;
  for(const d of (g.devices||[])){
   if(d.used)continue;
+  // The dormant relay has no interaction charge until the preceding stage.
+  // Its visible metal chassis stays physically solid even when inactive.
+  if(d.kind==='relay'&&!missionItemActive(g,d,'relay')){d.charge=0;continue;}
   const dist=distance(p,d);
   const y=floorHeight(d.x,d.z);
   const sameFloor=Math.abs((p.feetY||0)-y)<1.2;
+  // Steel rails and walls are meaningful gameplay cover, not transparent
+  // activation shortcuts. Cache the clearance once per device per tick.
+  const canInteract=dist<1.25&&sameFloor&&missionInteractionClear(p,d,'device');
   if(d.kind==='coil'){
    // 1.7 s warning, 2.3 s danger, 2.7 s cooldown. Jumping clears the ground pulse.
    const cycle=(g.t+d.phase)%6.7;
    const active=cycle>=1.7&&cycle<4.0;
    d.active=active;
    d.cooldown=Math.max(0,(d.cooldown||0)-dt);
-   if(active && d.cooldown<=0 && dist<2.15 && sameFloor && p.grounded && p.shield<=0){
-    damagePlayer(7+Math.min(14,g.sector*.28),d);d.cooldown=1.35;
+   if(active&&d.cooldown<=0&&dist<2.15&&sameFloor&&p.grounded&&p.shield<=0){
+    const exposure=missionCoilPulseExposure(d,p);
+    if(exposure>0){damagePlayer((7+Math.min(14,g.sector*.28))*exposure,d);d.cooldown=1.35;}
    }
    // Safely disarm at the emitter by remaining next to it briefly.
-   d.charge=dist<1.12&&sameFloor?Math.min(1.2,d.charge+dt):Math.max(0,d.charge-dt*.75);
+   d.charge=canInteract&&dist<1.12?Math.min(1.2,d.charge+dt):Math.max(0,d.charge-dt*.75);
    if(d.charge>=1.1){completeDevice(g,d);continue;}
   }else{
-   d.charge=dist<1.25&&sameFloor?Math.min(1.1,d.charge+dt):Math.max(0,d.charge-dt*.70);
-   if(d.charge>=(d.kind==='relay'?.82:.48))completeDevice(g,d);
+   d.charge=canInteract?Math.min(1.1,d.charge+dt):Math.max(0,d.charge-dt*.70);
+   if(d.charge>=(d.kind==='relay'?.82:(g.mission?.type==='signal'&&(g.mission.signalIds||[]).includes(d.id))?1.02:.48))completeDevice(g,d);
   }
  }
 }
@@ -78,7 +128,7 @@ function drawDevices(g){
  const low=save.settings.quality===0;
  for(const d of g.devices){
   if(distance(g.p,d)>24)continue;
-  const ground=floorHeight(d.x,d.z),c=deviceColor(d),off=d.used;
+  const ground=floorHeight(d.x,d.z),active=missionItemActive(g,d,'relay'),c=d.kind==='relay'&&!active?[.34,.40,.43]:deviceColor(d),off=d.used;
   const shell=[.13,.18,.22],steel=[.33,.38,.41],dark=[.045,.067,.084];
   draw(geom.bevel,d.x,ground+.24,d.z,.72,.40,.72,0,shell,0);
   draw(geom.cylinder,d.x,ground+.58,d.z,.39,.45,.39,0,steel,.01);
@@ -101,22 +151,17 @@ function drawDevices(g){
 }
 function spawnPowerNodes(level){
  if(!game)return;
- const selected=[];let seed=(Math.imul(level,1442695041)^0x6eeac1a5)>>>0;
- const rng=()=>((seed=(Math.imul(seed,1664525)+1013904223)>>>0)/4294967296);
  const n=Math.min(6,3+Math.floor(level/5));
- const rooms=mapRooms.slice(1).sort((a,b)=>hypot(b.x-spawnX,b.z-spawnZ)-hypot(a.x-spawnX,a.z-spawnZ));
- for(let i=0;i<rooms.length&&selected.length<n;i++){
-  const room=rooms[(i*7+level*3)%rooms.length];
-  let pos=null;
-  for(let j=0;j<13;j++){
-   const x=room.x+(j? (rng()-.5)*Math.min(4,room.w-2):0),z=room.z+(j? (rng()-.5)*Math.min(4,room.h-2):0);
-   if(collide(x,z,.76)||hypot(x-spawnX,z-spawnZ)<8||hypot(x-portal.x,z-portal.z)<3||selected.some(a=>hypot(a.x-x,a.z-z)<7))continue;
-   pos={x,z};break;
-  }
-  if(pos){const type=selected.length%3;selected.push({...pos,type,hp:39+level*6,maxhp:39+level*6,dead:false,flash:0,phase:rng()*TAU,radius:.61});}
- }
- game.nodes=selected;
+ // Static reactor bases are solid-looking world equipment. Choose genuine
+ // collision-free, ground-reachable sites; do not hide a required sabotage
+ // target behind a wall, balcony rail, or disconnected stair landing.
+ const loc=missionLocations(game,n,'power');
+ const hp=39+level*6;
+ game.nodes=loc.map((p,i)=>({x:p.x,z:p.z,type:i%3,hp,maxhp:hp,
+  dead:false,flash:0,phase:((level*31+i*17)%71)/71*TAU,radius:.61}));
+ enemyNavMask=null;enemyNavEdges=null;missionGuideCache=null;
 }
+
 function rayNode(o,d,maxDist,assist=0){
  if(!game)return null;let result=null,best=maxDist;
  for(const node of game.nodes){
@@ -135,20 +180,60 @@ function damagePowerNode(node,amount,depth=0){
  if(!node||node.dead||!game)return false;
  node.hp-=amount;node.flash=.19;
  if(node.hp>0){sound(400,.045,'triangle',.033);return false;}
- node.dead=true;const g=game,kind=NODE_TYPES[node.type];g.nodesDestroyed++;if(g.mission?.type==='sabotage'&&node.type!==2&&g.mission.done<g.mission.required){g.mission.done++;toast('ϟ ЭНЕРГОУЗЕЛ ОТКЛЮЧЁН · '+g.mission.done+'/'+g.mission.required,1.5)}g.score+=125+g.sector*12;
- const center={x:node.x,y:1.3,z:node.z};
+ node.dead=true;
+ // A destroyed metal housing is removed from robot navigation and collision.
+ enemyNavMask=null;enemyNavEdges=null;
+ const g=game,kind=NODE_TYPES[node.type];g.nodesDestroyed++;
+ const m=g.mission;
+ if(m?.type==='sabotage'&&node.type!==2&&m.done<m.required){
+  m.done++;toast('ϟ ЭНЕРГОУЗЕЛ ОТКЛЮЧЁН · '+m.done+'/'+m.required,1.5);
+ }else if((m?.type==='containment'||m?.type==='conduit'||m?.type==='surge')&&node.type!==2){
+  m.nodesDisabled=Math.min(m.nodesRequired,(m.nodesDisabled||0)+1);
+  m.done=m.type==='containment'?m.nodesDisabled:
+   m.type==='surge'?(missionRefreshCombinedProgress(m),m.done):
+   (m.coilsDisabled||0)+((m.coilsDisabled||0)>=(m.coilsRequired||0)?m.nodesDisabled:0);
+  toast('ϟ РЕАКТОР ОТКЛЮЧЁН · '+m.nodesDisabled+'/'+m.nodesRequired,1.5);
+ }
+ g.score+=125+g.sector*12;
+ const center={x:node.x,y:floorHeight(node.x,node.z)+1.3,z:node.z};
  g.impactFx.push({...center,life:.66,maxLife:.66,r:kind.radius*.9,col:kind.color,explosion:true});
  burst(node.x,1.2,node.z,kind.color,save.settings.quality===0?22:42);
  g.scorch.push({x:node.x,z:node.z,life:30,r:kind.radius*.57});if(g.scorch.length>32)g.scorch.shift();
  if(node.type===2){
-  g.loot.push({x:node.x+.3,z:node.z,type:'heal',life:25},{x:node.x-.3,z:node.z,type:'energy',life:25},{x:node.x+.7,z:node.z-.3,type:'credits',life:25},{x:node.x-.55,z:node.z+.35,type:'plates',life:25});
+  for(const [type,dx,dz] of [['heal',.3,0],['energy',-.3,0],['credits',.7,-.3],['plates',-.55,.35]]){
+   const drop=worldLootSpawn(node,type,25,dx,dz);if(drop)g.loot.push(drop);
+  }
   toast('✚ КОНТЕЙНЕР ОТКРЫТ · СОБЕРИ РЕСУРСЫ',1.35);
  }else{
   const r=kind.radius;
-  for(const e of [...g.enemies])if(!e.dead){const dist=hypot(e.x-node.x,e.z-node.z);if(dist<=r+e.radius){hurtEnemy(e,(node.type===0?115:56)*(1-.45*Math.min(1,dist/r)));if(node.type===1)e.stun=Math.max(e.stun,2.7)}}
-  const pd=distance(g.p,node);
-  if(node.type===0&&pd<r*.55)damagePlayer(12*(1-pd/(r*.75)));
-  if(depth<3)for(const other of g.nodes)if(!other.dead&&distance(node,other)<r*1.15)damagePowerNode(other,other.hp+1,depth+1);
+  // The reactor blast is a real 3D effect: solid cover and a different
+  // altitude shield the target. Reuse the same robot hull/cover sampler that
+  // already protects targets from rockets and the player's EMP burst.
+  for(const e of [...g.enemies])if(!e.dead&&robotNearArea(e,center,r)){
+   const body=enemyBlastSamples(e,center);
+   if(body.hullDist>r+e.radius)continue;
+   // Unlike the legacy rocket end tolerance, a thin metal wall just
+   // in front of a robot accessory still blocks an environmental blast.
+   const exposure=body.points.reduce((count,point)=>
+    count+Number(missionHazardRayClear(center,point)),0)/body.points.length;
+   if(exposure<=0)continue;
+   const dist=Math.hypot(e.x-node.x,e.z-node.z,
+    (Number.isFinite(e.feetY)?e.feetY:floorHeight(e.x,e.z))+1.0-center.y);
+   hurtEnemy(e,(node.type===0?115:56)*(1-.45*Math.min(1,dist/r))*exposure);
+   if(node.type===1)e.stun=Math.max(e.stun,2.7*exposure);
+  }
+  const pd=Math.hypot(g.p.x-node.x,g.p.z-node.z,
+   (Number.isFinite(g.p.feetY)?g.p.feetY:floorHeight(g.p.x,g.p.z))+.9-center.y);
+  if(node.type===0&&pd<r*.55){
+   const exposure=missionHazardPlayerExposure(center,g.p);
+   if(exposure>0)damagePlayer(12*(1-pd/(r*.75))*exposure);
+  }
+  if(depth<3)for(const other of g.nodes)if(!other.dead){
+   const y=floorHeight(other.x,other.z)+.95;
+   const dist=Math.hypot(other.x-node.x,y-center.y,other.z-node.z);
+   if(dist<r*1.15&&missionHazardRayClear(center,{x:other.x,y,z:other.z},other))
+    damagePowerNode(other,other.hp+1,depth+1);
+  }
   toast(node.type===0?'✹ ТЕРМОРЕАКТОР ВЗОРВАН':'ϟ ЭМИ-ИМПУЛЬС · ВРАГИ ОГЛУШЕНЫ',1.3);
  }
  sound(node.type===0?85:node.type===1?160:550,.31,'sawtooth',.12);

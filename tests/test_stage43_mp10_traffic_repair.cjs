@@ -24,9 +24,9 @@ async function main(){
  await until(()=>host.run('mpRtcLinks.size===1')&&guest.run('mpRtcLinks.size===1')&&
   host.run('[...mpRtcLinks.values()][0].fast?.readyState==="open"')&&
   guest.run('[...mpRtcLinks.values()][0].fast?.readyState==="open"'));
- await host.run('mpReady()');await guest.run('mpReady()');
+ 
  host.run('mpMatchStartTraining()');await until(()=>active(host)&&active(guest));
- check(host.run('MP_VERSION')===3,'all compact-packet clients require protocol v3');
+ check(host.run('MP_VERSION')>=3,'all compact-packet clients require at least protocol v3');
  check(host.run('typeof mp10Encode')==='function'&&guest.run('typeof mp10Decode')==='function',
   'both simulated browsers loaded the production v43 codec');
 

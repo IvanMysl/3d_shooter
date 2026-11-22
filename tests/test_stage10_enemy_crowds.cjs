@@ -35,10 +35,12 @@ check(min>=near(mover,stationary)-.022,`NPC collision during detour (distance ${
 check(mover.x>10,`NPC could not detour around stationary ally (${mover.x},${mover.z})`);
 
 // Different levels: a bot on the upper deck never blocks a bot below it.
-reset();const lower=bot(5.0,5,3),upper=bot(6.1,5,4,{feetY:2.2});g.enemies=[lower,upper];
+reset();const lower=bot(5.0,5,3,{type:"scout",radius:.48}),upper=bot(6.1,5,4,{feetY:2.2});g.enemies=[lower,upper];
 check(c.enemyCrowdAllows(lower,6.1,5,.25),'upper bridge NPC blocked lower passage');
 c.moveEntity(lower,1.1,0,.25);
 check(lower.x>5.9,'lower-level robot failed to pass under upper actor');
+const tall=bot(5.0,5,15);g.enemies=[tall,upper];
+check(c.enemyBodyHeight(tall)>upper.feetY&&!c.enemyCrowdAllows(tall,6.1,5,.25),'tall body really intersects upper actor');
 // In the same z/x footprint, a boss requires more lateral room than a scout.
 reset();const boss=bot(7.0,9.5,5,{boss:true,radius:1.03,maxhp:750});
 const tiny=bot(5.5,9.5,6);g.enemies=[boss,tiny];

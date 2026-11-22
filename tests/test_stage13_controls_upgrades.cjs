@@ -48,6 +48,7 @@ const physics={Math,Number,Array,Map,Float32Array,console,mapSize:N,mapCells:cel
 vm.createContext(physics);
 vm.runInContext('const DASH_DISTANCE_BASE=2.52,DASH_DISTANCE_MAX=14.52,DASH_DISTANCE_MIN=.5',physics);
 vm.runInContext(read('03-height-and-collision.js'),physics);
+vm.runInContext(read('04a-static-world-solids.js'),physics);
 const ability=read('18-ai-and-abilities.js');
 vm.runInContext(ability.slice(ability.indexOf('function useAbility('),ability.indexOf('function enemyFire(')),physics);
 const warrior={x:6.5,z:6.5,yaw:Math.PI/2,feetY:0,grounded:true,energy:500,

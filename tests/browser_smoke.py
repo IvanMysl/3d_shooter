@@ -67,10 +67,10 @@ def exercise(browser, filename, mobile):
         })""")
         assert state['overlay'] and state['panelText'] > 200, (state,served,errors)
         assert state['diagnostic'] == state['test'] == state['missionTest'] == 'object', state
-        assert state['styles'] == (2 if filename == 'index.html' else 8), state
+        assert state['styles'] == (2 if filename == 'index.html' else 9), state
         assert state['scripts'] == 2 and state['mobileControls'], state
         if filename == 'dev.html':
-            assert len(served) == 10 and len(set(served)) == 10, served
+            assert len(served) == 11 and len(set(served)) == 11, served
 
         game = page.evaluate("""() => {
           window.__neonTest.debugStart();

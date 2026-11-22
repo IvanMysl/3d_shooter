@@ -12,7 +12,7 @@ function addSurfaceMark(hit,w,size=1){
  if(!hit||hit.kind==='enemy'||hit.kind==='node'||!game)return;
  const g=game,energy=w.mode==='projectile'||w.blast>0;
  const c=w.color||[1,.65,.3],r=(energy?.20:.105)*(w.name.includes('ДРОБОВИК')?.70:1)*size;
- const bounds=hit.solid?hit.solid.box:null;
+ const bounds=hit.solid?.box||hit.box||null;
  // Corner and edge contacts have genuine diagonal sphere normals, but a
  // bullet mark must lie on one flat metal face. Pick the dominant face ONLY
  // for its decal; preserve the 3D contact normal for sparks and explosions.
@@ -33,18 +33,20 @@ function addImpact(hit,w,power=1){
  g.impactFx.push({x:hit.x,y:hit.y,z:hit.z,life:.19,maxLife:.19,r:(.13+.14*power),col:w.color||[1,1,1]});
  if(g.impactFx.length>38)g.impactFx.shift();
 }
+// Common surface presentation for a projectile impact. The caller still
+// decides all damage and which objects were struck.
+function projectileSurfaceFx(hit,w){
+ addImpact(hit,w,1.5);
+ return {x:hit.x+(hit.nx||0)*.05,y:hit.y+(hit.ny||0)*.05,z:hit.z+(hit.nz||0)*.05};
+}
 function makeTracer(o,end,w,width=1,localView=false){
- const g=game;if(!g)return;
- g.tracers.push({a:{...o},b:{...end},life:w.pierce?.22:.13,maxLife:w.pierce?.22:.13,
-  r:(w.pierce?.052:.017)*width,col:w.color,localView});
- if(g.tracers.length>(touchOnly?35:65))g.tracers.shift();
+ emitShotTracer(o,end,w,width,localView);
 }
 function muzzleVisual(w){
  const p=game?.p;if(!p)return;
- p.shotGlow=Math.max(p.shotGlow||0,.115+(w.recoil||.3)*.065);
  const el=$('muzzle');el.style.opacity='.95';el.style.setProperty('--flash-color',`rgb(${w.color.map(c=>Math.round(c*255)).join(',')})`);
  clearTimeout(muzzleVisual.tm);muzzleVisual.tm=setTimeout(()=>el.style.opacity='0',72);
- sound(w.pierce?135:w.blast?110:w.shots>1?165:w.rate<.09?280:218,w.blast?.24:.10,w.pierce||w.blast?'sawtooth':'triangle',w.blast?.12:.058);
+ emitWeaponSound(w);
 }
 function shotProjectile(w,o,d,localView=false){
  const g=game;
@@ -142,10 +144,7 @@ function splash(x,y,z,w,directEnemy=null,directNode=null){
   if(areaVisibility(origin,[target])>0)
    damagePowerNode(n,w.damage*(.35+.65*(1-Math.min(1,dist/(r+n.radius)))));
  }
- burst(x,y,z,w.color||[1,.6,.3],save.settings.quality===0?20:44);
- g.impactFx.push({x,y,z,life:.48,maxLife:.48,r:r*.64,col:w.color||[1,.5,.1],explosion:true});
- if(g.impactFx.length>38)g.impactFx.shift();
- sound(w.name.includes('ГРОМ')?73:99,.4,'sawtooth',.19);
+ emitExplosionFx(x,y,z,w,r);
 }
 function shootPellet(w,burstIndex=0){
  if(!game||game.state!=='playing')return;
@@ -164,7 +163,7 @@ function shootPellet(w,burstIndex=0){
    // converges onto the same sighted obstruction or enemy. Cheap for the
    // low-rate projectile weapons; hitscan damage stays entirely unchanged.
    const wall=rayWall(o,d,w.range);
-   const node=rayNode(o,d,wall?wall.t:w.range);
+   const node=rayNode(o,d,wall?wall.t:w.range)||(wall?.kind==='node'?wall:null);
    const limit=node?node.t:(wall?wall.t:w.range);
    const enemy=rayEnemy(o,d,limit);
    const hitDistance=enemy?.t??node?.t??wall?.t??w.range;
@@ -172,7 +171,7 @@ function shootPellet(w,burstIndex=0){
    return;
  }
  const wall=rayWall(o,d,w.range);
- const node=rayNode(o,d,wall?wall.t:w.range);
+ const node=rayNode(o,d,wall?wall.t:w.range)||(wall?.kind==='node'?wall:null);
  const limit=node?node.t:(wall?wall.t:w.range);
  const ignored=new Set();
  const maxPierce=w.pierce||1;
@@ -198,8 +197,8 @@ function shootPellet(w,burstIndex=0){
 }
 function fireBurstShot(w){
  if(!game||game.state!=='playing')return;
+ applyWeaponShotPose(game.p,w);
  muzzleVisual(w);
- const p=game.p;p.recoil=Math.min(1.8,(p.recoil||0)+(w.recoil||.3)*.68);
  for(let k=0;k<w.shots;k++)shootPellet(w);
 }
 let ammoShots=0;
@@ -211,7 +210,7 @@ function shoot(){
  const g=game;if(!g||g.state!=='playing')return;
  const p=g.p,w=combatWeapon(p.weapon);
  if(!w||p.cooldown>0||p.heatLock>0)return;
- if(p.heat>=97){p.heatLock=1;toast('ПЕРЕГРЕВ ОРУЖИЯ',.75);sound(70,.15);return;}
+ if(p.heat>=97){p.heatLock=1;emitOverheatFx();return;}
  // Preserve the sub-frame remainder: otherwise a purchased rate upgrade may
  // produce fewer real shots at some FPS because each shot discards up to dt.
  p.cooldown=w.rate*p.rate+Math.min(0,p.cooldown);
@@ -234,8 +233,8 @@ function updatePlayerOrdnance(dt){
    const wall=sweepWorldSphere(o,d,length,s.rad||0),node=rayNode(o,d,wall?Math.min(length,wall.t):length,s.rad||0);
    const enemy=rayEnemy(o,d,node?node.t:(wall?Math.min(length,wall.t):length),null,s.rad||0);
    const hit=enemy||node||wall;
-   if(hit){s.x=hit.x;s.y=hit.y;s.z=hit.z;s.dead=true;addImpact(hit,s.w,1.5);if(hit.kind==='node')damagePowerNode(hit.node,s.w.damage);
-      splash(hit.x+(hit.nx||0)*.05,hit.y+(hit.ny||0)*.05,hit.z+(hit.nz||0)*.05,s.w,hit.kind==='enemy'?hit.enemy:null,hit.kind==='node'?hit.node:null);
+   if(hit){s.x=hit.x;s.y=hit.y;s.z=hit.z;s.dead=true;const visual=projectileSurfaceFx(hit,s.w);if(hit.kind==='node')damagePowerNode(hit.node,s.w.damage);
+      splash(visual.x,visual.y,visual.z,s.w,hit.kind==='enemy'?hit.enemy:null,hit.kind==='node'?hit.node:null);
       
    }else{s.x+=s.vx*dt;s.y+=s.vy*dt;s.z+=s.vz*dt;}
    s.vy-=(s.w.gravity||0)*dt;
@@ -243,9 +242,7 @@ function updatePlayerOrdnance(dt){
    if(s.life<=0&&!s.dead){s.dead=true;splash(s.x,s.y,s.z,s.w);}
  }
  g.projectiles=g.projectiles.filter(s=>!s.dead);
- for(const n of g.nodes)n.flash=Math.max(0,n.flash-dt);for(const d of g.decals)d.life-=dt;
- const oldMarks=g.decals.length;g.decals=g.decals.filter(d=>d.life>0);if(g.decals.length!==oldMarks)decalDirty=true;
- for(const f of g.impactFx)f.life-=dt;
- g.impactFx=g.impactFx.filter(f=>f.life>0);
+ for(const n of g.nodes)n.flash=Math.max(0,n.flash-dt);
+ advanceSharedImpactFx(g,dt);
 }
 function showDamage(e,dm,crit){let p=game.p,dx=e.x-p.x,dz=e.z-p.z;const a=Math.atan2(dx,dz)-p.yaw;let v=Math.atan2(Math.sin(a),Math.cos(a));let d=hypot(dx,dz);if(Math.abs(v)>1.1)return;let el=document.createElement('div');el.className='floating';el.textContent=(crit?'✦ ':'')+dm;el.style.left=(50+v/(Math.PI*.38)*40)+'%';el.style.top=(42+rand(-5,5))+'%';el.style.color=crit?'#ffcf6e':'#e9fdff';$('floatText').appendChild(el);setTimeout(()=>el.remove(),790);$('crosshair').classList.add('hit');clearTimeout(showDamage.tm);showDamage.tm=setTimeout(()=>$('crosshair').classList.remove('hit'),90)}

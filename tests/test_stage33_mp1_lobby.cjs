@@ -48,7 +48,7 @@ class FakeMetered{
 function app(server,script=source,extra={}){
  let elements=new Map(),lastHTML='',savedCalls=0,menuCalls=0;
  const element=(id)=>{
-  if(!elements.has(id))elements.set(id,{id,value:'',disabled:false,hidden:false,textContent:'',className:'',onclick:null,focus(){},select(){}});
+  if(!elements.has(id))elements.set(id,{id,value:'',disabled:false,hidden:false,textContent:'',className:'',onclick:null,focus(){},select(){},querySelectorAll(){return [];},addEventListener(){}});
   return elements.get(id);
  };
  const ctx={
@@ -76,7 +76,7 @@ async function main(){
  ok(manifest.styleOrder.includes('55-multiplayer.css'),'MP stylesheet in manifest');
  ok(menuSource.includes('multiplayerMenu'),'main menu MP entry');
  const server=new FakeMetered(),host=app(server);
- ok(host.run('MP_MAPS.length')===18,'18 extendable maps');
+ ok(host.run('MP_MAPS.length')===100,'100 selectable maps');
  ok(host.run("mpNickKey('Ｐｌａｙｅｒ')===mpNickKey('player')"),'NFKC + case-insensitive');
  ok(host.run("mpNickKey('ΣΣ')===mpNickKey('ςς')"),'Greek final sigma casefold');
  ok(host.run("mpNickKey('Straße')===mpNickKey('STRASSE')"),'German sharp S casefold');
@@ -104,9 +104,9 @@ async function main(){
  ok(state(h).players.length===2&&state(alice).players.length===2,'two networked browsers');
  ok(state(alice).hostPeer===state(h).hostPeer,'host identity propagated');
  ok(state(alice).players[1].team===1,'opposite team initially');
- await alice.run('mpReady()');
- ok(state(h).players[1].ready===true,'host processes guest readiness');
- ok(state(alice).players[1].ready===true,'guest receives authoritative roster');
+ 
+ ok(!Object.hasOwn(state(h).players[1],'ready'),'host roster has no player readiness flag');
+ ok(!Object.hasOwn(state(alice).players[1],'ready'),'guest roster has no player readiness flag');
  const clashA=onlineApp(),clashB=onlineApp();
  enter(clashA,code,'Ωμέγα');enter(clashB,code,'ωΜΈΓΑ');
  await Promise.all([clashA.run('mpJoinRoom()'),clashB.run('mpJoinRoom()')]);

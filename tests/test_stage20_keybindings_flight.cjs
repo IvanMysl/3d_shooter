@@ -47,6 +47,7 @@ const phy={Math,Number,Array,Float32Array,console,sectorStyle:0,mapSize:20,mapCe
  flightSpeedMultiplier:()=>1,normalizeFlightThrottle:()=>1,
  sound:()=>{},burst:()=>{},worldSolidBodyCollision:()=>false,clamp};
 vm.createContext(phy);vm.runInContext(read('03-height-and-collision.js'),phy);
+vm.runInContext(read('04a-static-world-solids.js'),phy);
 const flyer={x:8.5,z:8.5,feetY:1.0,vy:0,grounded:false,flying:true,flightUnlocked:true};
 phy.game.p=flyer;
 phy.input.keys.Space=true;phy.updateVertical(flyer,.10);

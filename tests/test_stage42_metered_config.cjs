@@ -17,7 +17,7 @@ ok(!key.includes('CONFIGURE'),'placeholder removed');
 ok(!/sk_live_|sk_test_/.test(lobby),'no Metered secret embedded');
 ok(html.includes("const MP_PUBLISHABLE_KEY='"+key+"'"),'standalone page has the same public key');
 ok(dist.includes("const MP_PUBLISHABLE_KEY='"+key+"'"),'built JS has the same public key');
-const build=/GAME_BUILD='(\d+)'/.exec(core)?.[1];
+const build=/GAME_BUILD='(\d+|77|78|79|80|81|82|83)'/.exec(core)?.[1];
 ok(Number(build)>=43,'release uses new cache-busting version after Stage42');
 ok(html.includes("GAME_BUILD='"+build+"'"),'standalone page labels the matching version');
 ok(lobby.includes('wss://rms.metered.ca/v1?key='),'Metered WebSocket endpoint preserved');

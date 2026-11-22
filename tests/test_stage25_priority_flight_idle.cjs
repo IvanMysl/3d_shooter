@@ -24,6 +24,7 @@ const ability={Math,Number,clamp,game:{state:'playing',p:player},
 vm.createContext(ability);
 const arsenal=src('12-arsenal-and-game.js');
 vm.runInContext(arsenal.slice(arsenal.indexOf('const PERM_COMPOUND='),arsenal.indexOf('function newPlayer(')),ability);
+{const fx=fs.readFileSync(path.join(__dirname,'../src/13-enemy-navigation-spawn.js'),'utf8');vm.runInContext(fx.slice(fx.indexOf('function emitWeaponSound(')),ability);}
 vm.runInContext(abilities.slice(abilities.indexOf('function restorePriorityDefense('),abilities.indexOf('function enemyFire(')),ability);
 check(ability.useAbility('heal')==='hp','E first repairs hull');
 near(player.hp,89,'initial +49 hp');near(player.energy,450,'first 50 energy spent');
@@ -113,6 +114,7 @@ const phy={Math,Number,Array,Float32Array,console,clamp,
  normalizeFlightThrottle:throttle.normalizeFlightThrottle,
  sound(){},burst(){},toast(){},worldSolidBodyCollision:()=>false,glReady:false};
 vm.createContext(phy);vm.runInContext(src('03-height-and-collision.js'),phy);
+vm.runInContext(src('04a-static-world-solids.js'),phy);
 const flyer={x:7,z:7,feetY:1,vy:0,grounded:false,flying:true,flightUnlocked:true};
 phy.game.p=flyer;phy.updateVertical(flyer,.1);
 near(flyer.feetY,1+4.4*(1.05**2)*.5*.1,'actual vertical flight uses speed multiplier & throttle');
@@ -130,6 +132,9 @@ motion.game={state:'playing',t:0,sectorTime:0,combo:0,portalReady:false,
  energy:100,maxEnergy:100,regen:0,maxhp:100,hp:100,healRegen:0,
  armor:0,maxArmor:0,heat:0,heatLock:0,recoil:0,cooldown:0,iframes:0,
  shield:0,abilityCooldowns:{}}};
+Object.assign(motion,{navFieldDestroyed:0,navFieldWorldCount:0,worldSolidCount:0,
+ navFieldEquipment:null,worldEquipmentGrid:()=>null,navFieldMap:null,mapCells:null,
+ navFieldHeights:null,heightCells:null,navFieldWorld:null,worldSolidGrid:null});
 vm.createContext(motion);
 const updateSource=src('19-gameplay-update.js');
 vm.runInContext(updateSource.slice(updateSource.indexOf('function update(dt)'),updateSource.indexOf('function portalNext(')),motion);

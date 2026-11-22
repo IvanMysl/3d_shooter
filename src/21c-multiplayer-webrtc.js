@@ -119,6 +119,7 @@ function mpRtcControl(link,e){
  else if(data.kind==='pong'&&data.n===link.pingSeq&&link.pingAt){
   link.rtt=Math.max(0,Math.min(9999,performance.now()-link.pingAt));mpRtcPaint();
  }
+ else if(typeof data.kind==='string'&&data.kind.startsWith('chat-')&&typeof mpChatControl==='function')mpChatControl(link.peer,data);
  else if(typeof data.kind==='string'&&data.kind.startsWith('mp3-')&&typeof mpMatchControl==='function')mpMatchControl(link.peer,data);
 }
 function mpRtcFastMessage(link,e){
@@ -143,6 +144,7 @@ function mpRtcAttachChannel(link,channel){
   if(key==='control')mpRtcPing(link);
   else mpRtcProbe(link);
   if(key==='control'&&typeof mpRoundResync==='function')mpRoundResync(link.peer);
+  if(key==='control'&&typeof mpChatOnChannelOpen==='function')mpChatOnChannelOpen(link.peer);
   mpRtcPaint();
  };
  channel.onclose=()=>{if(mpRtcAlive(link)){link.status='disconnected';mpRtcPaint();}};

@@ -1,3 +1,215 @@
+# Stage129
+
+В `src/21j-multiplayer-traffic.js` — разделённые состояния фокуса и IME, `mpChatDismissKeyboard`, `mpChatViewportEvent`, `mpChatFollowKeyboard`. В `styles/55-multiplayer.css` — резерв справа для системной навигации Android и кнопка `⌄`. Разметка в `tools/index-template.html` и `dev.html`. Регрессия `tests/test_stage129_chat_keyboard_restore.py`. Протокол WebRTC 43 не изменён.
+
+# Stage128
+
+`tools/index-template.html` и `dev.html` включают `#mpChatScroll` вокруг сообщений и формы. `styles/55-multiplayer.css` задаёт единый мобильный scroll container. `src/21j-multiplayer-traffic.js`: `mpChatScrollBox`, сохранение позиции, настройка высоты под IME и отключение автопрокрутки во время жеста. `tests/test_stage128_shared_chat_scroll.py` проверяет настоящий touch. Отчёт `QUALITY_STAGE128_SHARED_CHAT_SCROLL_RU.md`.
+
+# Stage127
+
+Сенсорная прокрутка и сохранение истории: `src/21j-multiplayer-traffic.js`, `styles/55-multiplayer.css`, `tests/test_stage127_chat_touch_scroll.py`. Дополнительная информация: `QUALITY_STAGE127_CHAT_TOUCH_HISTORY_RU.md`.
+
+## Stage121 — актуальная версия (22.11.2026)
+
+Кампания, PvP и просмотр используют общие средства создания и обновления эффектов: частицы, затухание, отдача, вспышки, трассеры, физические следы ракет и взрывы, ЭМИ, ремонт, сфера, рывок, перегрев. Специфический эффект попадания в игрока и баланс PvP сохранены. Протокол 42; для полного визуального паритета обновите оба устройства. GitHub Pages: замените `index.html`, откройте `?v=121`. Отчёт: `QUALITY_STAGE121_SHARED_EFFECT_LIFECYCLE_RU.md`.
+
+## Stage120 — предыдущая версия (22.11.2026)
+
+Общие эффекты кампании и PvP: выстрелы, отдача, ЭМИ, рывок, сфера, ремонт, взрывы и следы попаданий hitscan. Обычный PvP и просмотр используют общий запуск арены, боевой цикл и характеристики PvP. Снимки состояния передают нагрев оружия и его готовность; протокол 42 сохранён, новые поля необязательны. GitHub Pages: замените `index.html`, откройте `?v=120`. Отчёт: `QUALITY_STAGE120_PVP_EFFECT_PARITY_RU.md`.
+
+## Stage119 — предыдущая версия (22.11.2026)
+
+Исправлен визуальный и звуковой ЭМИ в тренировке и сетевой игре: вместо обычного эффекта попадания используется тот же излучатель 45 голубых частиц, что в кампании. Урон, радиус, расход энергии и перезарядка не менялись. Протокол 42. Для GitHub Pages обновите `index.html` и откройте `?v=119`. Отчёт: `QUALITY_STAGE119_SHARED_EMI_EFFECT_RU.md`.
+
+## Stage118 — предыдущая версия (22.11.2026)
+
+«Посмотреть» в сетевом выборе каждой карты запускает настоящую локальную тренировку по правилам PvP без соперников и соединения. Все 10 орудий (или фиксированное из формы), нагрев, выстрелы, снаряды, взрывы, способности E/Q/C/F, энергия, полёт V/Space/Shift, урон себе и возрождение работают через штатный PvP-код. F5 / «ВИД» меняет камеру только в тренировке. Таймер повторяется без фиктивного победителя. Esc / «Назад» сохраняет параметры формы. Кампания и её сохранения не затрагиваются. Протокол 42 совместим с V115–V117. Для GitHub Pages обновите `index.html`, откройте `?v=118`. Отчёт: `QUALITY_STAGE118_PVP_PRACTICE_RU.md`.
+
+## Stage117 — предыдущая версия (22.11.2026)
+
+В сетевой игре → «Создать игру» → раскройте семейство → нажмите «Посмотреть» возле любой из 100 карт. Открывается пустая локальная арена с той же статической геометрией и физикой движения, что в PvP. Игрок может ходить, бегать, прыгать и летать без расхода энергии. ПК: WASD, мышь, V (полёт), Space/Shift (высота), Esc («Назад»). Телефон: джойстик, перетаскивание по экрану, прыжок, полёт и кнопки ↑/↓. Кнопка «Назад» сохраняет поля формы, выбранную карту, раскрытую группу и прокрутку. Не требуется соединение, бой и сохранение отключены. Протокол 42 совместим с V115/V116. Для GitHub Pages обновите `index.html` и откройте `?v=117`.
+
+`21b`: разметка и независимый выбор/просмотр карты; `21d`: `mpPreviewStart`, `mpPreviewEnd`, `mpPreviewUpdate`, `mpPreviewHud`; `27`: отдельная ветвь цикла; `00`, `20`: запрет сохранений; `26`, `22`: ввод/выход; `55-multiplayer.css`: адаптивные кнопки и HUD.
+
+## Stage116 — предыдущая версия (21.11.2026)
+
+В сетевом выборе 100 карт сгруппированы в 18 раскрываемых архитектурных семейств. Семейства 1–10 содержат по 6 карт, 11–18 — по 5. Одновременно открыта не более одной группы; выбор сохраняется после её сворачивания. Протокол 42 без изменений (совместим с V115). Для GitHub Pages замените `index.html` и откройте `?v=116`. Отчёт — `QUALITY_STAGE116_MAP_FAMILIES_RU.md`.
+
+## Stage115 — предыдущая версия (21.11.2026)
+
+100 карт с уникальными названиями доступны в кампании и PvP; полный список — `MAP_CATALOG_RU.md`. В одиночной игре Esc открывает паузу, повторное Esc выполняет кнопку «Меню»; для продолжения нажмите «Продолжить». В экранах с кнопками «Меню», «Назад» или «Выйти» Esc активирует соответствующую кнопку; в сетевой паузе — «Вернуться». Награда сохраняется. Сетевой протокол 42: все участники должны обновиться до V115. Для GitHub Pages замените `index.html`, после публикации откройте с `?v=115`. Исторические сведения ниже относятся к предыдущим сборкам.
+
+## Stage114 — предрелизный аудит
+
+- `03`: worldActorVerticalLimit / worldActorVerticalFloor, `18`, `21d`, `21g`: вертикальные контакты живых тел.
+- `13`: интервалы спавна. `00`, `12`, `20`, `22`: структура сохранения, безопасное восстановление оружия и меню.
+- `tests/stage114_audit_results.json`: итоговые статусы исторических скриптов.
+
+## Stage113 — физические контакты и маршруты
+
+- `03-height-and-collision.js`: `worldActorPairClear`, `worldActorAdvance`, `worldActorBlockers`; общие swept-проверки.
+- `13a-enemy-world-navigation.js`: реальный контакт живых соседей при локальном движении.
+- `15-mission-system.js`: `missionRouteLink`, `missionUpperExit`, `missionRouteTo`.
+- `19-gameplay-update.js`: единый физический маршрут и HUD; `21d`, `21g`: PvP и Dash.
+- `27-main-loop-diagnostics.js`: `dynamicGuidanceAudit`. Отчёт `QUALITY_STAGE113_PHYSICAL_CONTACT_AND_GUIDANCE_RU.md`.
+
+## Stage112 — непрерывные круговые контакты
+
+- `src/03-height-and-collision.js`: `worldCircleRectInterval`, `worldMotionProbes`, `worldActorSweepPlan`, общая проверка горизонтального сегмента в `tryMoveEntity`.
+- `src/13a-enemy-world-navigation.js`: `enemyPathClear`, `enemyFlatShortcutSafe`, точный кэш конечных координат; отдельный `playerNavProfile`, `playerNavState`, `playerNavTile`, `playerNavEdge`.
+- `src/15-mission-system.js`, `src/19-gameplay-update.js`: геометрия оператора для наземных миссий и маршрута к порталу.
+- `src/21d-multiplayer-movement.js`, `src/21g-multiplayer-flight-abilities.js`: общий swept-план для PvP и Dash.
+- `src/27-main-loop-diagnostics.js`: `continuousContactAudit`, физический профиль подсказок.
+- Геометрия карт, меши, реестр AABB и баллистика не изменены. Отчёт `QUALITY_STAGE112_CONTINUOUS_CIRCULAR_SWEEPS_RU.md`.
+
+## Stage111 — navPhysicalEdge и короткие спуски
+
+- `src/13a-enemy-world-navigation.js`: `navStandingFeet`, `navPhysicalEdge`, `groundStandardProfile`, ревизии кэша стандартных рёбер и `enemyDirectRevisionCache` (WeakMap, без сериализации геометрии в сохранениях).
+- `src/13-enemy-navigation-spawn.js`: общие интервалы контакта для верхних и chassis-aware наземных рёбер; повторное использование рёбер профиля между целями; сброс кэшей балконов/крыш/настилов по геометрии.
+- `src/03-height-and-collision.js`: `worldActorMovePlan` ищет реальную нижнюю опору в пределах допустимого шага; воздушный режим прежний; PvP пользуется общей функцией.
+- `src/15-mission-system.js`: кэши указателей миссий и эвакуации учитывают ревизии коллайдеров, режим рендера и настилы.
+- Не менялись генератор, меш, регистрация физической геометрии, баллистика, сетевой протокол. Отчёт `QUALITY_STAGE111_PHYSICAL_NAVIGATION_INTERVALS_RU.md`.
+
+## Stage110 — точные контакты со стальными препятствиями
+
+- `src/04a-static-world-solids.js`: регистрация закрытых низких AABB, явное исключение плоских верхних рисунков, допуск тела 0,004 м, согласованные круговые контакты, `worldSolidStepSupport`.
+- `src/03-height-and-collision.js`: легальный подъём стоящего персонажа и робота на реальный металл, без начального сдвига прыжка.
+- `src/21d-multiplayer-movement.js`: устранён такой же сдвиг прыжка в PvP; общий план движения наследует новый подъём.
+- `src/27-main-loop-diagnostics.js`: изолированный `lowMetalContactAudit`, уточнение старого диагностического порога.
+- Отчёт: `QUALITY_STAGE110_EXACT_LOW_METAL_CONTACTS_RU.md`.
+
+## Stage109 — полный круговой контакт с рельефом
+
+- `03-height-and-collision.js`: `worldTerrainFootprint`, `worldActorGround`, `worldActorMovePlan`; `tryMoveEntity`, `updateVertical`.
+- `04a-static-world-solids.js`: проверка сплошных колонок и точная толщина подвесных плит.
+- `13-enemy-navigation-spawn.js`, `13a-enemy-world-navigation.js`, `18-ai-and-abilities.js`: реальные габариты и опоры наземных и летающих роботов.
+- `21d-multiplayer-movement.js`, `21g-multiplayer-flight-abilities.js`: общий контакт PvP, полёта и рывка.
+- `27-main-loop-diagnostics.js`: `terrainEdgeAudit()`.
+- Отчёт: `QUALITY_STAGE109_FULL_BODY_TERRAIN_CONTACTS_RU.md`.
+
+---
+
+## Stage108 — проход с лестницы на мост
+
+- `src/04a-static-world-solids.js` → `worldDeckStepSupport`: настоящая окружность соприкасается с краем плиты до входа центра в клетку; подъём разрешён только в пределах 0,245 м.
+- `src/03-height-and-collision.js` → `tryMoveEntity`: игрок и наземные роботы могут подниматься и спускаться без застревания, сохраняя опору до выхода всего круглого тела.
+- `src/21d-multiplayer-movement.js`, `src/21g-multiplayer-flight-abilities.js` → PvP-движение и Dash; переменная `deckStep` исключает конфликт с шагом рывка.
+- `src/27-main-loop-diagnostics.js` → `bridgeStairTransitionAudit()` — реальный браузерный аудит без изменений прогресса.
+- `tests/test_stage108_bridge_stair_entry.cjs`, `test_stage108_real_bridge_transitions.cjs`, `browser_stage108_bridge_stair_transitions.py` — быстрые и реальные проверки.
+- Полный отчёт `QUALITY_STAGE108_BRIDGE_STAIR_TRANSITIONS_RU.md`.
+
+---
+
+## Stage106 — устранение видимой пустоты под сплошными лестницами
+
+- `src/05-world-mesh.js`: `drawSolidStairRisers` — все наружные боковины сплошных поднятых ступеней доходят до физического основания y=0.
+- `src/11-fallback-render.js`: `fallbackSolidRiserSpan`, DDA `nearRisers`, `stairOcclusion` — реальные ступени рисуются непрозрачными во время приближения камеры, центр спрайтов за ними скрывается.
+- `src/14-combat-raycast.js`: существующий `rayWall` уже имел физически сплошные `heightCells` и не менялся.
+- `src/27-main-loop-diagnostics.js`: `stairOpaqueAudit` — реальная проверка Canvas при временном подходе к лестнице, без сохранения изменений.
+- Тесты `test_stage106_opaque_stair_faces.cjs`, `test_stage106_real_stair_seals.cjs` (100 карт), `browser_stage106_stair_occlusion.py`, отчёт `QUALITY_STAGE106_SOLID_STAIR_OCCLUSION_RU.md`.
+
+---
+
+## Stage105 — вертикальный габарит роботов
+
+- `src/13a-enemy-world-navigation.js`: `ROBOT_MESH_TOP`, `enemyBodyHeight`, `enemyCanOccupy`, `enemyFlatShortcutSafe` — реальный рост корпуса и запрет прохода под низкой балкой на любом маршруте.
+- `src/03-height-and-collision.js`: `tryMoveEntity` — проверка всего объёма при микроперемещении на конечном уровне ног.
+- `src/04a-static-world-solids.js`: `worldDeckBodyCollision` и `worldSolidBodyCollision` — единая объёмная физика настоящих 0,17-м плит и оборудования Canvas/WebGL.
+- `src/13-enemy-navigation-spawn.js`: финальная высота до создания, в том числе элитных и боссов.
+- `src/11-fallback-render.js`: видимые `deckCells` и масштаб роботов, совпадающий с физическими габаритами.
+- `src/27-main-loop-diagnostics.js`: `robotHeadroomAudit` — браузерный read-only QA.
+- Новые тесты: `test_stage105_robot_headroom.cjs`, `test_stage105_render_mesh_bounds.cjs`, `test_stage105_real_low_decks.cjs`, `browser_stage105_robot_headroom.py`. Отчёт `QUALITY_STAGE105_TRUE_ROBOT_HEADROOM_RU.md`.
+
+---
+
+## Stage104 — физика обломков и тесты
+
+- `src/13-enemy-navigation-spawn.js`: `updateRobotDebris` — столкновения отрезка полёта частицы с **реальными трёхмерными AABB** через `sweepWorldSphere`, отскок/трение и остановка.
+- `src/14-combat-raycast.js`: существующий `sweepWorldSphere` используется без изменения кода баллистики.
+- `src/27-main-loop-diagnostics.js`: `__neonTest.debrisPhysicalContacts()` — браузерный контроль без записи в сохранения.
+- `tests/test_stage104_debris_world_collisions.cjs` (49), `tests/test_stage104_real_debris_physics.cjs` (100 карт), `tests/browser_stage104_debris_contacts.py` (4 конфигурации).
+- Отчёт: `QUALITY_STAGE104_PHYSICAL_ROBOT_DEBRIS_RU.md`.
+
+---
+
+## Stage103: наземные маршруты по настоящим 3D-корпусам
+
+- `src/13-enemy-navigation-spawn.js`: `groundChassisField`, `groundChassisEdge`, `enemyHeading`, `rebuildNavigation` — физически точная BFS для крупных наземных NPC и кэширование.
+- `src/13a-enemy-world-navigation.js`: `enemyNavTile`, `enemyNavEdge` — отслеживание добавленного металла и физических концов ребра.
+- `src/19-gameplay-update.js`: обновление navField при изменении worldSolidCount, оборудования, высот и игры.
+- `src/27-main-loop-diagnostics.js`: `groundChassisPhysics` — QA без изменения карты.
+- `tests/test_stage103_ground_chassis_routes.cjs`, `test_stage103_ground_nav_revisions.cjs`, `test_stage103_actual_ground_profiles.cjs`, `browser_stage103_ground_chassis.py`.
+- Отчёт: `QUALITY_STAGE103_PHYSICAL_GROUND_NAVIGATION_RU.md`.
+
+---
+
+## Stage102 — новые точки входа
+
+- `src/13-enemy-navigation-spawn.js`: `upperDeckProfile(e)`, `upperDeckEdgeClear`, `upperDeckField`, `upperDeckHeading` — размеры корпуса учитываются в высотной BFS-схеме.
+- `tests/test_stage102_chassis_upper_edges.cjs` — воспроизведение Stage101-багов в настоящем production JS.
+- `tests/test_stage102_real_chassis_routes.cjs` — аудит всех 100 карт, профилей и настоящих 3D-ребёр.
+- `tests/test_stage102_roof_motion_subset.cjs` — быстрый реальный подъём/спуск и перенаправление на выбранных крышах.
+- `tests/browser_stage102_upper_chassis.py` и `__neonTest.upperDeckChassis()` — автономный и модульный Chromium QA.
+
+## Stage101: файлы физики верхних маршрутов
+
+`src/03-height-and-collision.js` — предотвращение мгновенных падений NPC без гравитации; `src/13a-enemy-world-navigation.js` — проверка допустимого вертикального шага при локальном манёвре; `src/13-enemy-navigation-spawn.js` — физические рёбра и кэши верхних галерей; `src/27-main-loop-diagnostics.js` — `__neonTest.upperDeckPhysics` только для QA. Тесты `test_stage101_upper_physics.cjs`, `test_stage101_real_upper_routes.cjs`, `browser_stage101_upper_navigation.py`. Отчёт `QUALITY_STAGE101_PHYSICAL_UPPER_NAVIGATION_RU.md`.
+
+---
+
+## Stage100 — файлы физической защиты выхода и тонких кромок
+
+`src/19-gameplay-update.js` → `physicalPortalContact`, `update`, `updateHud`; `src/04a-static-world-solids.js` → `worldLootPickupClear`, `worldLootSpawn`; `src/27-main-loop-diagnostics.js` → `__neonTest.physicalExtractionAudit`, `physicalExtractionGameplay`; `src/00-core-save.js` → метка версии 100. Адресные тесты `tests/test_stage100_physical_portal_contact.cjs`, `tests/test_stage100_precision_loot_contact.cjs`, `tests/test_stage100_real_physical_extraction.cjs`, `tests/browser_stage100_physical_extraction.py`. Полный отчет `QUALITY_STAGE100_PHYSICAL_EXTRACTION_BOUNDARIES_RU.md`.
+
+---
+
+## Stage99 (новая основа исходников)
+
+`src/04a-static-world-solids.js` — `worldLootPickupClear`, `worldLootSpawn`, точная ширина динамического корпуса станции. `src/13-enemy-navigation-spawn.js` — выпавшие с роботов предметы. `src/16-mission-devices.js` — физические бонусы контейнеров. `src/18-ai-and-abilities.js` — сбор в боевом цикле. `src/10-first-person-render.js`, `src/11-fallback-render.js` — реальная высота бонуса. `src/27-main-loop-diagnostics.js` — физическая проба для браузерных тестов. Результаты и ограничения: `QUALITY_STAGE99_PHYSICAL_LOOT_EQUIPMENT_RU.md`.
+
+---
+
+**Stage98** — `src/15-mission-system.js` (missionType, startMission, missionRefreshCombinedProgress, updateMission, missionWaypoint), `src/16-mission-devices.js` (initDevices, completeDevice, damagePowerNode), `src/13-enemy-navigation-spawn.js` (forceElite, резерв слота командира), `src/20-minimap-and-checkpoint.js` (миграция старых recovery checkpoints), `src/27-main-loop-diagnostics.js` (stage98 QA), тесты `tests/test_stage98_signal_surge_operations.cjs`, `tests/test_stage98_actual_signal_surge.cjs`, `tests/browser_stage98_signal_surge.py`, отчет `QUALITY_STAGE98_SIGNAL_RESONANCE_MISSIONS_RU.md`.
+
+---
+
+**Stage97:** `src/15-mission-system.js` — два новых типа и фазы, `src/16-mission-devices.js` — связывание реальных coils/reactors с целями, `src/27-main-loop-diagnostics.js` — браузерные тестовые действия; `tests/test_stage97_*.cjs` и `tests/browser_stage97_two_phase_operations.py`. Подробности: `QUALITY_STAGE97_TWO_PHASE_PHYSICAL_OPERATIONS_RU.md`.
+
+## Stage95 · где искать исправления физического появления роботов
+
+- `src/13-enemy-navigation-spawn.js`: `enemySpawnSpaceClear`, `spawnEnemy` — проверка физических AABB и фактического габарита каждого типа врагов.
+- `src/24-cinematic-hooks.js`: `dcTargetPhysicallyVisible` — 3D-видимость для индикатора цели.
+- `src/27-main-loop-diagnostics.js`: `physicalSpawnAndTarget` — read-only контроль Canvas/WebGL без создания NPC.
+- `tests/test_stage95_spawn_hulls_and_intel.cjs`, `tests/test_stage95_actual_spawn_safety.cjs`, `tests/browser_stage95_physical_spawn_target.py`.
+
+## Stage94 · где искать физику укрытий и опасных зон
+
+- `src/15-mission-system.js`: `missionHazardRayClear`, `missionHazardPlayerExposure`, `missionCoilPulseExposure`, `updateMission`.
+- `src/16-mission-devices.js`: `updateDevices` (coil), `damagePowerNode` (реактор и цепная реакция).
+- `src/27-main-loop-diagnostics.js`: `physicalHazardCover` — read-only диагностика реальных карт.
+- `tests/test_stage94_physical_hazard_cover.cjs`, `tests/test_stage94_real_hazard_cover.cjs`, `tests/browser_stage94_physical_hazard_cover.py`.
+
+## Stage93: физический контакт и реальная миссионная близость
+
+- `src/15-mission-system.js`: `missionInteractionClear`, `missionApproachOpen`, `missionWaypointGroundField`, `missionWaypoint`, `missionField` — общий физический raycast/маршруты.
+- `src/16-mission-devices.js`: проверка 3D-видимости для зарядки устройств.
+- `tests/test_stage93_physical_interaction_and_targets.cjs`: синтетический реальный поручень и кратчайший наземный путь.
+- `tests/test_stage93_real_mission_interactions.cjs`: 100 поуровневых проверок реального доступа и контакта.
+- `tests/browser_stage93_physical_mission_contacts.py`: браузер ПК/телефон и обе сборки.
+
+## Stage92 — куда смотреть
+
+`src/15-mission-system.js` → `missionField`, `missionRouteTo` (кэш и физические рёбра миссии/портала); `src/19-gameplay-update.js` → `portalFlow`, `portalRoute`, `updateHud` (физический маршрут выхода); `src/27-main-loop-diagnostics.js` → `physicalGuidance` (read-only QA). Проверки: `tests/test_stage92_physical_extraction_guidance.cjs`, `tests/test_stage92_actual_physical_guidance.cjs`, `tests/browser_stage92_physical_guidance.py`.
+
+## Stage91 — физическая актуальность навигации
+
+`src/04a-static-world-solids.js` — стабильный индекс `worldEquipmentGrid`. `src/13a-enemy-world-navigation.js` — `enemyNavMaskDestroyed` для маски и рёбер. `src/13-enemy-navigation-spawn.js` — `navFieldDestroyed`, сброс полей входа к балконам/крышам. `src/19-gameplay-update.js` — досрочный вызов BFS после разрушения. Тесты: `tests/test_stage91_*`.
+
+## Обновление Stage90 (21.11.2026)
+
+**Версия 90, общая приблизительная готовность 93%.** Исправлены неверные прямые маршруты наземных роботов через реальные крутые уступы в Canvas fallback: проверка последовательно сравнивает высоты каждые ≤0.24 м и учитывает переходы между этажами. Пологие ступени (0.22 м) остаются доступными, геометрия, коллайдеры и места миссий не менялись. Подробности и непроверенные сценарии — `QUALITY_STAGE90_PHYSICAL_TERRAIN_SHORTCUTS_RU.md`.
+
 # Stage40 / MP-8 — длительный обрыв связи
 
 `src/21i-multiplayer-recovery.js` — три состояния получения снимков от ведущего, кнопка восстановления, безопасное отключение локального прогноза, ограниченная автоматическая попытка, точное возвращение к авторитетному состоянию. `src/21d-multiplayer-movement.js` — связь с циклом боя и HUD. `src/21c-multiplayer-webrtc.js` — ручной запрос нового P2P после исчерпания авто-попыток. `src/21g-multiplayer-flight-abilities.js` — запрет применения способностей при потере синхронизации. `styles/55-multiplayer.css` — доступная на телефонах кнопка. Проверка: `tests/test_stage40_mp8_recovery.cjs`.
@@ -438,3 +650,6 @@ Director’s Cut: визуальные эффекты и обёртки базо
 
 ---
 
+
+
+Stage89: физический прямой путь NPC и broadphase — `src/13a-enemy-world-navigation.js`, QA-инспектор — `src/27-main-loop-diagnostics.js`, тесты `tests/test_stage89_canvas_enemy_equipment_routes.cjs`, `tests/test_stage89_actual_npc_equipment_routes.cjs`, `tests/browser_stage89_canvas_robot_routes.py`; детали и ограничения в `QUALITY_STAGE89_PHYSICAL_ENEMY_DIRECT_ROUTES_RU.md`.

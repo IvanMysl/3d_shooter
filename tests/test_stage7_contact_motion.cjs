@@ -35,7 +35,8 @@ const stableX=p.x,stableZ=p.z;env.tryMoveEntity(p,NaN,1,.23);
 check(p.x===stableX&&p.z===stableZ,'invalid movement mutated player');
 // Enemies should still be able to walk up multiple regular 0.215m steps.
 const mob={x:2.5,z:6.5,feetY:0};
-env.floorHeightAtCell=(x,z)=>x>=3&&x<4?.215:x>=4&&x<5?.43:0;
+vm.runInContext("heightCells=new Float32Array(14*14);heightCells[6*14+3]=.215;heightCells[6*14+4]=.43",env);
+Object.assign(env,{worldDeckStandingSupport:()=>null,worldSolidStandingSupport:()=>null,worldDeckStepSupport:()=>null});
 env.tryMoveEntity(mob,2.0,0,.23);
 check(mob.x>4.25&&Math.abs(mob.feetY-.43)<1e-8,`enemy failed to climb normal stairs: ${JSON.stringify(mob)}`);
 // Embedded projectile, especially under the surface of a stair, must explode
@@ -54,7 +55,7 @@ check(hit&&hit.t>0&&hit.x===5,'outside direct shot should still hit the box face
 // Use the actual rayWall routine to protect energy and hitscan impacts too.
 const worldSource=ray.slice(ray.indexOf('function rayWall('),ray.indexOf('function rayEllipsoid('));
 Object.assign(geometry,{mapSize:14,mapCells:grid,glReady:false,
- ceilingHeight:()=>4.25,deckAtCell:()=>0,floorHeightAtCell:()=>.34});
+ ceilingHeight:()=>4.25,deckAtCell:()=>0,floorHeightAtCell:()=>.34,worldSolidRayCell:(o,d,l,t,x,z,best)=>best,worldEquipmentCell:()=>[]});
 vm.runInContext(worldSource,geometry);
 hit=geometry.rayWall({x:5.5,y:.32,z:5.5},{x:1,y:0,z:0},2);
 check(hit?.kind==='floor'||hit?.kind==='stairs','embedded ray not detected');

@@ -97,28 +97,28 @@ check(rockets[0].d.x<0&&rockets[0].d.y>0,
 
 // Execute the real authoritative MP fire and effect handlers with no sockets.
 const mpEvents=[];
-ctx.mpMatch={active:true,host:true,token:'stage45',tick:100,
+ctx.mpMatch={active:true,host:true,self:0,token:'stage45',tick:100,
  actors:new Map(),projectiles:[]};
 ctx.MP_VERSION=3;
 ctx.mpRtcFastSend=(peer,e)=>mpEvents.push(e);
 ctx.mpCombatHit=()=>{};
 ctx.rayEllipsoid=()=>null;
 ctx.game.tracers=[];ctx.game.impactFx=[];
+ctx.sound=()=>{};const fx=src('13-enemy-navigation-spawn.js');vm.runInContext(fx.slice(fx.indexOf('function emitWeaponSound(')),ctx);
 vm.runInContext(src('21e-multiplayer-combat.js'),ctx);
 const shooter={id:0,host:true,p:{...base,shots:1},peerId:'local'};
 const remote={id:1,host:false,p:{...base,x:24},peerId:'remote'};
 ctx.mpMatch.actors.set(0,shooter);ctx.mpMatch.actors.set(1,remote);
-ctx.mpCombatShot(shooter,weapons[0]);
+const mpPoint=ctx.operatorMuzzlePoint(shooter.p);ctx.mpCombatShot(shooter,weapons[0]);
 check(mpEvents.length===1&&mpEvents[0].id===0,'MP effect reuses existing shooter id field');
-const mpPoint=ctx.operatorMuzzlePoint(shooter.p);
 check(approx(mpEvents[0].a[0],mpPoint.x,.01)&&approx(mpEvents[0].a[1],mpPoint.y,.01),
  'network hitscan effect begins at barrel position');
 check(shooter.p.shotGlow>.1,'host muzzle flash activates from the existing MP event');
-shooter.p.weapon=7;ctx.mpCombatShot(shooter,weapons[7]);
+shooter.p.weapon=7;const ionMuzzle=ctx.operatorMuzzlePoint(shooter.p);ctx.mpCombatShot(shooter,weapons[7]);
 check(ctx.mpMatch.projectiles.length===1,'host spawns authoritative ion projectile');
 const ion=ctx.mpMatch.projectiles[0];
-check(approx(ion.pos.x,ctx.operatorMuzzlePoint(shooter.p).x)&&
- approx(ion.pos.y,ctx.operatorMuzzlePoint(shooter.p).y),
+check(approx(ion.pos.x,ionMuzzle.x)&&
+ approx(ion.pos.y,ionMuzzle.y),
  'MP projectile begins at barrel, not eye or throat');
 check(Object.keys(mpEvents[1]).sort().join(',')==='a,b,gun,id,kind,token,type,v',
  'unchanged event schema: no extra multiplayer traffic fields');

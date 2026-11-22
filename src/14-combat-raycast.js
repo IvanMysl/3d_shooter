@@ -200,7 +200,7 @@ function rayWall(o,d,maxDist){
    if(!best||h.t<best.t)best={...h,kind:ob.kind,cellX:cx,cellZ:cz,box:ob.box};
   }
   // The same broadphase grid is shared with the rendered box geometry.
-  if(inside&&glReady)best=worldSolidRayCell(o,d,segmentEnd,travelled,cx,cz,best);
+  if(inside)best=worldSolidRayCell(o,d,segmentEnd,travelled,cx,cz,best);
   if(best){
    const impact={...best,x:o.x+d.x*best.t,y:o.y+d.y*best.t,z:o.z+d.z*best.t};
    if(impact.t<=1e-8){
@@ -239,7 +239,7 @@ function sweepWorldSphere(o,d,maxDist,radius){
    const surface=embeddedSolidSurface(o,b);
    if(surface)Object.assign(hit,surface);
   }
-  best={...hit,kind,cellX:cx,cellZ:cz,solid};
+  best={...hit,kind,cellX:cx,cellZ:cz,box:b,solid,node:solid?.node||null};
  };
  for(let z=z0;z<=z1;z++)for(let x=x0;x<=x1;x++){
   const inside=x>=0&&z>=0&&x<mapSize&&z<mapSize;
@@ -251,11 +251,18 @@ function sweepWorldSphere(o,d,maxDist,radius){
    const deck=deckAtCell(x,z);
    if(deck>0)test([x,deck-.17,z,x+1,deck,z+1],'bridge',x,z);
    if(!glReady)test([x,ceilingHeight()+.10,z,x+1,ceilingHeight()+2,z+1],'ceiling',x,z);
-   else{
-    for(const solid of worldSolidGrid[z*mapSize+x]||[]){
-     if(seen.has(solid))continue;
-     seen.add(solid);test(solid.box,solid.kind,x,z,solid);
-    }
+  }
+  // V77: worldSolidBox also draws frames, roof braces and overhangs in
+  // otherwise SOLID wall cells. Hitscan already checks those volumes there.
+  // A swept rocket must do so as well, including parts ABOVE the map wall's
+  // ceiling (where the wall itself would not stop the projectile). A wall
+  // bucket is not permission to skip its registered 3D geometry.
+  if(inside){
+   for(const solid of [...(glReady?(worldSolidGrid[z*mapSize+x]||[]):[]),
+    ...worldEquipmentCell(x,z)]){
+    if(!worldEquipmentActive(solid))continue;
+    if(seen.has(solid))continue;
+    seen.add(solid);test(solid.box,solid.kind,x,z,solid);
    }
   }
  }

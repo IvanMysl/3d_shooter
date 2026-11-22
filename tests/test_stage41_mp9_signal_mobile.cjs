@@ -15,7 +15,7 @@ async function connected(server){
  enter(guest,state(host).code,'GUEST');await guest.run('mpJoinRoom()');
  await until(()=>host.run('[...mpRtcLinks.values()][0]?.fast?.readyState==="open"')&&
   guest.run('[...mpRtcLinks.values()][0]?.fast?.readyState==="open"'));
- await host.run('mpReady()');await guest.run('mpReady()');
+ 
  host.run('mpMatchStartTraining()');await until(()=>active(host)&&active(guest));
  return {host,guest};
 }
@@ -29,7 +29,7 @@ async function main(){
   'up/down retain individual touch targets, with no overlap with fly toggle');
  check(css.includes('max-height:340px')&&css.includes('min-height:36px'),
   'extremely short landscape displays have dedicated compact control layout');
- check(/GAME_BUILD='(?:4[1-9]|[5-9][0-9])'/.test(fs.readFileSync(path.join(__dirname,'../src/00-core-save.js'),'utf8')),
+ check(Number(fs.readFileSync(path.join(__dirname,'../src/00-core-save.js'),'utf8').match(/GAME_BUILD='(\d+)'/)?.[1])>=41,
   'user-visible version is incremented without changing save schema');
 
  const server=new FakeMetered();const {host,guest}=await connected(server);

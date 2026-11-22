@@ -91,7 +91,13 @@ assert.equal(context.rayWall(v(5.5,2.85,6.0),v(0,0,1),3),null);
 const mesh=read('05-world-mesh.js');
 // Stage 12 deliberately converts three walkable stair accent call sites to
 // visual-only box(): these ~1 cm tread trims must not block the operator.
-assert.equal((mesh.match(/worldSolidBox\(v,/g)||[]).length,173);
+// Stage50 adds genuine side-rail primitives. Stage54 adds a single shared
+// terrace-cover primitive; Stage55 adds a reusable roofed-room primitive;
+// Stage58 adds one for roof battlements; Stage59 adds the physical passage gate.
+// V61 adds new genuinely solid landmark towers/cranes and boss vaults. Keep
+// the historical minimum, but allow further physical architecture to grow.
+assert.ok((mesh.match(/worldSolidBox\(v,/g)||[]).length>=197,
+ 'a structural rendering/collision call site silently disappeared');
 assert.ok(mesh.includes('box(v,x+.12,stepY+.003'));
 assert.ok(mesh.includes('box(v,x+.86,stepY+.003'));
 assert.ok(mesh.includes('registerWorldSolid(x,roofH+.09,z'));

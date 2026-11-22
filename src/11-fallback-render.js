@@ -202,6 +202,14 @@ function drawFallbackRobot(ctx,e,size,t){
   ctx.restore();
 }
 
+// Project the exact front face of an entered SOLID height-map step.
+// Both endpoints are measured at the same DDA boundary (never at a
+// farther tile centre), matching the physics in rayWall() and WebGL risers.
+function fallbackSolidRiserSpan(top,d,eyeY,horizon,focal){
+ const distance=Math.max(.055,d);
+ return {top:horizon-(top-eyeY)*focal/distance,
+  bottom:horizon+eyeY*focal/distance};
+}
 function renderFallback(){if(!fallCtx||!game)return;
 // Fast ray-cast renderer for browsers where GPU WebGL is unavailable.
 const g=game,actor=g.p,pose=externalCameraEnabled()?operatorCameraPose(actor):null;
@@ -285,18 +293,30 @@ for(let sy=floorStart;sy<h;sy+=stepY){
   }
  }
 }
-let zbuffer=[],strip=Math.max(2,Math.floor(w/(save.settings.quality===0?260:360)));
+let zbuffer=[],stairOcclusion=[],strip=Math.max(2,Math.floor(w/(save.settings.quality===0?260:360)));
+// The wall raycaster alone does not draw rising terrain: record each actual
+// DDA boundary where the next solid height-map tile is higher. Store pixel
+// spans for sprite occlusion too, so actors behind a close stair riser are
+// not painted through an opaque wall in Canvas mode.
+const hiddenByRiser=(screenX,screenY,forward)=>{
+ const hits=stairOcclusion[clamp(screenX|0,0,w-1)];
+ return !!hits?.some(hit=>forward>hit.d+.04&&screenY>=hit.top&&screenY<=hit.bottom);
+};
 for(let sx=0;sx<w;sx+=strip){
  const angle=p.yaw-Math.atan((sx+strip/2-w/2)/focal),dx=Math.sin(angle),dz=Math.cos(angle);
  const mx0=Math.floor(p.x),mz0=Math.floor(p.z);let ix=mx0,iz=mz0;
  let deltaX=Math.abs(1/(dx||1e-8)),deltaZ=Math.abs(1/(dz||1e-8));
  let stepGX=dx<0?-1:1,stepGZ=dz<0?-1:1;
  let sdx=(dx<0?p.x-mx0:mx0+1-p.x)*deltaX,sdz=(dz<0?p.z-mz0:mz0+1-p.z)*deltaZ;
- let hitSide=0,d=0;
+ let hitSide=0,d=0,previousRise=floorHeightAtCell(mx0,mz0);
+ const nearRisers=[];
  for(let i=0;i<Math.ceil(mapSize*1.5);i++){
   if(sdx<sdz){ix+=stepGX;d=sdx;sdx+=deltaX;hitSide=1}
   else{iz+=stepGZ;d=sdz;sdz+=deltaZ;hitSide=0}
   if(isWall(ix+.01,iz+.01))break;
+  const raised=floorHeightAtCell(ix,iz);
+  if(raised>previousRise+.01&&d>1e-5)nearRisers.push({d,top:raised});
+  previousRise=raised;
  }
  d=Math.max(.09,d*Math.cos(angle-p.yaw));for(let j=sx;j<Math.min(w,sx+strip);j++)zbuffer[j]=d;
  let wallBottom=horizon+eyeHeight*focal/d, wallTop=horizon-(ceilingHeight()-eyeHeight)*focal/d;
@@ -360,6 +380,24 @@ for(let sx=0;sx<w;sx+=strip){
   C.fillStyle='rgba(6,12,27,.63)';C.fillRect(sx,y1,strip+1,Math.max(1,(wallBottom-wallTop)*.085));
   if((ix+iz)%14===0){C.fillStyle=`rgba(${glowR},${glowG},${glowB},.3)`;C.fillRect(sx,y1,strip+1,Math.max(1,2*focal/(d*460)));}
  }
+ // Paint far-to-near, with every stair face running to the SOLID foundation.
+ // There is no hole to see beneath the rising terrain when standing flush
+ // against its riser, unlike the old flat floor texture projection.
+ const riserSpans=[];
+ for(let k=nearRisers.length-1;k>=0;k--){
+  const hit=nearRisers[k],distance=hit.d*Math.cos(angle-p.yaw);
+  const span=fallbackSolidRiserSpan(hit.top,distance,eyeHeight,horizon,focal);
+  const visibleTop=Math.max(0,span.top),visibleBottom=Math.min(h,span.bottom);
+  if(visibleBottom<=visibleTop)continue;
+  const shade=clamp(.83-distance/53,.38,.79),tone=Math.round(57*shade);
+  C.fillStyle=`rgb(${tone},${Math.round(tone*1.28)},${Math.round(tone*1.46)})`;
+  C.fillRect(sx,visibleTop,strip+1,visibleBottom-visibleTop);
+  C.fillStyle=`rgba(${glowR},${glowG},${glowB},.35)`;
+  if(span.top>=0&&span.top<h)C.fillRect(sx,span.top,strip+1,
+   Math.min(h-span.top,Math.max(1,2*focal/(Math.max(.08,distance)*140))));
+  riserSpans.push({d:distance,top:span.top,bottom:span.bottom});
+ }
+ for(let j=sx;j<Math.min(w,sx+strip);j++)stairOcclusion[j]=riserSpans;
 }
 // Marks are painted in screen-space over the actual raycast wall column.
 // Depth checks prevent floating or appearing through a nearer wall.
@@ -373,28 +411,25 @@ function proj(p3){
 }
 // Low-cost perspective representation of the suspended catwalk in the
 // software renderer. Ground passage remains visible underneath it.
-if(bridgeSpecs.length){
- const c=Math.floor(mapSize/2), half=sectorStyle===15?7:5,polys=[];
- const above=(p.feetY||0)>BRIDGE_Y-.28;
- for(let zz=c-half;zz<=c+half;zz++)for(let xx=c-3;xx<=c+3;xx++){
-  if(deckAtCell(xx,zz)<=0||hypot(xx+.5-p.x,zz+.5-p.z)>22)continue;
-  const level=above?BRIDGE_Y+.01:BRIDGE_Y-.17;
-  const pts=[proj({x:xx,y:level,z:zz}),proj({x:xx+1,y:level,z:zz}),proj({x:xx+1,y:level,z:zz+1}),proj({x:xx,y:level,z:zz+1})];
+// Stage105: draw ALL actual suspended deck plates in software Canvas,
+// not only the central overpass and sky-maintenance platforms. Their exact
+// deckCells height is already used by physics, rockets and enemy headroom.
+// A visible balcony/roof may not become an invisible collision barrier when
+// switching from GPU WebGL to the fallback renderer. Bound work to nearby
+// cells; no per-frame mesh generation or external image assets.
+if(deckCells?.length){
+ const c=Math.floor(mapSize/2),half=sectorStyle===15?7:5,polys=[];
+ const px=Math.floor(p.x),pz=Math.floor(p.z),range=22;
+ for(let zz=Math.max(1,pz-range);zz<Math.min(mapSize-1,pz+range+1);zz++)
+ for(let xx=Math.max(1,px-range);xx<Math.min(mapSize-1,px+range+1);xx++){
+  const deckY=deckAtCell(xx,zz);if(!(deckY>0))continue;
+  const dist=hypot(xx+.5-p.x,zz+.5-p.z);if(dist>22)continue;
+  const above=(p.feetY||0)>deckY-.28;
+  const altitude=deckY+(above?.01:-.17);
+  const pts=[proj({x:xx,y:altitude,z:zz}),proj({x:xx+1,y:altitude,z:zz}),
+   proj({x:xx+1,y:altitude,z:zz+1}),proj({x:xx,y:altitude,z:zz+1})];
   if(pts.some(q=>!q))continue;
-  const dist=hypot(xx+.5-p.x,zz+.5-p.z);
   polys.push({dist,pts,x:xx,z:zz,above});
- }
- // Higher maintenance platforms use the same filled perspective polygons;
- // they must not be invisible just because WebGL is unavailable.
- for(const sky of skyDeckSpecs)for(let dz=-1;dz<=1;dz++)for(let dx=-1;dx<=1;dx++){
-  const xx=Math.floor(sky.x)+dx,zz=Math.floor(sky.z)+dz;
-  if(deckAtCell(xx,zz)<sky.y-.01)continue;
-  const dist=hypot(xx+.5-p.x,zz+.5-p.z);if(dist>26)continue;
-  const aboveSky=(p.feetY||0)>=sky.y-.28;
-  const altitude=sky.y+(aboveSky?.01:-.17);
-  const pts=[proj({x:xx,y:altitude,z:zz}),proj({x:xx+1,y:altitude,z:zz}),proj({x:xx+1,y:altitude,z:zz+1}),proj({x:xx,y:altitude,z:zz+1})];
-  if(pts.some(q=>!q))continue;
-  polys.push({dist,pts,x:xx,z:zz,above:aboveSky});
  }
  polys.sort((a,b)=>b.dist-a.dist);
  for(const tile of polys){
@@ -406,7 +441,7 @@ if(bridgeSpecs.length){
   for(let j=1;j<4;j++)C.lineTo(q[j].x,q[j].y);
   C.closePath();C.fill();C.stroke();
  }
- if(above){
+ if(bridgeSpecs.length&&(p.feetY||0)>BRIDGE_Y-.28){
   for(const side of [-1,1])for(let iz=c-half;iz<=c+half;iz+=2){
    const z=iz+.5, x=c+(side<0?-3:4);
    const a=proj({x,y:BRIDGE_Y,z}),b=proj({x,y:BRIDGE_Y+.65,z});
@@ -417,7 +452,7 @@ if(bridgeSpecs.length){
 for(const d of (g.decals||[])){
  const q=proj(d);if(!q)continue;
  const wallDist=zbuffer[clamp(q.x|0,0,w-1)]||Infinity;
- if(q.d>wallDist+.16)continue;
+ if(q.d>wallDist+.16||hiddenByRiser(q.x,q.y,q.d))continue;
  const r=Math.max(1,Math.min(28,d.r*focal/q.d)),alpha=clamp(d.life/Math.min(5,d.maxLife),0,1);
  C.save();C.globalAlpha=alpha*.95;C.translate(q.x,q.y);
  C.rotate(d.rot);C.fillStyle=d.energy?'#4b2a1e':'#080c10';
@@ -482,13 +517,24 @@ for(const e of g.enemies)if(!e.dead&&e.boss&&e.ultWarn>0){
  C.beginPath();C.ellipse(q.x,q.y,r,Math.max(4,r*.30),0,0,TAU);C.stroke();
  C.setLineDash([8,7]);C.beginPath();C.ellipse(q.x,q.y,r*.62,Math.max(3,r*.19),0,0,TAU);C.stroke();C.restore();
 }
-const items=[];for(const sh of (g.robotDebris||[]))if(sh.life>.1)items.push({type:'robotShard',obj:sh,x:sh.x,z:sh.z,y:sh.y,size:sh.size*1.6,dy:0});for(const f of mapFeatures)items.push({type:'beacon',obj:f,x:f.x,z:f.z,y:f.kind===3?3.6:2.9,size:f.kind===3?1.15:.68,dy:0});for(const e of g.enemies){if(!e.dead)items.push({type:'enemy',obj:e,x:e.x,z:e.z,y:1.18+(Number.isFinite(e.feetY)?e.feetY:floorHeight(e.x,e.z)),size:e.radius*2.5,dy:0})}
-for(const c of (g.mission?.caches||[]))if(!c.got)items.push({type:'archive',obj:c,x:c.x,z:c.z,y:.80+floorHeight(c.x,c.z),size:.9,dy:0});for(const d of (g.devices||[]))items.push({type:'device',obj:d,x:d.x,z:d.z,y:.91+floorHeight(d.x,d.z),size:1.05,dy:0});for(const n of g.nodes)if(!n.dead)items.push({type:'node',obj:n,x:n.x,z:n.z,y:1.3+floorHeight(n.x,n.z),size:1.75,dy:0});for(const b of g.bullets)items.push({type:'bullet',obj:b,x:b.x,z:b.z,y:b.y,size:b.radius*2,dy:0});for(const l of g.loot)items.push({type:'loot',obj:l,x:l.x,z:l.z,y:.5+floorHeight(l.x,l.z)+Math.sin(g.t*5+l.x)*.15,size:.55,dy:0});if(g.portalReady)items.push({type:'portal',obj:portal,x:portal.x,z:portal.z,y:1.45+floorHeight(portal.x,portal.z),size:2.6,dy:0});
+const items=[];for(const sh of (g.robotDebris||[]))if(sh.life>.1)items.push({type:'robotShard',obj:sh,x:sh.x,z:sh.z,y:sh.y,size:sh.size*1.6,dy:0});for(const f of mapFeatures)items.push({type:'beacon',obj:f,x:f.x,z:f.z,y:f.kind===3?3.6:2.9,size:f.kind===3?1.15:.68,dy:0});for(const e of g.enemies){if(!e.dead){
+ // The software silhouette of a huge boss must be visibly as tall as its
+ // actual body collider. A 4.6m boss drawn as a 2.6m icon looked as if it
+ // should fit under beams that correctly blocked its full 3D counterpart.
+ const standing=!e.airborne&&e.type!=='scout'&&e.type!=='charger',
+  height=standing?enemyBodyHeight(e):0,
+  feet=Number.isFinite(e.feetY)?e.feetY:floorHeight(e.x,e.z);
+ items.push({type:'enemy',obj:e,x:e.x,z:e.z,
+  y:feet+(standing?height*.47:1.18),
+  size:standing?height/1.58:e.radius*2.5,dy:0});
+}}
+for(const c of (g.mission?.caches||[]))items.push({type:'archive',obj:c,x:c.x,z:c.z,y:.80+floorHeight(c.x,c.z),size:.9,dy:0});for(const d of (g.devices||[]))items.push({type:'device',obj:d,x:d.x,z:d.z,y:.91+floorHeight(d.x,d.z),size:1.05,dy:0});for(const n of g.nodes)if(!n.dead)items.push({type:'node',obj:n,x:n.x,z:n.z,y:1.3+floorHeight(n.x,n.z),size:1.75,dy:0});for(const b of g.bullets)items.push({type:'bullet',obj:b,x:b.x,z:b.z,y:b.y,size:b.radius*2,dy:0});for(const l of g.loot)items.push({type:'loot',obj:l,x:l.x,z:l.z,y:.5+(Number.isFinite(l.feetY)?l.feetY:floorHeight(l.x,l.z))+Math.sin(g.t*5+l.x)*.15,size:.55,dy:0});if(g.portalReady)items.push({type:'portal',obj:portal,x:portal.x,z:portal.z,y:1.45+floorHeight(portal.x,portal.z),size:2.6,dy:0});
 for(const a of g.particles)items.push({type:'particle',obj:a,x:a.x,z:a.z,y:a.y,size:.1,dy:0});
  if(pose?.drawActor)items.push({type:'operator',obj:actor,x:actor.x,z:actor.z,y:1.01+(actor.feetY||0),size:1.72,dy:0});
  if(typeof mpMatchActors==='function')for(const peer of mpMatchActors())items.push({type:'operator',obj:peer,x:peer.x,z:peer.z,y:1.01+(peer.feetY||0),size:1.72,dy:0});
 items.sort((a,b)=>hypot(b.x-p.x,b.z-p.z)-hypot(a.x-p.x,a.z-p.z));
 for(const item of items){const dx=item.x-p.x,dz=item.z-p.z,forward=dx*Math.sin(p.yaw)+dz*Math.cos(p.yaw),right=-dx*Math.cos(p.yaw)+dz*Math.sin(p.yaw);if(forward<=.13)continue;let x=w/2+right/forward*focal;if(x< -w*.4||x>w*1.4)continue;const spriteW=item.size*focal/forward,cx=Math.round(x),depth=zbuffer[clamp(cx|0,0,w-1)]||100;if(forward>depth+.17)continue;const y=horizon-(item.y-eyeHeight)*focal/forward,sz=clamp(spriteW,2,w*4),ob=item.obj;
+if(hiddenByRiser(cx,y,forward))continue;
 C.save();C.translate(x,y);let shadow='rgba(30,244,255,.7)',core='#88ffff';if(item.type==='beacon'){
  C.rotate(g.t*.42+ob.phase);C.shadowColor=`rgba(${glowR},${glowG},${glowB},.8)`;
  C.shadowBlur=Math.min(28,sz*.45);C.strokeStyle=`rgba(${glowR},${glowG},${glowB},.8)`;
@@ -496,13 +542,20 @@ C.save();C.translate(x,y);let shadow='rgba(30,244,255,.7)',core='#88ffff';if(ite
  C.rotate(-g.t*1.1);C.strokeRect(-sz*.22,-sz*.22,sz*.44,sz*.44);
  C.fillStyle='#d6feff';C.fillRect(-sz*.045,-sz*.045,sz*.09,sz*.09);
  }else if(item.type==='device'){
-   const color=deviceColor(ob),rgb=color.map(v=>Math.round(v*255)).join(','),alpha=ob.used?.24:1;
+   const locked=ob.kind==='relay'&&!missionItemActive(g,ob,'relay');
+   const color=locked?[.35,.41,.44]:deviceColor(ob),rgb=color.map(v=>Math.round(v*255)).join(','),alpha=ob.used?.24:locked?.5:1;
    C.globalAlpha=alpha;C.shadowColor=`rgb(${rgb})`;C.shadowBlur=ob.used?1:18;
    C.fillStyle='#1b2c38';C.strokeStyle=`rgb(${rgb})`;C.lineWidth=Math.max(1,sz*.055);
    C.fillRect(-sz*.30,-sz*.42,sz*.60,sz*.84);C.strokeRect(-sz*.30,-sz*.42,sz*.60,sz*.84);
    C.fillStyle=`rgb(${rgb})`;C.fillRect(-sz*.12,-sz*.12,sz*.24,sz*.24);
    if(ob.kind==='coil'&&!ob.used){C.strokeStyle=ob.active?'#ff482c':'#e9a742';C.beginPath();C.arc(0,0,sz*.53,0,TAU);C.stroke();}
-  }else if(item.type==='archive'){C.rotate(g.t*.75);C.shadowColor='#60eeff';C.shadowBlur=18;C.strokeStyle='#81efff';C.lineWidth=Math.max(2,sz*.06);C.strokeRect(-sz*.34,-sz*.34,sz*.68,sz*.68);C.rotate(-g.t*1.4);C.fillStyle='#d6ffff';C.fillRect(-sz*.13,-sz*.13,sz*.26,sz*.26);}else if(item.type==='node'){const ty=NODE_TYPES[ob.type],color=ty.color,Cc=`rgb(${color.map(x=>Math.round(x*255)).join(',')})`;C.rotate(g.t*.53+ob.phase);C.shadowColor=Cc;C.shadowBlur=Math.min(45,sz*.35);C.strokeStyle=Cc;C.lineWidth=Math.max(2,sz*.065);C.strokeRect(-sz*.33,-sz*.33,sz*.66,sz*.66);C.rotate(g.t*.65);C.beginPath();C.arc(0,0,sz*.25,0,TAU);C.stroke();C.fillStyle=ob.flash>0?'white':Cc;C.fillRect(-sz*.11,-sz*.11,sz*.22,sz*.22); }else if(item.type==='robotShard'){
+  }else if(item.type==='archive'){
+   const active=!ob.got&&missionItemActive(g,ob,'recovery');
+   // Solid steel foundation still exists after the floating archive is taken.
+   C.shadowBlur=0;C.fillStyle='#344a58';C.fillRect(-sz*.345,sz*.50,sz*.69,sz*.28);
+   C.fillStyle=ob.got?'#274547':'#467584';C.fillRect(-sz*.205,sz*.47,sz*.41,sz*.045);
+   if(!ob.got){C.globalAlpha=active?1:.48;C.rotate(g.t*.75);C.shadowColor=active?'#60eeff':'#687f8a';C.shadowBlur=active?18:0;C.strokeStyle=active?'#81efff':'#8c9ca2';C.lineWidth=Math.max(2,sz*.06);C.strokeRect(-sz*.34,-sz*.34,sz*.68,sz*.68);C.rotate(-g.t*1.4);C.fillStyle=active?'#d6ffff':'#75848f';C.fillRect(-sz*.13,-sz*.13,sz*.26,sz*.26);}
+  }else if(item.type==='node'){const ty=NODE_TYPES[ob.type],color=ty.color,Cc=`rgb(${color.map(x=>Math.round(x*255)).join(',')})`;C.rotate(g.t*.53+ob.phase);C.shadowColor=Cc;C.shadowBlur=Math.min(45,sz*.35);C.strokeStyle=Cc;C.lineWidth=Math.max(2,sz*.065);C.strokeRect(-sz*.33,-sz*.33,sz*.66,sz*.66);C.rotate(g.t*.65);C.beginPath();C.arc(0,0,sz*.25,0,TAU);C.stroke();C.fillStyle=ob.flash>0?'white':Cc;C.fillRect(-sz*.11,-sz*.11,sz*.22,sz*.22); }else if(item.type==='robotShard'){
  C.rotate(ob.rx);C.globalAlpha=clamp(ob.life/.5,0,1);C.fillStyle=`rgb(${ob.color.map(v=>Math.round(clamp(v,0,1)*255)).join(',')})`;
  C.strokeStyle='#27323c';C.lineWidth=Math.max(1,sz*.11);
  C.beginPath();C.moveTo(0,-sz*.5);C.lineTo(sz*.5,sz*.32);C.lineTo(-sz*.42,sz*.36);C.closePath();C.fill();C.stroke();

@@ -37,7 +37,8 @@ const player={hp:0,maxhp:1200,bodyArmor:0,bodyArmorMax:600,armor:0,maxArmor:300,
  energy:500,maxEnergy:500,shield:0,shieldDuration:3.5,abilityCooldowns:{},x:1,z:1,feetY:0};
 const powers={Math,Number,clamp,save:{perms:Array(12).fill(0)},game:{state:'playing',p:player},
  toast(){},burst(){},sound(){},input:{mx:0,mz:0}};
-vm.createContext(powers);vm.runInContext(stats,powers);vm.runInContext(abilitySrc,powers);
+vm.createContext(powers);vm.runInContext(stats,powers);{const fx=fs.readFileSync(path.join(__dirname,'../src/13-enemy-navigation-spawn.js'),'utf8');vm.runInContext(fx.slice(fx.indexOf('function emitWeaponSound(')),powers);}
+vm.runInContext(abilitySrc,powers);
 yes(powers.useAbility('heal')==='hp','F must first repair hull');
 near(player.hp,49,'base F hull repair');near(player.energy,450,'base hull energy cost');
 player.hp=0;player.energy=100;powers.save.perms[8]=40;
@@ -131,21 +132,22 @@ yes(sections.get('perm-repair').open&&sections.get('perm-energy').open&&elements
  'purchase must preserve all open categories and scroll position');
 yes(focusedUpgrade===8,'keyboard focus must return to purchased improvement');
 
-// The actual Escape handler should leave the hangar; existing pause behavior
-// and other menu screens must remain unchanged.
-const input=src('26-input-handlers.js'),escapeStart=input.indexOf("addEventListener('keydown',e=>{if(e.code!=='Escape'");
+// Stage115: use the real screen action, including the hangar Back button.
+const input=src('26-input-handlers.js'),escapeStart=input.indexOf('function handleEscape(');
 yes(escapeStart>=0,'Escape handler missing');
-const escapePart=input.slice(escapeStart,input.indexOf(";glCanvas.addEventListener('mousedown'",escapeStart)+1);
-const listeners={},keyCtx={game:null,document:shop.document,$:shop.$,
- addEventListener:(event,fn)=>{listeners[event]=fn},pause:()=>{keyCtx.game.state='paused'},
- unpauseGame:()=>{keyCtx.game.state='playing'}};
+const escapePart=input.slice(escapeStart,input.indexOf("glCanvas.addEventListener('mousedown'",escapeStart));
+const listeners={};let visible=true,action={click(){menuVisits++;action=null;}};
+const keyCtx={game:null,arsenalOpened:false,document:shop.document,
+ $:id=>id==='overlay'?{classList:{contains:()=>!visible}}:id==='panel'?{querySelector:()=>action}:null,
+ addEventListener:(event,fn)=>{listeners[event]=fn},pause:()=>{keyCtx.game.state='paused';visible=true;}};
 vm.createContext(keyCtx);vm.runInContext(escapePart,keyCtx);
 const press=()=>{let prevented=0;listeners.keydown({code:'Escape',repeat:false,preventDefault:()=>prevented++});return prevented};
 yes(press()===1&&menuVisits===1,'Esc in hangar must click its Back button');
 yes(press()===0&&menuVisits===1,'Esc in main menu must not navigate again');
-keyCtx.game={state:'playing'};
-yes(press()===1&&keyCtx.game.state==='paused','Esc must still pause gameplay');
-yes(press()===1&&keyCtx.game.state==='playing','Esc must still unpause gameplay');
+keyCtx.game={state:'playing'};visible=false;
+yes(press()===1&&keyCtx.game.state==='paused','Esc must pause gameplay');
+action={click(){keyCtx.game=null;menuVisits++;}};
+yes(press()===1&&keyCtx.game===null&&menuVisits===2,'Esc must activate menu from pause');
 
 // Checkpoint saved with eight ranks, then a fresh Stage28 shield purchase.
 const checkpoint=src('20-minimap-and-checkpoint.js');

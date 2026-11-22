@@ -77,8 +77,10 @@ check(lowFps.feetY>.45,`long step lost elevation at y=${lowFps.feetY}`);
 initialize(0,0);
 vm.runInContext(`heightCells.fill(0);
  heightCells[10*mapSize+11]=.215; heightCells[11*mapSize+11]=.43;`,context);
-const corner=player(10.97,10.97);
-context.moveEntity(corner,.08,.08,.23);
+// Start without intersection with either riser (the old 10.97,10.97
+// pose already penetrated the .43m column with the circular body).
+const corner=player(10.65,10.65);
+context.moveEntity(corner,.45,.45,.23);
 context.updateVertical(corner,.016);
 check(corner.x>11&&corner.z>11,`diagonal step corner snagged ${corner.x},${corner.z}`);
 check(Math.abs(corner.feetY-.43)<.0001,'diagonal stair corner did not climb both risers');

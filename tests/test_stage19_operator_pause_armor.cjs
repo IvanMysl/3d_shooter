@@ -94,27 +94,26 @@ check(weakened.hp<protectedPlayer.hp&&weakened.hp>unprotected.hp,
 check(css.includes('#bars.suitHit')&&css.includes('#bodyArmorFill{'),
  'physical armor feedback lacks distinctive meter/impact styling');
 
-// Real Escape handler toggles paused state; button and Escape use the same
-// unpause path, and OS-repeat does not instantly re-pause the game.
-const elems={overlay:{classList:{classes:new Set(),add(v){this.classes.add(v)}}},
+// Stage115: Esc activates the visible Menu button instead of resuming pause.
+const elems={overlay:{classList:{classes:new Set(['hidden']),add(v){this.classes.add(v)},contains(v){return this.classes.has(v)},remove(v){this.classes.delete(v)}}},
  hud:{classList:{classes:new Set(),add(v){this.classes.add(v)}}}};
-const handlers={};
-const ui={Math,Number,console,game:{state:'playing'},lastFrame:0,
+const handlers={};let menus=0;
+const ui={Math,Number,console,game:{state:'playing'},lastFrame:0,arsenalOpened:false,
  performance:{now:()=>1234},document:{getElementById:id=>elems[id]},
  $:id=>elems[id],addEventListener:(name,fn)=>{handlers[name]=fn},
- pause:()=>{ui.game.state='paused'}};
+ pause:()=>{ui.game.state='paused';elems.overlay.classList.remove('hidden')}};
+elems.panel={querySelector:()=>({click(){menus++;ui.game=null;}})};
 vm.createContext(ui);
 const menu=read('22-menus-and-upgrades.js');
 vm.runInContext(menu.slice(menu.indexOf('let pauseResumeGraceUntil='),menu.indexOf('function menu()')),ui);
 const inputs=read('26-input-handlers.js');
-const match=inputs.match(/addEventListener\('keydown',e=>\{if\(e\.code!=='Escape'[\s\S]*?\}\}\);glCanvas\.addEventListener/);
-check(!!match,'Escape handler missing from registered input handlers');
-vm.runInContext(match[0].replace(/;glCanvas\.addEventListener$/,''),ui);
+const start=inputs.indexOf('function handleEscape('),end=inputs.indexOf("glCanvas.addEventListener('mousedown'",start);
+check(start>=0&&end>start,'Escape handler missing');vm.runInContext(inputs.slice(start,end),ui);
 const press=(repeat=false)=>handlers.keydown({code:'Escape',repeat,preventDefault:()=>{}});
 press();check(ui.game.state==='paused','Escape does not pause game');
-press(true);check(ui.game.state==='paused','held Escape immediately unpaused game');
-press();check(ui.game.state==='playing','Escape does not resume from pause');
-check(elems.overlay.classList.classes.has('hidden')&&elems.hud.classList.classes.has('show'),
- 'Escape resumed logic left pause overlay visible');
-check(vm.runInContext('pauseResumeGraceUntil===1584',ui),'pointer-lock transition still races Escape resume');
+press(true);check(ui.game.state==='paused'&&menus===0,'held Escape triggered action');
+press();check(ui.game===null&&menus===1,'Escape must activate menu from pause');
+ui.game={state:'paused'};ui.unpauseGame();check(ui.game.state==='playing','Continue must resume');
+check(elems.overlay.classList.classes.has('hidden')&&elems.hud.classList.classes.has('show'),'Continue overlay not hidden');
+check(vm.runInContext('pauseResumeGraceUntil===1584',ui),'pointer-lock resume grace');
 console.log(`STAGE19: ${checks} head, 10 weapons, suit flight, defense and pause checks passed`);

@@ -1,0 +1,618 @@
+{
+  "build": 114,
+  "notes": "Final regression during Stage114 development; not all scripts rerun after save-only changes. Stage83 and Stage113 real guidance run in four groups covering 100 levels.",
+  "node_tests": [
+    {
+      "file": "test_area_damage.cjs",
+      "status": "PASS"
+    },
+    {
+      "file": "test_combat_physics.cjs",
+      "status": "PASS"
+    },
+    {
+      "file": "test_robot_hit_geometry.cjs",
+      "status": "PASS"
+    },
+    {
+      "file": "test_stage100_physical_portal_contact.cjs",
+      "status": "PASS"
+    },
+    {
+      "file": "test_stage100_precision_loot_contact.cjs",
+      "status": "PASS"
+    },
+    {
+      "file": "test_stage100_real_physical_extraction.cjs",
+      "status": "NOT_COMPLETED_IN_FINAL_AUDIT"
+    },
+    {
+      "file": "test_stage101_real_upper_routes.cjs",
+      "status": "NOT_COMPLETED_IN_FINAL_AUDIT"
+    },
+    {
+      "file": "test_stage101_upper_physics.cjs",
+      "status": "PASS"
+    },
+    {
+      "file": "test_stage102_chassis_upper_edges.cjs",
+      "status": "PASS"
+    },
+    {
+      "file": "test_stage102_real_chassis_routes.cjs",
+      "status": "NOT_COMPLETED_IN_FINAL_AUDIT"
+    },
+    {
+      "file": "test_stage102_roof_motion_subset.cjs",
+      "status": "NOT_COMPLETED_IN_FINAL_AUDIT"
+    },
+    {
+      "file": "test_stage103_actual_ground_profiles.cjs",
+      "status": "NOT_COMPLETED_IN_FINAL_AUDIT"
+    },
+    {
+      "file": "test_stage103_ground_chassis_routes.cjs",
+      "status": "PASS"
+    },
+    {
+      "file": "test_stage103_ground_nav_revisions.cjs",
+      "status": "PASS"
+    },
+    {
+      "file": "test_stage104_debris_world_collisions.cjs",
+      "status": "NOT_COMPLETED_IN_FINAL_AUDIT"
+    },
+    {
+      "file": "test_stage104_real_debris_physics.cjs",
+      "status": "NOT_COMPLETED_IN_FINAL_AUDIT"
+    },
+    {
+      "file": "test_stage105_real_low_decks.cjs",
+      "status": "NOT_COMPLETED_IN_FINAL_AUDIT"
+    },
+    {
+      "file": "test_stage105_render_mesh_bounds.cjs",
+      "status": "PASS"
+    },
+    {
+      "file": "test_stage105_robot_headroom.cjs",
+      "status": "PASS"
+    },
+    {
+      "file": "test_stage106_opaque_stair_faces.cjs",
+      "status": "PASS"
+    },
+    {
+      "file": "test_stage106_real_stair_seals.cjs",
+      "status": "NOT_COMPLETED_IN_FINAL_AUDIT"
+    },
+    {
+      "file": "test_stage107_deck_edge_vertical.cjs",
+      "status": "PASS"
+    },
+    {
+      "file": "test_stage107_real_bridge_edges.cjs",
+      "status": "NOT_COMPLETED_IN_FINAL_AUDIT"
+    },
+    {
+      "file": "test_stage108_bridge_stair_entry.cjs",
+      "status": "PASS"
+    },
+    {
+      "file": "test_stage108_real_bridge_transitions.cjs",
+      "status": "NOT_COMPLETED_IN_FINAL_AUDIT"
+    },
+    {
+      "file": "test_stage109_real_terrain_edges.cjs",
+      "status": "NOT_COMPLETED_IN_FINAL_AUDIT"
+    },
+    {
+      "file": "test_stage109_terrain_body.cjs",
+      "status": "PASS"
+    },
+    {
+      "file": "test_stage10_enemy_crowds.cjs",
+      "status": "PASS"
+    },
+    {
+      "file": "test_stage110_low_metal_contacts.cjs",
+      "status": "PASS"
+    },
+    {
+      "file": "test_stage110_real_metal_contacts.cjs",
+      "status": "NOT_COMPLETED_IN_FINAL_AUDIT"
+    },
+    {
+      "file": "test_stage111_physical_navigation_intervals.cjs",
+      "status": "PASS"
+    },
+    {
+      "file": "test_stage111_real_navigation_intervals.cjs",
+      "status": "NOT_COMPLETED_IN_FINAL_AUDIT"
+    },
+    {
+      "file": "test_stage112_continuous_contacts.cjs",
+      "status": "PASS"
+    },
+    {
+      "file": "test_stage112_real_continuous_contacts.cjs",
+      "status": "NOT_COMPLETED_IN_FINAL_AUDIT"
+    },
+    {
+      "file": "test_stage113_dynamic_contacts_guidance.cjs",
+      "status": "PASS"
+    },
+    {
+      "file": "test_stage113_real_guidance.cjs",
+      "status": "PASS"
+    },
+    {
+      "file": "test_stage114_vertical_actors.cjs",
+      "status": "PASS"
+    },
+    {
+      "file": "test_stage11_spawn_safety.cjs",
+      "status": "PASS"
+    },
+    {
+      "file": "test_stage12_stair_access.cjs",
+      "status": "PASS"
+    },
+    {
+      "file": "test_stage13_controls_upgrades.cjs",
+      "status": "PASS"
+    },
+    {
+      "file": "test_stage14_developer_flight.cjs",
+      "status": "PASS"
+    },
+    {
+      "file": "test_stage15_flying_robots.cjs",
+      "status": "PASS"
+    },
+    {
+      "file": "test_stage16_smooth_models.cjs",
+      "status": "PASS"
+    },
+    {
+      "file": "test_stage17_visual_effects.cjs",
+      "status": "PASS"
+    },
+    {
+      "file": "test_stage18_dash_distance.cjs",
+      "status": "PASS"
+    },
+    {
+      "file": "test_stage19_operator_pause_armor.cjs",
+      "status": "PASS"
+    },
+    {
+      "file": "test_stage20_keybindings_flight.cjs",
+      "status": "PASS"
+    },
+    {
+      "file": "test_stage21_support_balance.cjs",
+      "status": "PASS"
+    },
+    {
+      "file": "test_stage22_economy_balance.cjs",
+      "status": "PASS"
+    },
+    {
+      "file": "test_stage23_deep_balance.cjs",
+      "status": "PASS"
+    },
+    {
+      "file": "test_stage24_end_to_end_balance.cjs",
+      "status": "PASS"
+    },
+    {
+      "file": "test_stage25_mobile_controls.cjs",
+      "status": "PASS"
+    },
+    {
+      "file": "test_stage25_priority_flight_idle.cjs",
+      "status": "PASS"
+    },
+    {
+      "file": "test_stage26_emp_barrier_keymap.cjs",
+      "status": "PASS"
+    },
+    {
+      "file": "test_stage27_growth_save_migration.cjs",
+      "status": "PASS"
+    },
+    {
+      "file": "test_stage28_repair_shield_hangar.cjs",
+      "status": "PASS"
+    },
+    {
+      "file": "test_stage29_hangar_categories.cjs",
+      "status": "PASS"
+    },
+    {
+      "file": "test_stage30_mobile_pause_settings.cjs",
+      "status": "PASS"
+    },
+    {
+      "file": "test_stage31_pending_reward_navigation.cjs",
+      "status": "PASS"
+    },
+    {
+      "file": "test_stage32_update_save_guard.cjs",
+      "status": "PASS"
+    },
+    {
+      "file": "test_stage33_mp1_lobby.cjs",
+      "status": "PASS"
+    },
+    {
+      "file": "test_stage34_mp2_peer.cjs",
+      "status": "PASS"
+    },
+    {
+      "file": "test_stage35_mp3_movement.cjs",
+      "status": "PASS"
+    },
+    {
+      "file": "test_stage36_mp4_combat.cjs",
+      "status": "PASS"
+    },
+    {
+      "file": "test_stage37_mp5_rounds.cjs",
+      "status": "PASS"
+    },
+    {
+      "file": "test_stage38_mp6_abilities.cjs",
+      "status": "PASS"
+    },
+    {
+      "file": "test_stage39_mp7_smoothing.cjs",
+      "status": "PASS"
+    },
+    {
+      "file": "test_stage40_mp8_recovery.cjs",
+      "status": "PASS"
+    },
+    {
+      "file": "test_stage41_mp9_signal_mobile.cjs",
+      "status": "PASS"
+    },
+    {
+      "file": "test_stage42_metered_config.cjs",
+      "status": "PASS"
+    },
+    {
+      "file": "test_stage43_mp10_traffic_repair.cjs",
+      "status": "PASS"
+    },
+    {
+      "file": "test_stage44_atomic_repair_barrier.cjs",
+      "status": "PASS"
+    },
+    {
+      "file": "test_stage45_muzzle_fx.cjs",
+      "status": "PASS"
+    },
+    {
+      "file": "test_stage46_fps_muzzle_mobile.cjs",
+      "status": "PASS"
+    },
+    {
+      "file": "test_stage47_pvp_hit_fx.cjs",
+      "status": "PASS"
+    },
+    {
+      "file": "test_stage48_all_modes_hit_reaction.cjs",
+      "status": "PASS"
+    },
+    {
+      "file": "test_stage49_mobile_flight_arsenal.cjs",
+      "status": "PASS"
+    },
+    {
+      "file": "test_stage50_balcony_worlds.cjs",
+      "status": "NOT_COMPLETED_IN_FINAL_AUDIT"
+    },
+    {
+      "file": "test_stage51_connected_galleries.cjs",
+      "status": "NOT_COMPLETED_IN_FINAL_AUDIT"
+    },
+    {
+      "file": "test_stage52_shaped_upper_arenas.cjs",
+      "status": "NOT_COMPLETED_IN_FINAL_AUDIT"
+    },
+    {
+      "file": "test_stage53_alternative_stairs.cjs",
+      "status": "NOT_COMPLETED_IN_FINAL_AUDIT"
+    },
+    {
+      "file": "test_stage54_physical_midlevel_terraces.cjs",
+      "status": "NOT_COMPLETED_IN_FINAL_AUDIT"
+    },
+    {
+      "file": "test_stage55_roofed_guardhouses.cjs",
+      "status": "NOT_COMPLETED_IN_FINAL_AUDIT"
+    },
+    {
+      "file": "test_stage56_walkable_roof_escapes.cjs",
+      "status": "NOT_COMPLETED_IN_FINAL_AUDIT"
+    },
+    {
+      "file": "test_stage57_autonomous_roof_navigation.cjs",
+      "status": "NOT_COMPLETED_IN_FINAL_AUDIT"
+    },
+    {
+      "file": "test_stage58_physical_roof_battlements.cjs",
+      "status": "NOT_COMPLETED_IN_FINAL_AUDIT"
+    },
+    {
+      "file": "test_stage59_physical_passage_gates.cjs",
+      "status": "PASS"
+    },
+    {
+      "file": "test_stage60_full_world_physics_audit.cjs",
+      "status": "NOT_COMPLETED_IN_FINAL_AUDIT"
+    },
+    {
+      "file": "test_stage61_distinct_landmarks_boss_scale.cjs",
+      "status": "NOT_COMPLETED_IN_FINAL_AUDIT"
+    },
+    {
+      "file": "test_stage62_six_unique_walking_worlds.cjs",
+      "status": "NOT_COMPLETED_IN_FINAL_AUDIT"
+    },
+    {
+      "file": "test_stage63_four_distinct_industrial_arena_routes.cjs",
+      "status": "NOT_COMPLETED_IN_FINAL_AUDIT"
+    },
+    {
+      "file": "test_stage64_physical_balcony_identities.cjs",
+      "status": "NOT_COMPLETED_IN_FINAL_AUDIT"
+    },
+    {
+      "file": "test_stage65_eight_tactical_ground_routes.cjs",
+      "status": "NOT_COMPLETED_IN_FINAL_AUDIT"
+    },
+    {
+      "file": "test_stage66_elevated_tactical_routes.cjs",
+      "status": "NOT_COMPLETED_IN_FINAL_AUDIT"
+    },
+    {
+      "file": "test_stage67_monumental_boss_flight_arena.cjs",
+      "status": "NOT_COMPLETED_IN_FINAL_AUDIT"
+    },
+    {
+      "file": "test_stage68_eighty_secondary_combat_yards.cjs",
+      "status": "NOT_COMPLETED_IN_FINAL_AUDIT"
+    },
+    {
+      "file": "test_stage69_twenty_boss_ground_approaches.cjs",
+      "status": "NOT_COMPLETED_IN_FINAL_AUDIT"
+    },
+    {
+      "file": "test_stage6_precision.cjs",
+      "status": "PASS"
+    },
+    {
+      "file": "test_stage70_eighty_physical_canopy_silhouettes.cjs",
+      "status": "NOT_COMPLETED_IN_FINAL_AUDIT"
+    },
+    {
+      "file": "test_stage71_medium_quality_physical_siege.cjs",
+      "status": "NOT_COMPLETED_IN_FINAL_AUDIT"
+    },
+    {
+      "file": "test_stage71_twenty_physical_boss_siege_forts.cjs",
+      "status": "NOT_COMPLETED_IN_FINAL_AUDIT"
+    },
+    {
+      "file": "test_stage72_eighty_real_defensive_gatehouses.cjs",
+      "status": "NOT_COMPLETED_IN_FINAL_AUDIT"
+    },
+    {
+      "file": "test_stage73_one_hundred_physical_sentinels.cjs",
+      "status": "NOT_COMPLETED_IN_FINAL_AUDIT"
+    },
+    {
+      "file": "test_stage74_one_hundred_real_ground_bastions.cjs",
+      "status": "NOT_COMPLETED_IN_FINAL_AUDIT"
+    },
+    {
+      "file": "test_stage75_one_hundred_real_wall_suspended_gantries.cjs",
+      "status": "NOT_COMPLETED_IN_FINAL_AUDIT"
+    },
+    {
+      "file": "test_stage76_one_hundred_real_armoured_firing_ports.cjs",
+      "status": "NOT_COMPLETED_IN_FINAL_AUDIT"
+    },
+    {
+      "file": "test_stage77_wall_cell_sphere_collisions.cjs",
+      "status": "PASS"
+    },
+    {
+      "file": "test_stage77_world_sweep_regression.cjs",
+      "status": "NOT_COMPLETED_IN_FINAL_AUDIT"
+    },
+    {
+      "file": "test_stage78_multiplayer_projectile_volumes.cjs",
+      "status": "PASS"
+    },
+    {
+      "file": "test_stage79_true_circular_wall_collision.cjs",
+      "status": "PASS"
+    },
+    {
+      "file": "test_stage7_contact_motion.cjs",
+      "status": "PASS"
+    },
+    {
+      "file": "test_stage80_physical_boss_courts.cjs",
+      "status": "NOT_COMPLETED_IN_FINAL_AUDIT"
+    },
+    {
+      "file": "test_stage81_physical_ordinary_courts.cjs",
+      "status": "NOT_COMPLETED_IN_FINAL_AUDIT"
+    },
+    {
+      "file": "test_stage82_physical_relay_forts.cjs",
+      "status": "NOT_COMPLETED_IN_FINAL_AUDIT"
+    },
+    {
+      "file": "test_stage83_baseline_preservation.cjs",
+      "status": "PASS"
+    },
+    {
+      "file": "test_stage83_extraction_courts.cjs",
+      "status": "NOT_COMPLETED_IN_FINAL_AUDIT"
+    },
+    {
+      "file": "test_stage84_mission_geography.cjs",
+      "status": "NOT_COMPLETED_IN_FINAL_AUDIT"
+    },
+    {
+      "file": "test_stage85_mission_operations.cjs",
+      "status": "NOT_COMPLETED_IN_FINAL_AUDIT"
+    },
+    {
+      "file": "test_stage86_equipment_physics.cjs",
+      "status": "NOT_COMPLETED_IN_FINAL_AUDIT"
+    },
+    {
+      "file": "test_stage87_physical_archive_plinths.cjs",
+      "status": "TIMEOUT"
+    },
+    {
+      "file": "test_stage88_canvas_vertical_equipment.cjs",
+      "status": "PASS"
+    },
+    {
+      "file": "test_stage88_world_equipment_vertical.cjs",
+      "status": "NOT_COMPLETED_IN_FINAL_AUDIT"
+    },
+    {
+      "file": "test_stage89_actual_npc_equipment_routes.cjs",
+      "status": "NOT_COMPLETED_IN_FINAL_AUDIT"
+    },
+    {
+      "file": "test_stage89_canvas_enemy_equipment_routes.cjs",
+      "status": "PASS"
+    },
+    {
+      "file": "test_stage8_enemy_cover.cjs",
+      "status": "PASS"
+    },
+    {
+      "file": "test_stage90_actual_terrain_routes.cjs",
+      "status": "NOT_COMPLETED_IN_FINAL_AUDIT"
+    },
+    {
+      "file": "test_stage90_canvas_steep_shortcut.cjs",
+      "status": "PASS"
+    },
+    {
+      "file": "test_stage91_actual_reactor_nav_refresh.cjs",
+      "status": "NOT_COMPLETED_IN_FINAL_AUDIT"
+    },
+    {
+      "file": "test_stage91_reactor_navigation_refresh.cjs",
+      "status": "PASS"
+    },
+    {
+      "file": "test_stage92_actual_physical_guidance.cjs",
+      "status": "NOT_COMPLETED_IN_FINAL_AUDIT"
+    },
+    {
+      "file": "test_stage92_physical_extraction_guidance.cjs",
+      "status": "PASS"
+    },
+    {
+      "file": "test_stage93_physical_interaction_and_targets.cjs",
+      "status": "PASS"
+    },
+    {
+      "file": "test_stage93_real_mission_interactions.cjs",
+      "status": "NOT_COMPLETED_IN_FINAL_AUDIT"
+    },
+    {
+      "file": "test_stage94_physical_hazard_cover.cjs",
+      "status": "PASS"
+    },
+    {
+      "file": "test_stage94_real_hazard_cover.cjs",
+      "status": "NOT_COMPLETED_IN_FINAL_AUDIT"
+    },
+    {
+      "file": "test_stage95_actual_spawn_safety.cjs",
+      "status": "NOT_COMPLETED_IN_FINAL_AUDIT"
+    },
+    {
+      "file": "test_stage95_spawn_hulls_and_intel.cjs",
+      "status": "PASS"
+    },
+    {
+      "file": "test_stage96_actual_checkpoint_hulls.cjs",
+      "status": "NOT_COMPLETED_IN_FINAL_AUDIT"
+    },
+    {
+      "file": "test_stage96_checkpoint_actor_recovery.cjs",
+      "status": "PASS"
+    },
+    {
+      "file": "test_stage97_actual_two_phase_missions.cjs",
+      "status": "NOT_COMPLETED_IN_FINAL_AUDIT"
+    },
+    {
+      "file": "test_stage97_two_phase_operations.cjs",
+      "status": "PASS"
+    },
+    {
+      "file": "test_stage98_actual_signal_surge.cjs",
+      "status": "NOT_COMPLETED_IN_FINAL_AUDIT"
+    },
+    {
+      "file": "test_stage98_signal_surge_operations.cjs",
+      "status": "PASS"
+    },
+    {
+      "file": "test_stage99_actual_loot_world.cjs",
+      "status": "NOT_COMPLETED_IN_FINAL_AUDIT"
+    },
+    {
+      "file": "test_stage99_loot_world_physics.cjs",
+      "status": "NOT_COMPLETED_IN_FINAL_AUDIT"
+    },
+    {
+      "file": "test_stage9_enemy_navigation.cjs",
+      "status": "PASS"
+    },
+    {
+      "file": "test_stage9_world_navigation.cjs",
+      "status": "NOT_COMPLETED_IN_FINAL_AUDIT"
+    },
+    {
+      "file": "test_third_person.cjs",
+      "status": "PASS"
+    },
+    {
+      "file": "test_world_scenes.cjs",
+      "status": "NOT_COMPLETED_IN_FINAL_AUDIT"
+    },
+    {
+      "file": "test_world_solids.cjs",
+      "status": "NOT_COMPLETED_IN_FINAL_AUDIT"
+    }
+  ],
+  "browser": {
+    "smoke": 4,
+    "stage112": 4,
+    "stage113": 4,
+    "stage114_save_recovery_mock": 4
+  },
+  "limitations": [
+    "No hardware WebGL",
+    "Native file:// navigation blocked in managed browser",
+    "No two physical devices PvP",
+    "No manual completion of 100 missions"
+  ]
+}
